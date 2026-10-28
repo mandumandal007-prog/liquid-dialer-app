@@ -83,12 +83,13 @@ object CallNotifier {
             }
             b.setContentText(text)
             if (st == Call.STATE_ACTIVE && connect > 0) b.setWhen(connect).setUsesChronometer(true).setShowWhen(true)
-            b.setStyle(NotificationCompat.CallStyle.forOngoingCall(person, receiverPi(ctx, CallActionReceiver.HANGUP, 3)))
+            // CallStyle needs a foreground service or fullScreenIntent on Android 12+, so the ongoing card uses plain actions.
+            b.addAction(0, "Call kaato", receiverPi(ctx, CallActionReceiver.HANGUP, 3))
             val muted = CallManager.audio.value?.isMuted == true
             b.addAction(0, if (muted) "Unmute" else "Mute", receiverPi(ctx, CallActionReceiver.MUTE, 4))
             b.addAction(0, if (CallManager.isSpeaker()) "Speaker off" else "Speaker", receiverPi(ctx, CallActionReceiver.SPEAKER, 5))
         }
-        try { nm.notify(ID_CALL, b.build()) } catch (e: SecurityException) { }
+        try { nm.notify(ID_CALL, b.build()) } catch (e: Exception) { }
     }
 
     fun missed(ctx: Context, number: String, name: String) {
@@ -107,7 +108,7 @@ object CallNotifier {
             .setColor(0xFFFF5D6C.toInt())
             .apply { if (number.isNotBlank()) { addAction(0, "Call back", callBack); addAction(0, "Message", sms) } }
             .build()
-        try { NotificationManagerCompat.from(ctx).notify(ID_MISSED, n) } catch (e: SecurityException) { }
+        try { NotificationManagerCompat.from(ctx).notify(ID_MISSED, n) } catch (e: Exception) { }
     }
 
     fun cancelAll(ctx: Context) { NotificationManagerCompat.from(ctx).cancel(ID_CALL) }

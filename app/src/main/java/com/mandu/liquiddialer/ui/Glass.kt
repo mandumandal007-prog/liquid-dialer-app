@@ -61,9 +61,7 @@ fun BlobBackground(modifier: Modifier = Modifier, strong: Boolean = false) {
                     .size(size)
                     .graphicsLayer { val s = 1f + 0.12f * t * m; scaleX = s; scaleY = s; this.alpha = alpha }
                     .then(if (Build.VERSION.SDK_INT >= 31) Modifier.blur(blurDp, BlurredEdgeTreatment.Unbounded) else Modifier)
-                    .background(Brush.radialGradient(listOf(color, Color.Transparent), center = Offset.Unspecified, radius = Float.POSITIVE_INFINITY).let {
-                        Brush.radialGradient(0f to color, 0.66f to Color.Transparent)
-                    }, CircleShape)
+                    .background(Brush.radialGradient(0f to color, 0.66f to Color.Transparent), CircleShape)
             )
         }
         val w = cfg.screenWidthDp.dp; val h = cfg.screenHeightDp.dp

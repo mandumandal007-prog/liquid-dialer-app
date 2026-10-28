@@ -55,7 +55,8 @@ class LdInCallService : InCallService() {
         if (st == Call.STATE_RINGING) {
             wasRinging += call
             val number = CallManager.number(call)
-            val known = CallManager.isKnown(this, call)
+            val canReadContacts = checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            val known = !canReadContacts || CallManager.isKnown(this, call)
             if ((s.blockPrivate && number.isBlank()) || (s.blockUnknown && number.isNotBlank() && !known)) {
                 call.reject(false, null); return
             }
