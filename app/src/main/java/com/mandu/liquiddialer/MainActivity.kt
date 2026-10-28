@@ -1,0 +1,211 @@
+package com.mandu.liquiddialer
+
+import android.Manifest
+import android.app.role.RoleManager
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.database.ContentObserver
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.CallLog
+import android.provider.ContactsContract
+import android.provider.Settings
+import android.telecom.PhoneAccountHandle
+import android.telecom.TelecomManager
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.mandu.liquiddialer.data.*
+import com.mandu.liquiddialer.telecom.CallManager
+import com.mandu.liquiddialer.ui.LdThemeHost
+import com.mandu.liquiddialer.ui.MainScreen
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class AppState {
+    var tab by mutableStateOf("recents")
+    var contacts by mutableStateOf<List<Contact>>(emptyList())
+    var recents by mutableStateOf<List<Recent>>(emptyList())
+    var blocked by mutableStateOf<List<String>>(emptyList())
+    var sims by mutableStateOf<List<SimInfo>>(emptyList())
+    var isDefault by mutableStateOf(true)
+    var dial by mutableStateOf("")
+    var pendingCall by mutableStateOf<String?>(null)   // number waiting for SIM choice
+    var permsTick by mutableIntStateOf(0)
+    var showOnboarding by mutableStateOf(false)
+}
+
+val RUNTIME_PERMS: List<Pair<String, String>> = buildList {
+    add(Manifest.permission.CALL_PHONE to "Call lagane ke liye")
+    add(Manifest.permission.READ_PHONE_STATE to "SIM aur call ki halat jaanne ke liye")
+    add(Manifest.permission.READ_PHONE_NUMBERS to "Apna number aur SIM pehchanne ke liye")
+    add(Manifest.permission.READ_CALL_LOG to "Recents (call history) dikhane ke liye")
+    add(Manifest.permission.WRITE_CALL_LOG to "Call history delete/clear karne ke liye")
+    add(Manifest.permission.READ_CONTACTS to "Contacts dikhane aur search ke liye")
+    add(Manifest.permission.WRITE_CONTACTS to "Contact add/edit/delete aur favourite ke liye")
+    add(Manifest.permission.ANSWER_PHONE_CALLS to "Call uthane/kaatne ke liye")
+    add(Manifest.permission.SEND_SMS to "Call kaat ke SMS bhejne ke liye")
+    add(Manifest.permission.RECORD_AUDIO to "Call recording ke liye")
+    if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS to "Incoming/missed call notification ke liye")
+    if (Build.VERSION.SDK_INT >= 31) add(Manifest.permission.BLUETOOTH_CONNECT to "Bluetooth headset pe call sunne ke liye")
+}
+
+class MainActivity : ComponentActivity() {
+    val state = AppState()
+    private val handler = Handler(Looper.getMainLooper())
+    private var pendingIntentAfterPerms: Intent? = null
+
+    private val roleLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        refreshDefault()
+        askPermissions()
+    }
+    private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        state.permsTick++
+        reload()
+    }
+
+    private val observer = object : ContentObserver(handler) {
+        override fun onChange(selfChange: Boolean) { reload() }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent { LdThemeHost { MainScreen(state, this) } }
+        lifecycleScope.launch {
+            val s = (application as LdApp).repo.flow.first()
+            if (!s.onboarded) state.showOnboarding = true
+        }
+        handleIntent(intent)
+        try {
+            contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, observer)
+            contentResolver.registerContentObserver(ContactsContract.Contacts.CONTENT_URI, true, observer)
+        } catch (_: Exception) { }
+    }
+
+    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handleIntent(intent) }
+
+    override fun onResume() {
+        super.onResume()
+        refreshDefault()
+        state.permsTick++
+        reload()
+        Repo.markMissedRead(this)
+    }
+
+    override fun onDestroy() { try { contentResolver.unregisterContentObserver(observer) } catch (_: Exception) { }; super.onDestroy() }
+
+    fun has(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
+
+    fun refreshDefault() {
+        state.isDefault = try { getSystemService(TelecomManager::class.java).defaultDialerPackage == packageName } catch (_: Exception) { false }
+    }
+
+    fun requestDefault() {
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val rm = getSystemService(RoleManager::class.java)
+                if (rm.isRoleAvailable(RoleManager.ROLE_DIALER) && !rm.isRoleHeld(RoleManager.ROLE_DIALER)) {
+                    roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER)); return
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                roleLauncher.launch(Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, packageName)); return
+            }
+        } catch (_: Exception) { }
+        openDefaultAppsSettings()
+        askPermissions()
+    }
+
+    fun requestScreeningRole() {
+        if (Build.VERSION.SDK_INT >= 29) try {
+            val rm = getSystemService(RoleManager::class.java)
+            if (rm.isRoleAvailable(RoleManager.ROLE_CALL_SCREENING) && !rm.isRoleHeld(RoleManager.ROLE_CALL_SCREENING))
+                roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
+        } catch (_: Exception) { }
+    }
+
+    fun openDefaultAppsSettings() {
+        try { startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)) } catch (_: Exception) { openAppSettings() }
+    }
+
+    fun askPermissions() {
+        val missing = RUNTIME_PERMS.map { it.first }.filter { !has(it) }
+        if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
+    }
+    fun askPermission(p: String) { permLauncher.launch(arrayOf(p)) }
+
+    fun openAppSettings() {
+        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+    }
+
+    fun finishOnboarding() {
+        state.showOnboarding = false
+        lifecycleScope.launch { (application as LdApp).repo.set(K.onboarded, true) }
+    }
+
+    fun reload() {
+        lifecycleScope.launch {
+            val s = LdApp.settings.value
+            val (c, r, b, sims) = withContext(Dispatchers.IO) {
+                listOf(
+                    if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList<Contact>(),
+                    if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity) else emptyList<Recent>(),
+                    if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList<String>(),
+                    if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList<SimInfo>(),
+                )
+            }
+            @Suppress("UNCHECKED_CAST")
+            run {
+                state.contacts = c as List<Contact>; state.recents = r as List<Recent>
+                state.blocked = b as List<String>; state.sims = sims as List<SimInfo>
+            }
+        }
+    }
+
+    private fun handleIntent(i: Intent?) {
+        i ?: return
+        i.getStringExtra("tab")?.let { state.tab = it }
+        val number = i.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: i.getStringExtra("number")
+        when (i.action) {
+            Intent.ACTION_DIAL, Intent.ACTION_VIEW -> if (number != null) { state.dial = number; state.tab = "dialer" } else if (i.action == Intent.ACTION_DIAL) state.tab = "dialer"
+            Intent.ACTION_CALL, "com.mandu.liquiddialer.CALLBACK" -> if (number != null) call(number)
+            Intent.ACTION_CALL_BUTTON -> state.tab = "recents"
+        }
+    }
+
+    /** Place a real call, picking the SIM per settings. */
+    fun call(number: String, account: PhoneAccountHandle? = null) {
+        val n = number.trim()
+        if (n.isEmpty()) return
+        if (!has(Manifest.permission.CALL_PHONE)) { askPermission(Manifest.permission.CALL_PHONE); Toast.makeText(this, "Call permission do", Toast.LENGTH_SHORT).show(); return }
+        var acc = account
+        if (acc == null) {
+            val sims = Repo.sims(this)
+            val def = LdApp.settings.value.defaultSim
+            acc = sims.firstOrNull { it.handle.id == def }?.handle
+            if (acc == null && sims.size > 1) { state.pendingCall = n; return }
+            if (acc == null && sims.size == 1) acc = sims[0].handle
+        }
+        if (!CallManager.place(this, n, acc)) Toast.makeText(this, "Call nahi lag paayi", Toast.LENGTH_SHORT).show()
+    }
+
+    fun voicemail() {
+        val custom = LdApp.settings.value.voicemail
+        if (custom.isNotBlank()) { call(custom); return }
+        try {
+            @Suppress("MissingPermission")
+            getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("voicemail", "", null), Bundle())
+        } catch (_: Exception) { Toast.makeText(this, "Voicemail number Settings me daalo", Toast.LENGTH_LONG).show() }
+    }
+}

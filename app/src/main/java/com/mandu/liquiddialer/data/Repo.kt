@@ -1,0 +1,287 @@
+package com.mandu.liquiddialer.data
+
+import android.annotation.SuppressLint
+import android.content.ContentProviderOperation
+import android.content.ContentValues
+import android.content.Context
+import android.net.Uri
+import android.provider.BlockedNumberContract
+import android.provider.CallLog
+import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds
+import android.telecom.PhoneAccountHandle
+import android.telecom.TelecomManager
+import android.telephony.PhoneNumberUtils
+import android.telephony.TelephonyManager
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+
+data class Contact(
+    val id: Long,
+    val lookupKey: String,
+    val name: String,
+    val altName: String,
+    val number: String,
+    val label: String,
+    val starred: Boolean,
+    val photo: String?,
+)
+
+data class Recent(
+    val id: Long,
+    val number: String,
+    val name: String?,
+    val type: Int,
+    val date: Long,
+    val duration: Long,
+    val accountId: String?,
+    val photo: String?,
+)
+
+data class SimInfo(val handle: PhoneAccountHandle, val label: String, val slot: Int)
+
+data class Note(val id: Long, val number: String, val name: String, val text: String, val time: Long)
+
+object Repo {
+
+    fun normalize(n: String): String = n.filter { it.isDigit() || it == '+' }
+
+    /** last 10 digits — good enough to match +91 / 0 / plain numbers */
+    fun key(n: String): String = n.filter { it.isDigit() }.takeLast(10)
+
+    // ---------------- contacts ----------------
+    @SuppressLint("Range")
+    fun contacts(ctx: Context, sortByLast: Boolean): List<Contact> {
+        val out = LinkedHashMap<Long, Contact>()
+        val proj = arrayOf(
+            CommonDataKinds.Phone.CONTACT_ID, CommonDataKinds.Phone.LOOKUP_KEY,
+            CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY, CommonDataKinds.Phone.DISPLAY_NAME_ALTERNATIVE,
+            CommonDataKinds.Phone.NUMBER, CommonDataKinds.Phone.TYPE, CommonDataKinds.Phone.LABEL,
+            CommonDataKinds.Phone.STARRED, CommonDataKinds.Phone.PHOTO_THUMBNAIL_URI, CommonDataKinds.Phone.IS_SUPER_PRIMARY,
+        )
+        val sort = (if (sortByLast) CommonDataKinds.Phone.DISPLAY_NAME_ALTERNATIVE else CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY) + " COLLATE NOCASE ASC"
+        try {
+            ctx.contentResolver.query(CommonDataKinds.Phone.CONTENT_URI, proj, null, null, sort)?.use { c ->
+                while (c.moveToNext()) {
+                    val id = c.getLong(0)
+                    if (out.containsKey(id) && c.getInt(9) == 0) continue
+                    val type = c.getInt(5)
+                    val label = CommonDataKinds.Phone.getTypeLabel(ctx.resources, type, c.getString(6) ?: "").toString()
+                    out[id] = Contact(id, c.getString(1) ?: "", c.getString(2) ?: (c.getString(4) ?: ""), c.getString(3) ?: (c.getString(2) ?: ""),
+                        c.getString(4) ?: "", label, c.getInt(7) == 1, c.getString(8))
+                }
+            }
+        } catch (e: Exception) { }
+        return out.values.toList()
+    }
+
+    data class ContactDetail(
+        val id: Long, val rawId: Long, val lookupKey: String, val name: String,
+        val phones: List<Pair<String, Int>>, val emails: List<String>, val starred: Boolean, val photo: String?,
+    )
+
+    fun contactDetail(ctx: Context, contactId: Long): ContactDetail? {
+        val cr = ctx.contentResolver
+        var name = ""; var lookup = ""; var starred = false; var photo: String? = null; var rawId = -1L
+        cr.query(ContactsContract.Contacts.CONTENT_URI, arrayOf(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY, ContactsContract.Contacts.LOOKUP_KEY,
+            ContactsContract.Contacts.STARRED, ContactsContract.Contacts.PHOTO_URI), "${ContactsContract.Contacts._ID}=?", arrayOf("$contactId"), null)?.use {
+            if (!it.moveToFirst()) return null
+            name = it.getString(0) ?: ""; lookup = it.getString(1) ?: ""; starred = it.getInt(2) == 1; photo = it.getString(3)
+        } ?: return null
+        cr.query(ContactsContract.RawContacts.CONTENT_URI, arrayOf(ContactsContract.RawContacts._ID), "${ContactsContract.RawContacts.CONTACT_ID}=? AND ${ContactsContract.RawContacts.DELETED}=0", arrayOf("$contactId"), null)?.use {
+            if (it.moveToFirst()) rawId = it.getLong(0)
+        }
+        val phones = mutableListOf<Pair<String, Int>>()
+        cr.query(CommonDataKinds.Phone.CONTENT_URI, arrayOf(CommonDataKinds.Phone.NUMBER, CommonDataKinds.Phone.TYPE), "${CommonDataKinds.Phone.CONTACT_ID}=?", arrayOf("$contactId"), null)?.use {
+            while (it.moveToNext()) { val n = it.getString(0) ?: continue; if (phones.none { p -> key(p.first) == key(n) }) phones += n to it.getInt(1) }
+        }
+        val emails = mutableListOf<String>()
+        cr.query(CommonDataKinds.Email.CONTENT_URI, arrayOf(CommonDataKinds.Email.ADDRESS), "${CommonDataKinds.Email.CONTACT_ID}=?", arrayOf("$contactId"), null)?.use {
+            while (it.moveToNext()) it.getString(0)?.let { e -> emails += e }
+        }
+        return ContactDetail(contactId, rawId, lookup, name, phones, emails, starred, photo)
+    }
+
+    /** Insert or update a contact in the real contacts provider (device-local account). */
+    fun saveContact(ctx: Context, existing: ContactDetail?, name: String, phones: List<Pair<String, Int>>, email: String, photo: ByteArray?, starred: Boolean): Boolean {
+        val ops = ArrayList<ContentProviderOperation>()
+        val dataUri = ContactsContract.Data.CONTENT_URI
+        if (existing == null || existing.rawId < 0) {
+            ops += ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                .withValue(ContactsContract.RawContacts.STARRED, if (starred) 1 else 0).build()
+            fun ins() = ContentProviderOperation.newInsert(dataUri).withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+            ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                .withValue(CommonDataKinds.StructuredName.DISPLAY_NAME, name).build()
+            phones.filter { it.first.isNotBlank() }.forEach { (n, t) ->
+                ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Phone.NUMBER, n).withValue(CommonDataKinds.Phone.TYPE, t).build()
+            }
+            if (email.isNotBlank()) ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                .withValue(CommonDataKinds.Email.ADDRESS, email).withValue(CommonDataKinds.Email.TYPE, CommonDataKinds.Email.TYPE_HOME).build()
+            if (photo != null) ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                .withValue(CommonDataKinds.Photo.PHOTO, photo).build()
+        } else {
+            val raw = existing.rawId
+            val sel = "${ContactsContract.Data.RAW_CONTACT_ID}=? AND ${ContactsContract.Data.MIMETYPE}=?"
+            fun del(mime: String) { ops += ContentProviderOperation.newDelete(dataUri).withSelection(sel, arrayOf("$raw", mime)).build() }
+            fun ins() = ContentProviderOperation.newInsert(dataUri).withValue(ContactsContract.Data.RAW_CONTACT_ID, raw)
+            del(CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+            ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                .withValue(CommonDataKinds.StructuredName.DISPLAY_NAME, name).build()
+            del(CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+            phones.filter { it.first.isNotBlank() }.forEach { (n, t) ->
+                ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Phone.NUMBER, n).withValue(CommonDataKinds.Phone.TYPE, t).build()
+            }
+            del(CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+            if (email.isNotBlank()) ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                .withValue(CommonDataKinds.Email.ADDRESS, email).withValue(CommonDataKinds.Email.TYPE, CommonDataKinds.Email.TYPE_HOME).build()
+            if (photo != null) {
+                del(CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Photo.PHOTO, photo).build()
+            }
+            ops += ContentProviderOperation.newUpdate(ContactsContract.Contacts.CONTENT_URI)
+                .withSelection("${ContactsContract.Contacts._ID}=?", arrayOf("${existing.id}"))
+                .withValue(ContactsContract.Contacts.STARRED, if (starred) 1 else 0).build()
+        }
+        return try { ctx.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops); true } catch (e: Exception) { false }
+    }
+
+    fun deleteContact(ctx: Context, contactId: Long, lookupKey: String): Boolean = try {
+        val uri = ContactsContract.Contacts.getLookupUri(contactId, lookupKey)
+        ctx.contentResolver.delete(uri, null, null) > 0
+    } catch (e: Exception) { false }
+
+    fun setStarred(ctx: Context, contactId: Long, starred: Boolean) {
+        try {
+            val v = ContentValues().apply { put(ContactsContract.Contacts.STARRED, if (starred) 1 else 0) }
+            ctx.contentResolver.update(ContactsContract.Contacts.CONTENT_URI, v, "${ContactsContract.Contacts._ID}=?", arrayOf("$contactId"))
+        } catch (e: Exception) { }
+    }
+
+    fun lookupName(ctx: Context, number: String): Pair<String, String?>? {
+        if (number.isBlank()) return null
+        return try {
+            val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+            ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_URI), null, null, null)?.use {
+                if (it.moveToFirst()) (it.getString(0) ?: "") to it.getString(1) else null
+            }
+        } catch (e: Exception) { null }
+    }
+
+    fun contactIdFor(ctx: Context, number: String): Long? = try {
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+        ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup._ID), null, null, null)?.use { if (it.moveToFirst()) it.getLong(0) else null }
+    } catch (e: Exception) { null }
+
+    // ---------------- T9 ----------------
+    private val t9 = mapOf('a' to '2','b' to '2','c' to '2','d' to '3','e' to '3','f' to '3','g' to '4','h' to '4','i' to '4','j' to '5','k' to '5','l' to '5',
+        'm' to '6','n' to '6','o' to '6','p' to '7','q' to '7','r' to '7','s' to '7','t' to '8','u' to '8','v' to '8','w' to '9','x' to '9','y' to '9','z' to '9')
+    fun t9Of(s: String) = s.lowercase().map { c -> if (c.isDigit()) c else t9[c] ?: ' ' }.joinToString("")
+    fun matches(c: Contact, q: String): Boolean {
+        if (q.isBlank()) return true
+        val ql = q.trim().lowercase()
+        if (c.name.lowercase().contains(ql)) return true
+        val digits = ql.filter { it.isDigit() }
+        if (digits.isNotEmpty() && digits.length == ql.replace(" ", "").replace("+", "").length) {
+            if (c.number.filter { it.isDigit() }.contains(digits)) return true
+            // T9: any word start, or whole name
+            val words = c.name.split(" ", "-", ".").filter { it.isNotBlank() }
+            if (words.any { t9Of(it).startsWith(digits) }) return true
+            if (t9Of(c.name.replace(" ", "")).contains(digits)) return true
+            // initials
+            if (words.map { t9Of(it.take(1)) }.joinToString("").startsWith(digits)) return true
+        }
+        return false
+    }
+
+    // ---------------- call log ----------------
+    fun recents(ctx: Context, limit: Int = 300): List<Recent> {
+        val out = mutableListOf<Recent>()
+        try {
+            val proj = arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME, CallLog.Calls.TYPE, CallLog.Calls.DATE,
+                CallLog.Calls.DURATION, CallLog.Calls.PHONE_ACCOUNT_ID, CallLog.Calls.CACHED_PHOTO_URI)
+            ctx.contentResolver.query(CallLog.Calls.CONTENT_URI, proj, null, null, CallLog.Calls.DATE + " DESC")?.use { c ->
+                while (c.moveToNext() && out.size < limit) {
+                    out += Recent(c.getLong(0), c.getString(1) ?: "", c.getString(2)?.takeIf { it.isNotBlank() }, c.getInt(3), c.getLong(4), c.getLong(5), c.getString(6), c.getString(7))
+                }
+            }
+        } catch (e: Exception) { }
+        return out
+    }
+
+    fun historyFor(ctx: Context, number: String): List<Recent> = recents(ctx, 2000).filter { key(it.number) == key(number) && key(number).isNotEmpty() }.take(50)
+
+    fun deleteRecent(ctx: Context, id: Long) { try { ctx.contentResolver.delete(CallLog.Calls.CONTENT_URI, "${CallLog.Calls._ID}=?", arrayOf("$id")) } catch (e: Exception) { } }
+    fun deleteRecentsFor(ctx: Context, number: String) { try { ctx.contentResolver.delete(CallLog.Calls.CONTENT_URI, "${CallLog.Calls.NUMBER}=?", arrayOf(number)) } catch (e: Exception) { } }
+    fun clearRecents(ctx: Context) { try { ctx.contentResolver.delete(CallLog.Calls.CONTENT_URI, null, null) } catch (e: Exception) { } }
+    fun markMissedRead(ctx: Context) {
+        try {
+            val v = ContentValues().apply { put(CallLog.Calls.NEW, 0); put(CallLog.Calls.IS_READ, 1) }
+            ctx.contentResolver.update(CallLog.Calls.CONTENT_URI, v, "${CallLog.Calls.TYPE}=? AND ${CallLog.Calls.NEW}=1", arrayOf("${CallLog.Calls.MISSED_TYPE}"))
+        } catch (e: Exception) { }
+    }
+
+    // ---------------- blocking ----------------
+    fun canBlock(ctx: Context) = try { BlockedNumberContract.canCurrentUserBlockNumbers(ctx) } catch (e: Exception) { false }
+    fun isBlocked(ctx: Context, n: String) = try { BlockedNumberContract.isBlocked(ctx, n) } catch (e: Exception) { false }
+    fun block(ctx: Context, n: String): Boolean = try {
+        val v = ContentValues().apply { put(BlockedNumberContract.BlockedNumbers.COLUMN_ORIGINAL_NUMBER, n) }
+        ctx.contentResolver.insert(BlockedNumberContract.BlockedNumbers.CONTENT_URI, v) != null
+    } catch (e: Exception) { false }
+    fun unblock(ctx: Context, n: String): Boolean = try { BlockedNumberContract.unblock(ctx, n) > 0 } catch (e: Exception) { false }
+    fun blocked(ctx: Context): List<String> {
+        val out = mutableListOf<String>()
+        try {
+            ctx.contentResolver.query(BlockedNumberContract.BlockedNumbers.CONTENT_URI, arrayOf(BlockedNumberContract.BlockedNumbers.COLUMN_ORIGINAL_NUMBER), null, null, null)?.use {
+                while (it.moveToNext()) it.getString(0)?.let { n -> out += n }
+            }
+        } catch (e: Exception) { }
+        return out
+    }
+
+    // ---------------- SIMs ----------------
+    @SuppressLint("MissingPermission")
+    fun sims(ctx: Context): List<SimInfo> = try {
+        val tm = ctx.getSystemService(TelecomManager::class.java)
+        tm.callCapablePhoneAccounts.mapIndexed { i, h ->
+            val acc = tm.getPhoneAccount(h)
+            SimInfo(h, acc?.label?.toString()?.takeIf { it.isNotBlank() } ?: "SIM ${i + 1}", i + 1)
+        }
+    } catch (e: Exception) { emptyList() }
+
+    @SuppressLint("MissingPermission")
+    fun voicemailNumber(ctx: Context): String = try {
+        ctx.getSystemService(TelephonyManager::class.java).voiceMailNumber ?: ""
+    } catch (e: Exception) { "" }
+
+    @SuppressLint("MissingPermission", "HardwareIds")
+    fun ownNumber(ctx: Context): String = try { ctx.getSystemService(TelephonyManager::class.java).line1Number ?: "" } catch (e: Exception) { "" }
+
+    fun pretty(n: String): String = try { PhoneNumberUtils.formatNumber(n, "IN") ?: n } catch (e: Exception) { n }
+
+    // ---------------- notes ----------------
+    private fun notesFile(ctx: Context) = File(ctx.filesDir, "notes.json")
+    fun notes(ctx: Context): List<Note> = try {
+        val a = JSONArray(notesFile(ctx).takeIf { it.exists() }?.readText() ?: "[]")
+        (0 until a.length()).map { i -> a.getJSONObject(i).let { Note(it.getLong("id"), it.getString("number"), it.optString("name"), it.getString("text"), it.getLong("time")) } }.sortedByDescending { it.time }
+    } catch (e: Exception) { emptyList() }
+    private fun saveNotes(ctx: Context, list: List<Note>) {
+        val a = JSONArray(); list.forEach { a.put(JSONObject().put("id", it.id).put("number", it.number).put("name", it.name).put("text", it.text).put("time", it.time)) }
+        notesFile(ctx).writeText(a.toString())
+    }
+    @Synchronized fun addNote(ctx: Context, number: String, name: String, text: String) {
+        if (text.isBlank()) return
+        saveNotes(ctx, notes(ctx) + Note(System.currentTimeMillis(), number, name, text.trim(), System.currentTimeMillis()))
+    }
+    @Synchronized fun deleteNote(ctx: Context, id: Long) = saveNotes(ctx, notes(ctx).filter { it.id != id })
+    fun notesFor(ctx: Context, number: String) = notes(ctx).filter { key(it.number) == key(number) }
+
+    // ---------------- recordings ----------------
+    fun recordingsDir(ctx: Context): File = File(ctx.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC) ?: ctx.filesDir, "LiquidDialer").apply { mkdirs() }
+    fun recordings(ctx: Context): List<File> = recordingsDir(ctx).listFiles()?.filter { it.isFile && it.length() > 0 }?.sortedByDescending { it.lastModified() } ?: emptyList()
+}

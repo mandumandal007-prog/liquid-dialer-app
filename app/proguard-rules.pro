@@ -1,0 +1,2 @@
+-keep class com.mandu.liquiddialer.telecom.** { *; }
+-dontwarn org.jetbrains.annotations.**
