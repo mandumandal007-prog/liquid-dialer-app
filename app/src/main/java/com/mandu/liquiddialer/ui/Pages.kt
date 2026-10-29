@@ -150,7 +150,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         Spacer(Modifier.height(10.dp))
         GlassCard {
             SRow("Calling card layout", "Calling card, photo, background, buttons - sab customize karo", LdIcons.Dialpad) { onOpen("calllayout") }
-            SwitchRow("Swipe se tab badlo", "Recents, Contacts aur Dialer ke beech ungli ghumao", s.tabSwipe) { save(K.tabSwipe, it) }
+            SwitchRow("Swipe se tab badlo", "Recents aur Contacts ke beech ungli ghumao", s.tabSwipe) { save(K.tabSwipe, it) }
         }
 
         SecTitle("Default app")
