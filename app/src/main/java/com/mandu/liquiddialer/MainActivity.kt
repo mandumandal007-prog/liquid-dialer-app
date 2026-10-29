@@ -254,16 +254,4 @@ internal object CallPrep {
 
     /** Multi-SIM picker shows only when nothing was chosen and more than one SIM exists. */
     fun needsSimPicker(simCount: Int): Boolean = simCount > 1
-
-    /** Next auto-redial attempt (1-based), or null jab configured limit khatam. */
-    fun nextRedialTry(attempts: Int, max: Int): Int? = if (max > 0 && attempts < max) attempts + 1 else null
-
-    /** Auto-redial sirf asli phone numbers pe: koi USSD (*...#), service short code, pause/wait (, ya ;) nahi. */
-    fun redialable(num: String): Boolean {
-        if (num.isBlank()) return false
-        if (num.any { it == '*' || it == '#' || it == ',' || it == ';' }) return false
-        val digits = num.filter { it.isDigit() }
-        if (digits.length < 5) return false
-        return num.all { it.isDigit() || it == '+' || it == ' ' || it == '-' } && num.count { it == '+' } <= 1 && (num.indexOf('+') <= 0)
-    }
 }
