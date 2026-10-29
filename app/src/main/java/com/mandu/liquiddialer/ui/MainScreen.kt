@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -70,6 +72,11 @@ fun MainScreen(st: AppState, act: MainActivity) {
     val calls by CallManager.calls.collectAsState()
     val ver by CallManager.version.collectAsState()
 
+    // search-bar mic: same privacy path as dialer voice (on-device first, else explicit consent); fills the search box only, never calls
+    val searchVoice = rememberVoiceDialer { said -> query = said.trim().trimEnd('.', '\u0964') }
+    // Recents tap with an active search clears it so call history opens; Contacts keeps the search
+    fun goTab(k: String) { if (k == "recents" && query.isNotEmpty()) query = ""; st.tab = k }
+
     fun openPage(x: String) { drawer = false; pages.add(x) }
     val openEditor: (Long?, String) -> Unit = { id, pre -> editContactId = id; editPrefill = pre; sheetNumber = null; sheetContact = null; menuNumber = null; pages.add("editor") }
 
@@ -111,6 +118,9 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             BasicTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
+                        Box(Modifier.size(30.dp).clip(CircleShape).testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                            LdIcon(LdIcons.Mic, 19.dp, if (searchVoice.ui.listening) p.accent else p.muted)
+                        }
                         if (query.isNotEmpty()) Box(Modifier.size(26.dp).clip(CircleShape).background(Color.White.copy(alpha = .12f)).clickable { query = "" },
                             contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 13.dp) }
                     }
@@ -130,7 +140,21 @@ fun MainScreen(st: AppState, act: MainActivity) {
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
             val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users))
             Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 14.dp).fillMaxWidth().height(66.dp)
-                .liquid(RoundedCornerShape(999.dp), 22.dp)) {
+                .liquid(RoundedCornerShape(999.dp), 22.dp)
+                .pointerInput(Unit) {
+                    var dragX = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragX = 0f },
+                        onDragCancel = { dragX = 0f },
+                        onDragEnd = {
+                            val cur = if (st.tab == "contacts") 1 else 0
+                            if (dragX < -40f && cur == 0) goTab("contacts")
+                            else if (dragX > 40f && cur == 1) goTab("recents")
+                            dragX = 0f
+                        },
+                        onHorizontalDrag = { change, amount -> change.consume(); dragX += amount }
+                    )
+                }) {
                 BoxWithConstraints(Modifier.fillMaxSize().padding(6.dp)) {
                     val slot = maxWidth / navTabs.size
                     val sel = navTabs.indexOfFirst { it.first == st.tab }.coerceAtLeast(0)
@@ -142,7 +166,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                         navTabs.forEach { (k, label, ic) ->
                             val on = st.tab == k
                             Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(999.dp))
-                                .clickable(remember { MutableInteractionSource() }, null) { st.tab = k },
+                                .clickable(remember { MutableInteractionSource() }, null) { goTab(k) },
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                 LdIcon(ic, 22.dp, if (on) p.text else p.muted)
                                 Spacer(Modifier.height(3.dp))
@@ -166,6 +190,10 @@ fun MainScreen(st: AppState, act: MainActivity) {
             if (st.tab == "dialer") Sheet(onDismiss = { st.tab = lastTab }) {
                 DialerSheet(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it })
             }
+            // search-bar voice overlays
+            searchVoice.ui.notice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { searchVoice.ui.notice = null } }
+            if (searchVoice.ui.listening) VoiceListeningCard(Alignment.Center) { searchVoice.stop() }
+            if (searchVoice.ui.pendingConsent) VoiceConsentCard(Alignment.Center, onOk = { searchVoice.consentOk() }, onCancel = { searchVoice.consentCancel() })
             // ===== drawer =====
             // confirm-before-call card (setting: confirmCall)
             st.confirmNumber?.let { n ->
