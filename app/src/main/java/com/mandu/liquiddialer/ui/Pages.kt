@@ -164,6 +164,11 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         GlassCard {
             SRow("Theme & appearance", "${paletteFor(s.theme, p.accent, true).name.let { if (s.theme == "auto") "Auto (system)" else it }} · blur ${s.blur}px", LdIcons.Palette) { onOpen("appearance") }
             SRow("App language", LANGS.firstOrNull { it.first == s.lang }?.second ?: "Hinglish", LdIcons.Message) { sheet = "lang" }
+            SwitchRow("Favourites section", "Home pe favourite contacts dikhao/chhupao", s.showFavourites) { save(K.showFavourites, it) }
+            SwitchRow("Din ke headers", "Recents me Aaj/Kal ke groups", s.groupByDay) { save(K.groupByDay, it) }
+            SwitchRow("Exact time", "Recents me '2 min pehle' ki jagah exact samay", s.exactTime) { save(K.exactTime, it) }
+            SwitchRow("Keypad letters (ABC)", "Dial pad pe English akshar", s.keypadLetters) { save(K.keypadLetters, it) }
+            SwitchRow("Keypad haptic", "Key dabane pe halki vibration", s.hapticKeys) { save(K.hapticKeys, it) }
             LdText("Contact sort", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 10.dp, bottom = 8.dp))
             Segmented(listOf("First name", "Last name"), if (s.sortByLast) 1 else 0) { save(K.sortByLast, it == 1); act.reload() }
             LdText("Naam ka format", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
@@ -187,6 +192,15 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Call waiting", "Carrier code se on/off/check", LdIcons.Pause) { sheet = "waiting" }
             SRow("Call forwarding", "Doosre number pe call bhejo", LdIcons.PhoneOut) { sheet = "forward" }
             SwitchRow("Proximity sensor", "Kaan ke paas screen band", s.proximity) { save(K.proximity, it) }
+            SwitchRow("Call confirm karo", "List me tap karne par pehle poochhega", s.confirmCall) { save(K.confirmCall, it) }
+            SwitchRow("+91 apne aap jodo", "10-digit number ke aage +91 lagayega", s.autoPrefix) { save(K.autoPrefix, it) }
+            SwitchRow("Number formatting", "Type karte waqt number space ke saath", s.formatNumber) { save(K.formatNumber, it) }
+            SwitchRow("Contact ki SIM yaad rakho", "Pichli use ki hui SIM apne aap chunega", s.simMemory) { save(K.simMemory, it) }
+            SwitchRow("3 sec ka undo", "Call lagne se pehle rukne ka mauka", s.undoCall) { save(K.undoCall, it) }
+            SwitchRow("Busy pe redial suggest", "Call na lage to Dobara call button", s.redialSuggest) { save(K.redialSuggest, it) }
+            SwitchRow("Naya number save prompt", "Unknown number ki call ke baad Save/Block", s.postCallSave) { save(K.postCallSave, it) }
+            LdText("App khule to pehle dikhao", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
+            Segmented(listOf("Recents", "Dialer"), if (s.defaultTab == "dialer") 1 else 0) { save(K.defaultTab, if (it == 1) "dialer" else "recents") }
             SwitchRow("Ongoing call banner", "App me upar call ka bar", s.banner) { save(K.banner, it) }
             SRow("System call settings", "SIM, carrier aur advanced options", LdIcons.Settings, last = true) { open(Intent(TelecomManager.ACTION_SHOW_CALL_SETTINGS)) }
         }
@@ -202,7 +216,20 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Vibrate jab call kate", null, s.vibrateEnd) { save(K.vibrateEnd, it) }
             SwitchRow("Keypad tones", null, s.keyTones) { save(K.keyTones, it) }
             SwitchRow("Flip to mute", "Phone ulta rakho to ringtone band", s.flipToMute) { save(K.flipToMute, it) }
-            SwitchRow("Caller ka naam bolo", "Ringing pe naam announce", s.announceCaller, last = true) { save(K.announceCaller, it) }
+            SwitchRow("Caller ka naam bolo", "Ringing pe naam announce", s.announceCaller) { save(K.announceCaller, it) }
+            LdText("Naam kitni baar bolo", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
+            Segmented(listOf("1 baar", "2 baar", "3 baar"), (s.announceRepeat - 1).coerceIn(0, 2)) { save(K.announceRepeat, it + 1) }
+            SwitchRow("Ring volume max", "Call aane pe ring volume system ka max (usse upar nahi)", s.ringVolumeMax) { save(K.ringVolumeMax, it) }
+            SwitchRow("Call volume max", "Call connect hone pe volume system ka max (usse upar boost nahi)", s.callVolumeMax) { save(K.callVolumeMax, it) }
+            LdText("Call me minute beep", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
+            Segmented(listOf("Off", "1 min", "5 min", "10 min"), when (s.minuteBeep) { 1 -> 1; 5 -> 2; 10 -> 3; else -> 0 }) { save(K.minuteBeep, listOf(0, 1, 5, 10)[it]) }
+            SwitchRow("Flash blink on ring", "Call aane pe flashlight chamkegi", s.flashOnRing, last = true) { save(K.flashOnRing, it) }
+        }
+
+        SecTitle("Caller pehchan")
+        GlassCard {
+            SwitchRow("Pichli call ki jankari", "Incoming screen pe pichli call ka time", s.showLastCall) { save(K.showLastCall, it) }
+            SwitchRow("Contact ka label", "Mobile/Work aur Favourite badge incoming pe", s.showContactType, last = true) { save(K.showContactType, it) }
         }
 
         SecTitle("Blocking")
@@ -214,6 +241,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         SecTitle("Recording")
         GlassCard {
+            SwitchRow("Sirf unknown numbers record", "Auto-record contacts ke bahar ke numbers ke liye", s.recordUnknownOnly) { save(K.recordUnknownOnly, it) }
             SwitchRow("Auto record calls", "Har call apne aap record (Android 10+ pe sirf aapki awaaz, speaker pe dono)", s.autoRecord) {
                 save(K.autoRecord, it); if (it && !act.has(android.Manifest.permission.RECORD_AUDIO)) act.askPermission(android.Manifest.permission.RECORD_AUDIO)
             }
@@ -236,7 +264,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         SecTitle("Notifications")
         GlassCard {
-            SwitchRow("Missed call alert", "Call back button ke saath", s.missedAlerts) { save(K.missedAlerts, it) }
+            SwitchRow("Missed call alert", "Call back, Message aur Block button ke saath", s.missedAlerts) { save(K.missedAlerts, it) }
+            SwitchRow("Missed call reminder", "Har 5 min me yaad dilayega (3 baar tak)", s.missedRemind) { save(K.missedRemind, it) }
             SRow("Notification settings", null, LdIcons.Settings, last = true) {
                 open(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
             }
