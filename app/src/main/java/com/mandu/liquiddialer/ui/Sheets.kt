@@ -69,7 +69,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     if (number.isNotBlank()) {
         SheetRow(LdIcons.Check, "Number copy karo") {
             ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
-            Toast.makeText(ctx, "Copy ho gaya", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, trNow("Copy ho gaya"), Toast.LENGTH_SHORT).show()
         }
         SheetRow(LdIcons.Chevron, "Number share karo") {
             ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "$name: $number"), "Share"))
@@ -149,7 +149,7 @@ fun NumberMenu(number: String, st: AppState, act: MainActivity, onClose: () -> U
     var starred by remember(contact) { mutableStateOf(contact?.starred == true) }
     val inLog = remember(number, st.recents) { st.recents.any { Repo.key(it.number) == Repo.key(number) } }
     val name = contact?.name ?: Repo.pretty(number)
-    fun go(i: Intent) { try { ctx.startActivity(i) } catch (e: Exception) { Toast.makeText(ctx, "Koi app nahi mila", Toast.LENGTH_SHORT).show() } }
+    fun go(i: Intent) { try { ctx.startActivity(i) } catch (e: Exception) { Toast.makeText(ctx, trNow("Koi app nahi mila"), Toast.LENGTH_SHORT).show() } }
 
     Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Avatar(name, contact?.photo, 46.dp, 16f, seed = name)
@@ -166,7 +166,7 @@ fun NumberMenu(number: String, st: AppState, act: MainActivity, onClose: () -> U
     }
     SheetRow(LdIcons.Check, "Number copy karo") {
         ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
-        Toast.makeText(ctx, "Copy ho gaya", Toast.LENGTH_SHORT).show(); onClose()
+        Toast.makeText(ctx, trNow("Copy ho gaya"), Toast.LENGTH_SHORT).show(); onClose()
     }
     SheetRow(LdIcons.Dialpad, "Call se pehle edit karo") { st.dial = number.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }; st.tab = "dialer"; onClose() }
     if (contact != null) SheetRow(LdIcons.Edit, "Contact edit karo") { onEdit(contact.id) }
@@ -185,7 +185,7 @@ fun NumberMenu(number: String, st: AppState, act: MainActivity, onClose: () -> U
     }
     if (inLog) SheetRow(LdIcons.Trash, "Call log se delete karo", danger = true) {
         Repo.deleteRecentsFor(ctx, number); act.reload(); onClose()
-        Toast.makeText(ctx, "Call log se hata diya", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, trNow("Call log se hata diya"), Toast.LENGTH_SHORT).show()
     }
     SheetRow(LdIcons.Chevron, "Share karo") {
         onClose(); go(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, if (contact != null) "${contact.name}: $number" else number), "Share"))
