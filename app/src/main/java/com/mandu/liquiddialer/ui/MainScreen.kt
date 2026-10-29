@@ -624,7 +624,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 val ready = dial.isNotEmpty()
                 val src = remember { MutableInteractionSource() }
                 val sc = pressScale(src, .94f)
-                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(64.dp).alpha(if (ready) 1f else .55f)
+                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(64.dp).testTag("call_btn").alpha(if (ready) 1f else .55f)
                     .shadow(16.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
                     .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .88f), p.accent)))
                     .border(1.dp, p.accent.pct(.55f), CircleShape)
