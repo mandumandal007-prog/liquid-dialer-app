@@ -17,7 +17,6 @@ import android.telecom.DisconnectCause
 import android.telecom.InCallService
 import android.telecom.TelecomManager
 import com.mandu.liquiddialer.CallActivity
-import com.mandu.liquiddialer.CallPrep
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Repo
 import java.util.Locale
@@ -30,8 +29,6 @@ class LdInCallService : InCallService() {
     private val wasOutgoing = HashSet<Call>()
     private val wasRinging = HashSet<Call>()
     private val answered = HashSet<Call>()
-    private val redialTries = mutableMapOf<String, Int>()
-    private var pendingRedial: Runnable? = null
 
     private val cb = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) { onCallChanged(call, state) }
@@ -42,10 +39,7 @@ class LdInCallService : InCallService() {
     }
 
     override fun onCreate() { super.onCreate(); CallManager.service = this }
-    private fun cancelPendingRedial() { pendingRedial?.let { main.removeCallbacks(it) }; pendingRedial = null }
-
     override fun onDestroy() {
-        cancelPendingRedial()
         stopFlip(); tts?.shutdown(); tts = null
         if (CallManager.service === this) CallManager.service = null
         super.onDestroy()
@@ -53,7 +47,6 @@ class LdInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
-        cancelPendingRedial()   // koi bhi nayi call (incoming ya manual) pending auto-redial rok deti hai
         CallManager.service = this
         call.registerCallback(cb)
         CallManager.calls.value = CallManager.calls.value + call
@@ -91,25 +84,9 @@ class LdInCallService : InCallService() {
             CallNotifier.missed(this, CallManager.number(call), CallManager.nameFor(this, call), s.missedRemind)
         }
         // outgoing call that never connected (busy/error): suggest redial
-        if (wasOutgoing.contains(call) && !answered.contains(call) &&
+        if (wasOutgoing.contains(call) && !answered.contains(call) && s.redialSuggest &&
             (cause == DisconnectCause.BUSY || cause == DisconnectCause.ERROR)) {
-            val num = CallManager.number(call)
-            if (s.redialSuggest) CallNotifier.redial(this, num, CallManager.nameFor(this, call))
-            // opt-in auto redial: configured count tak khud dobara call lagao.
-            // sirf normal phone numbers (koi emergency/USSD/short/premium ya pause-wait nahi),
-            // aur fire se pehle dobara check: koi aur call active/dialing nahi, setting abhi bhi on.
-            val next = CallPrep.nextRedialTry(redialTries[num] ?: 0, s.autoRedial)
-            if (next != null && num.isNotBlank() && CallPrep.redialable(num) &&
-                !android.telephony.PhoneNumberUtils.isEmergencyNumber(num)) {
-                redialTries[num] = next
-                cancelPendingRedial()
-                val task = Runnable {
-                    pendingRedial = null
-                    if (CallManager.calls.value.isEmpty() && LdApp.settings.value.autoRedial >= next) CallManager.place(this, num, null)
-                }
-                pendingRedial = task
-                main.postDelayed(task, 2500)
-            }
+            CallNotifier.redial(this, CallManager.number(call), CallManager.nameFor(this, call))
         }
         // finished call with an unsaved number: offer save/block
         if (answered.contains(call) && s.postCallSave) {
@@ -135,7 +112,6 @@ class LdInCallService : InCallService() {
             answered += call
             if (wasOutgoing.contains(call) && s.vibrateAnswer) vibrate(80)
             if (wasOutgoing.contains(call) && s.autoSpeaker && !CallManager.hasBluetooth()) CallManager.setRoute(CallAudioState.ROUTE_SPEAKER)
-            redialTries.remove(CallManager.number(call))
             val unknownOk = !s.recordUnknownOnly || !CallManager.isKnown(this, call)
             if (s.autoRecord && unknownOk && !CallRecorder.isRecording()) {
                 CallRecorder.start(this, CallManager.number(call), CallManager.nameFor(this, call))
