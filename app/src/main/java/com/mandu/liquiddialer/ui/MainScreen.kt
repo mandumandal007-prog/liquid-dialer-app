@@ -153,12 +153,12 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== round frosted dialer button above the bar (Contacts side) =====
             AnimatedVisibility(visible = st.tab != "dialer" && pages.isEmpty(),
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 20.dp, bottom = 100.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 102.dp),
                 enter = fadeIn(tween(220)) + scaleIn(tween(300, easing = CubicBezierEasing(.22f, 1f, .36f, 1f)), initialScale = .7f),
                 exit = fadeOut(tween(160)) + scaleOut(tween(180), targetScale = .7f)) {
-                Box(Modifier.size(62.dp).shadow(16.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).testTag("dialer_fab")
-                    .liquid(CircleShape, 20.dp).clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
-                    LdIcon(LdIcons.Dialpad, 27.dp, p.accent)
+                Box(Modifier.size(80.dp).shadow(18.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).testTag("dialer_fab")
+                    .liquid(CircleShape, 22.dp).clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
+                    LdIcon(LdIcons.Dialpad, 34.dp, p.accent)
                 }
             }
             // ===== half-screen frosted dialer sheet =====
@@ -251,12 +251,12 @@ fun EmptyState(icon: androidx.compose.ui.graphics.vector.ImageVector, title: Str
         LdText(title, 14.5f, FontWeight.Bold)
         Spacer(Modifier.height(4.dp))
         Text2(sub, 12.5f, p.muted)
-        if (action != null) { Spacer(Modifier.height(14.dp)); Box(Modifier.width(220.dp)) { PrimaryButton(action, onClick = onAction) } }
+        if (action != null) { Spacer(Modifier.height(14.dp)); Box(Modifier.fillMaxWidth().padding(end = 104.dp), contentAlignment = Alignment.Center) { Box(Modifier.width(220.dp)) { PrimaryButton(action, onClick = onAction) } } }
     }
 }
 
 @Composable
-fun Text2(t: String, size: Float, color: Color) = androidx.compose.material3.Text(t, color = color, fontSize = size.sp, textAlign = TextAlign.Center)
+fun Text2(t: String, size: Float, color: Color) = androidx.compose.material3.Text(T(t), color = color, fontSize = size.sp, textAlign = TextAlign.Center)
 
 fun typeIcon(type: Int) = when (type) {
     CallLog.Calls.MISSED_TYPE, CallLog.Calls.REJECTED_TYPE, CallLog.Calls.BLOCKED_TYPE -> LdIcons.PhoneMissed
@@ -484,9 +484,10 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
     val matches = remember(dial, st.contacts) { if (dial.length < 2) emptyList() else st.contacts.filter { Repo.matches(it, dial) }.take(3) }
     val scrH = LocalConfiguration.current.screenHeightDp
     // ~half the screen including sheet chrome; dialerScale grows the whole sheet so round keys never clip
-    BoxWithConstraints(Modifier.fillMaxWidth().height(((scrH * .52f) * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(360f, 700f).dp)) {
-        // keypad gets what is left after the number area (~76dp), top row (~24dp), call row (~66dp) and slack
-        val keyByH = ((maxHeight.value - 178f - 8f) / 4.35f).coerceIn(38f, 68f)
+    BoxWithConstraints(Modifier.fillMaxWidth().height(((scrH * .62f) * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(400f, 780f).dp)) {
+        // keypad gets what is left after the number area (~76dp), top row (~24dp), call row (~78dp) and slack; width caps the keys too
+        val keyByH = ((maxHeight.value - 196f) / 4.35f).coerceIn(40f, 92f)
+        val keyByW = (maxWidth.value - 16f) / 3.55f
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
@@ -516,24 +517,24 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             else st.dial += k
                         }
                     }
-                }, maxKey = keyByH.dp)
+                }, maxKey = minOf(keyByH, keyByW).dp)
             }
-            Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(42.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
-                    contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace) }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(52.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
+                    contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace, 24.dp) }
                 val ready = dial.isNotEmpty()
                 val src = remember { MutableInteractionSource() }
                 val sc = pressScale(src, .94f)
-                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(60.dp).alpha(if (ready) 1f else .55f)
+                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(72.dp).alpha(if (ready) 1f else .55f)
                     .shadow(16.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
                     .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .88f), p.accent)))
                     .border(1.dp, p.accent.pct(.55f), CircleShape)
                     .clickable(src, null) {
                         if (dial.isNotEmpty()) { act.call(dial); st.dial = "" }
                         else st.recents.firstOrNull { it.type == CallLog.Calls.OUTGOING_TYPE }?.let { st.dial = it.number }
-                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 28.dp, Color.White) }
-                Box(Modifier.size(42.dp).glass(p, CircleShape, 6.dp).clickable { cycleSim() }, contentAlignment = Alignment.Center) {
-                    LdText(if (simIdx >= 0) "SIM${simIdx + 1}" else if (sims.size > 1) "ASK" else "SIM1", 9.5f, FontWeight.ExtraBold, letter = .4f)
+                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 31.dp, Color.White) }
+                Box(Modifier.size(52.dp).glass(p, CircleShape, 6.dp).clickable { cycleSim() }, contentAlignment = Alignment.Center) {
+                    LdText(if (simIdx >= 0) "SIM${simIdx + 1}" else if (sims.size > 1) "ASK" else "SIM1", 11f, FontWeight.ExtraBold, letter = .4f)
                 }
             }
         }
