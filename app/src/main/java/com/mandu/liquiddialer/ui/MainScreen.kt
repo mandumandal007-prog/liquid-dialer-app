@@ -107,7 +107,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             // ===== ongoing call banner =====
             val live = remember(ver, calls) { CallManager.primary() }
             if (live != null && s.banner && CallManager.state(live) != Call.STATE_RINGING) {
-                CallBanner(live)
+                CallBanner(live, if (st.tab == "dialer") 8.dp else 82.dp)
             }
             // ===== bottom nav =====
             Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 14.dp).fillMaxWidth().height(68.dp)
@@ -160,14 +160,14 @@ fun MainScreen(st: AppState, act: MainActivity) {
 }
 
 @Composable
-private fun CallBanner(call: Call) {
+private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val now = nowTicker()
     val audio by CallManager.audio.collectAsState()
     val connect = call.details?.connectTimeMillis ?: 0
     val t = if (CallManager.state(call) == Call.STATE_ACTIVE && connect > 0) fmtDur((now - connect) / 1000) else if (CallManager.state(call) == Call.STATE_HOLDING) "On hold" else "Calling…"
-    Row(Modifier.statusBarsPadding().padding(start = 10.dp, end = 10.dp, top = 8.dp).fillMaxWidth().liquid(RoundedCornerShape(22.dp), 22.dp)
+    Row(Modifier.statusBarsPadding().padding(start = 10.dp, end = 10.dp, top = bannerTopPad).fillMaxWidth().liquid(RoundedCornerShape(22.dp), 22.dp)
         .padding(start = 12.dp, end = 8.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.weight(1f).clickable { ctx.startActivity(Intent(ctx, com.mandu.liquiddialer.CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -245,7 +245,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         out
     }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (favs.isNotEmpty() && query.isBlank()) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -270,7 +270,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         }
         if (!hasLog) item { EmptyState(LdIcons.Clock, "Call history ki permission chahiye", "Recents dikhane ke liye Call log permission do", "Permission do") { act.askPermissions() } }
         else if (groups.isEmpty()) item { EmptyState(LdIcons.Clock, if (query.isBlank()) "Abhi koi call nahi" else "Kuch nahi mila", if (query.isBlank()) "Aapki calls yahan dikhengi" else "Doosra naam ya number try karo") }
-        items(groups, key = { it.first.id }) { (r, count) ->
+        if (hasLog) items(groups, key = { it.first.id }) { (r, count) ->
             val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
             val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
             val simLabel = if (st.sims.size > 1) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
@@ -326,7 +326,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val s by LdApp.settings.collectAsState()
     val list = remember(st.contacts, query) { st.contacts.filter { Repo.matches(it, query) } }
     val hasPerm = act.has(android.Manifest.permission.READ_CONTACTS)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
