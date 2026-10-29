@@ -117,10 +117,10 @@ fun playTone(k: String) {
 
 /** .keypad grid of .key glass circles */
 @Composable
-fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false) {
+fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, scale: Float = 1f) {
     val p = LocalLd.current
     val w = LocalConfiguration.current.screenWidthDp
-    val keySize = (w * (if (small) .16f else .172f)).coerceIn(58f, if (small) 66f else 74f).dp
+    val keySize = ((w * (if (small) .16f else .172f)).coerceIn(58f, if (small) 66f else 74f) * scale).dp
     val gap = (w * .026f).coerceIn(8f, 16f).dp
     val haptic = LocalHapticFeedback.current
     Column(Modifier.widthIn(max = 330.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -140,8 +140,8 @@ fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: B
                             )
                         }, contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            LdText(d, if (small) 22f else 25f, FontWeight.Medium)
-                            if (sub.isNotEmpty()) LdText(sub, 8.5f, FontWeight.Bold, p.muted, letter = 1.6f)
+                            LdText(d, (if (small) 22f else 25f) * scale, FontWeight.Medium)
+                            if (sub.isNotEmpty()) LdText(sub, 8.5f * scale, FontWeight.Bold, p.muted, letter = 1.6f)
                         }
                     }
                 }

@@ -135,3 +135,35 @@ fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Bool
         }
     }
 }
+
+
+/** Compact options sheet opened by long-pressing a number/contact row. */
+@Composable
+fun QuickNumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit) {
+    val ctx = LocalContext.current
+    var blocked by remember { mutableStateOf(Repo.isBlocked(ctx, number)) }
+    SheetTitle(contact?.name ?: if (number.isBlank()) "Private number" else Repo.pretty(number))
+    if (number.isNotBlank()) {
+        SheetRow(LdIcons.Phone, "Call karo") { onClose(); act.call(number) }
+        SheetRow(LdIcons.Message, "SMS bhejo") { try { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) } catch (_: Exception) { } }
+        SheetRow(LdIcons.Message, "WhatsApp kholo") {
+            val digits = number.filter { it.isDigit() }.let { if (it.length == 10) "91$it" else it }
+            try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits"))) } catch (_: Exception) { }
+        }
+        SheetRow(LdIcons.Check, "Number copy karo") {
+            ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
+            Toast.makeText(ctx, "Copy ho gaya", Toast.LENGTH_SHORT).show()
+        }
+    }
+    if (contact != null) SheetRow(LdIcons.Edit, "Contact edit karo") { onEdit(contact.id) }
+    else if (number.isNotBlank()) SheetRow(LdIcons.Plus, "Contact me add karo") { onEdit(null) }
+    if (number.isNotBlank()) {
+        SheetRow(LdIcons.Block, if (blocked) "Unblock karo" else "Number block karo", if (!st.isDefault) "Default phone app hone par kaam karega" else null, danger = !blocked) {
+            if (!Repo.canBlock(ctx)) { act.requestDefault(); return@SheetRow }
+            blocked = if (blocked) !Repo.unblock(ctx, number) else Repo.block(ctx, number)
+            Toast.makeText(ctx, if (blocked) "Block ho gaya" else "Unblock ho gaya", Toast.LENGTH_SHORT).show()
+            act.reload(); onClose()
+        }
+        SheetRow(LdIcons.Trash, "Call history se hatao", danger = true) { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }
+    }
+}

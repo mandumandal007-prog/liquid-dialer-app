@@ -87,7 +87,7 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
         .border(1.dp, Color.White.copy(alpha = .24f), CircleShape)
         .drawWithContent { drawContent(); drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .4f), .05f to Color.Transparent), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx())) }
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
-        LdIcon(LdIcons.PhoneOff, 30.dp, Color.White)
+        LdIcon(LdIcons.Phone, 30.dp, Color.White, Modifier.rotate(137f))
     }
 }
 
@@ -144,7 +144,7 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
 }
 
 @Composable
-private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean) {
+private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean, scale: Float = 1f) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     val name = CallManager.nameFor(ctx, call)
@@ -156,10 +156,10 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Avatar(name, CallManager.photoFor(call), 118.dp, 34f, glow = true, seed = name) }
+        }) { Avatar(name, CallManager.photoFor(call), (118f * scale).dp, 34f * scale, glow = true, seed = name) }
         Spacer(Modifier.height(4.dp))
-        LdText(name, 25f, FontWeight.Bold, letter = -.3f)
-        if (number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f, color = p.muted, letter = .3f)
+        LdText(name, 25f * scale, FontWeight.Bold, letter = -.3f)
+        if (number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f * scale, color = p.muted, letter = .3f)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 6.dp)) {
             if (ringing) LiveDot()
             LdText(status, 12.5f, FontWeight.SemiBold, statusColor)
@@ -185,6 +185,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
 private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.RecInfo?, onRecord: () -> Unit, onAddCall: () -> Unit,
                            onMinimize: () -> Unit, openSheet: (String) -> Unit) {
     val p = LocalLd.current
+    val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
     val now = nowTicker()
     val st = CallManager.state(call)
@@ -212,6 +213,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
         if (bt) add("BLUETOOTH" to p.muted)
     }
     val others = CallManager.others()
+    val btnDp = s.callBtnSize.dp
 
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, true, onMinimize)
@@ -228,11 +230,11 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (!keypad) Hero(call, status, p.accent, timer, badges, false)
+            if (!keypad) Hero(call, status, p.accent, timer, badges, false, scale = s.callCardScale)
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
-                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, small = true)
+                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, small = true, scale = s.dialerScale)
                 Row(Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp).clickable { keypad = false }.padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdIcon(LdIcons.X, 16.dp); LdText("Keypad band karo", 13f, FontWeight.SemiBold)
@@ -240,31 +242,38 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         if (!keypad) {
-            Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(bottom = 16.dp, top = 6.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    CallBtn(LdIcons.Mic, if (muted) "Unmute" else "Mute", on = muted) { CallManager.toggleMute() }
-                    CallBtn(LdIcons.Dialpad, "Keypad") { keypad = true }
-                    CallBtn(LdIcons.Record, if (rec != null) "Stop rec" else "Record", on = rec != null, onClick = onRecord)
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    CallBtn(LdIcons.Pause, if (st == Call.STATE_HOLDING) "Resume" else "Hold", on = st == Call.STATE_HOLDING,
-                        enabled = call.details?.can(Call.Details.CAPABILITY_HOLD) == true || st == Call.STATE_HOLDING) { CallManager.toggleHold(call) }
-                    CallBtn(LdIcons.Plus, "Add call", onClick = onAddCall)
+            val btns = linkedMapOf<String, @Composable () -> Unit>(
+                "mute" to { CallBtn(LdIcons.Mic, if (muted) "Unmute" else "Mute", on = muted, size = btnDp) { CallManager.toggleMute() } },
+                "keypad" to { CallBtn(LdIcons.Dialpad, "Keypad", size = btnDp) { keypad = true } },
+                "record" to { CallBtn(LdIcons.Record, if (rec != null) "Stop rec" else "Record", on = rec != null, size = btnDp, onClick = onRecord) },
+                "hold" to { CallBtn(LdIcons.Pause, if (st == Call.STATE_HOLDING) "Resume" else "Hold", on = st == Call.STATE_HOLDING, size = btnDp,
+                    enabled = call.details?.can(Call.Details.CAPABILITY_HOLD) == true || st == Call.STATE_HOLDING) { CallManager.toggleHold(call) } },
+                "addcall" to { CallBtn(LdIcons.Plus, "Add call", size = btnDp, onClick = onAddCall) },
+                "audio" to {
                     when {
-                        others.isNotEmpty() && CallManager.canMerge() -> CallBtn(LdIcons.Merge, "Merge") { CallManager.merge() }
-                        others.isNotEmpty() -> CallBtn(LdIcons.Swap, "Swap") { CallManager.swap() }
-                        else -> CallBtn(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", on = bt) { openSheet("audio") }
+                        others.isNotEmpty() && CallManager.canMerge() -> CallBtn(LdIcons.Merge, "Merge", size = btnDp) { CallManager.merge() }
+                        others.isNotEmpty() -> CallBtn(LdIcons.Swap, "Swap", size = btnDp) { CallManager.swap() }
+                        else -> CallBtn(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", on = bt, size = btnDp) { openSheet("audio") }
+                    }
+                },
+            )
+            val savedOrder = s.callBtns.split(",")
+            val order = savedOrder.filter { btns.containsKey(it) } + btns.keys.filter { it !in savedOrder }
+            Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(bottom = 16.dp, top = 6.dp)) {
+                order.chunked(3).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        row.forEach { id -> btns[id]?.invoke() }
                     }
                 }
             }
         }
         // bottom row: Speaker | End | Notes
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
-            CallBtn(LdIcons.Volume, if (speaker) "Speaker on" else "Speaker", on = speaker) {
+            CallBtn(LdIcons.Volume, if (speaker) "Speaker on" else "Speaker", on = speaker, size = btnDp) {
                 if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { EndCallBtn { CallManager.end(call) } }
-            CallBtn(LdIcons.Edit, "Notes") { openSheet("notes") }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) { EndCallBtn(size = btnDp + 6.dp) { CallManager.end(call) } }
+            CallBtn(LdIcons.Edit, "Notes", size = btnDp) { openSheet("notes") }
         }
     }
 }
@@ -272,13 +281,14 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
 @Composable
 private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     val p = LocalLd.current
+    val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
     val sim = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { "SIM ${it.slot}" } ?: "SIM"
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, false) {}
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true)
+            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true, scale = s.callCardScale)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Decline", swipe = swipe) { CallManager.reject(call) }
@@ -343,7 +353,7 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                     }
                 } else Modifier.clickable { if (!fired) { fired = true; onTrigger() } }
             )
-        Box(m, contentAlignment = Alignment.Center) { LdIcon(if (danger) LdIcons.PhoneOff else LdIcons.Phone, 28.dp, if (danger) Color.White else Color(0xFF06281B)) }
+        Box(m, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 28.dp, Color.White, if (danger) Modifier.rotate(137f) else Modifier) }
         LdText(label, 12f, FontWeight.SemiBold, p.muted)
     }
 }
