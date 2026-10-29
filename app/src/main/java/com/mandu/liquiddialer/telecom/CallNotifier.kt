@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.app.AlarmManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -92,23 +93,77 @@ object CallNotifier {
         try { nm.notify(ID_CALL, b.build()) } catch (e: Exception) { }
     }
 
-    fun missed(ctx: Context, number: String, name: String) {
-        val open = PendingIntent.getActivity(ctx, 300, Intent(ctx, MainActivity::class.java).putExtra("tab", "recents")
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+    fun missed(ctx: Context, number: String, name: String, remind: Boolean = false) {
+        val open = receiverPi(ctx, CallActionReceiver.MISSED_OPEN, 0, number)
         val callBack = PendingIntent.getActivity(ctx, 301, Intent(ctx, MainActivity::class.java).setAction("com.mandu.liquiddialer.CALLBACK")
             .putExtra("number", number).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
         val sms = PendingIntent.getActivity(ctx, 302, Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val time = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+        val big = NotificationCompat.BigTextStyle().bigText("$name\n$time" + if (number.isNotBlank()) "\n$number" else "")
         val n = NotificationCompat.Builder(ctx, CH_MISSED)
             .setSmallIcon(R.drawable.ic_stat_call)
-            .setContentTitle("Missed call")
+            .setContentTitle("Missed call · $time")
             .setContentText(name)
+            .setStyle(big)
             .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
             .setAutoCancel(true)
             .setContentIntent(open)
+            .setDeleteIntent(receiverPi(ctx, CallActionReceiver.MISSED_DISMISS, 1, number))
             .setColor(0xFFFF5D6C.toInt())
-            .apply { if (number.isNotBlank()) { addAction(0, "Call back", callBack); addAction(0, "Message", sms) } }
+            .apply { if (number.isNotBlank()) { addAction(0, "Call back", callBack); addAction(0, "Message", sms); addAction(0, "Block", receiverPi(ctx, CallActionReceiver.BLOCK_NUM, 2, number)) } }
             .build()
         try { NotificationManagerCompat.from(ctx).notify(ID_MISSED, n) } catch (e: Exception) { }
+        if (remind && number.isNotBlank()) scheduleReminders(ctx, number, name)
+    }
+
+    /** Opt-in missed-call reminders: re-notify after 5/10/15 min unless opened/dismissed. */
+    fun scheduleReminders(ctx: Context, number: String, name: String) {
+        val am = ctx.getSystemService(AlarmManager::class.java)
+        lastMissed = number to name
+        for (i in 1..3) {
+            val pi = receiverPi(ctx, CallActionReceiver.MISSED_REMIND, 10 + i, number)
+            try { am.set(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + i * 5 * 60_000L, pi) } catch (e: Exception) { }
+        }
+    }
+
+    fun cancelReminders(ctx: Context) {
+        val am = ctx.getSystemService(AlarmManager::class.java)
+        for (i in 1..3) try { am.cancel(receiverPi(ctx, CallActionReceiver.MISSED_REMIND, 10 + i, "")) } catch (e: Exception) { }
+        lastMissed = null
+    }
+
+    @Volatile var lastMissed: Pair<String, String>? = null
+
+    /** Busy/failed outgoing call: one-tap redial. */
+    fun redial(ctx: Context, number: String, name: String) {
+        if (number.isBlank()) return
+        val callBack = PendingIntent.getActivity(ctx, 311, Intent(ctx, MainActivity::class.java).setAction("com.mandu.liquiddialer.CALLBACK")
+            .putExtra("number", number).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val n = NotificationCompat.Builder(ctx, CH_MISSED)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle("Call nahi lag paayi")
+            .setContentText(name)
+            .setAutoCancel(true)
+            .setColor(0xFFFF5D6C.toInt())
+            .addAction(0, "Dobara call", callBack)
+            .build()
+        try { NotificationManagerCompat.from(ctx).notify(43, n) } catch (e: Exception) { }
+    }
+
+    /** After a call with an unsaved number: offer save / block. */
+    fun savePrompt(ctx: Context, number: String) {
+        val save = PendingIntent.getActivity(ctx, 321, Intent(Intent.ACTION_INSERT).setType(android.provider.ContactsContract.Contacts.CONTENT_TYPE)
+            .putExtra(android.provider.ContactsContract.Intents.Insert.PHONE, number).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val n = NotificationCompat.Builder(ctx, CH_MISSED)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle("Naya number: $number")
+            .setContentText("Contacts me save karein?")
+            .setAutoCancel(true)
+            .setColor(0xFF5B8CFF.toInt())
+            .addAction(0, "Save karo", save)
+            .addAction(0, "Block", receiverPi(ctx, CallActionReceiver.BLOCK_NUM, 22, number))
+            .build()
+        try { NotificationManagerCompat.from(ctx).notify(44, n) } catch (e: Exception) { }
     }
 
     fun cancelAll(ctx: Context) { NotificationManagerCompat.from(ctx).cancel(ID_CALL) }
