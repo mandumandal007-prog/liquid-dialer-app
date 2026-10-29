@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -124,14 +126,18 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     val haze = remember { HazeState() }
     val call = remember(ver, calls) { CallManager.primary() }
     var sheet by remember { mutableStateOf<String?>(null) }
+    // keep the last call's identity so the end screen still shows who it was and how long it ran
+    var lastEnded by remember { mutableStateOf<Triple<String, String, String>?>(null) }
+    call?.let { c ->
+        val dur = c.details?.connectTimeMillis ?: 0L
+        lastEnded = Triple(CallManager.nameFor(ctx, c), CallManager.number(c), if (dur > 0) fmtDur((System.currentTimeMillis() - dur) / 1000) else "")
+    }
 
     Box(Modifier.fillMaxSize()) {
         CallBackground(Modifier.haze(haze), s.callBgStyle, call?.let { CallManager.photoFor(it) })
         CompositionLocalProvider(LocalHaze provides haze) {
             if (call == null) {
-                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                    LdText("Call ended", 20f, FontWeight.SemiBold)
-                }
+                CallEndedScreen(lastEnded)
             } else {
                 val st = CallManager.state(call)
                 if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" })
@@ -187,6 +193,16 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
         Spacer(Modifier.height(4.dp))
         LdText(name, (if (sh < 700) 21f else 23f) * heroScale, FontWeight.Bold, letter = -.3f, maxLines = 1)
         if (s.callShowNumber && number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f, color = p.muted, letter = .3f)
+        if (ringing && s.showContactType && number.isNotBlank()) {
+            remember(number) { Repo.contactLabel(ctx, number) }?.let { LdText(it, 12f, FontWeight.SemiBold, p.accent) }
+        }
+        if (ringing && s.showLastCall && number.isNotBlank()) {
+            remember(number) { Repo.lastCallFor(ctx, number) }?.let { (date, typ, dur) ->
+                val when0 = android.text.format.DateUtils.getRelativeTimeSpanString(date, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS, android.text.format.DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+                val kind = when (typ) { android.provider.CallLog.Calls.OUTGOING_TYPE -> "Outgoing"; android.provider.CallLog.Calls.INCOMING_TYPE -> "Incoming"; else -> "Missed" }
+                LdText("Pichli call: $kind · $when0", 11.5f, color = p.muted)
+            }
+        }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 6.dp)) {
             if (ringing) LiveDot()
             LdText(status, 12.5f, FontWeight.SemiBold, statusColor)
@@ -239,6 +255,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
         if (bt) add("BLUETOOTH" to p.muted)
     }
     val others = CallManager.others()
+    val s by LdApp.settings.collectAsState()
 
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 18.dp)) {
         TopChips(call, true, onMinimize)
@@ -259,14 +276,13 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
-                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, keyDp = (LocalConfiguration.current.screenHeightDp * .095f).coerceIn(58f, 84f).dp)
+                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, keyDp = (LocalConfiguration.current.screenHeightDp * .095f).coerceIn(58f, 84f).dp, letters = s.keypadLetters)
                 Row(Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp).clickable { keypad = false }.padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdIcon(LdIcons.X, 16.dp); LdText("Keypad band karo", 13f, FontWeight.SemiBold)
                 }
             }
         }
-        val s by LdApp.settings.collectAsState()
         val gridL = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
         val bottomL = remember(s.layoutBottom) { parseLayout(s.layoutBottom, BOTTOM_IDS) }
         val audioVisible = gridL.any { it.first == "audio" && it.second }
@@ -475,4 +491,37 @@ fun SimPickSheet(onPick: (android.telecom.PhoneAccountHandle) -> Unit) {
         }
     }
     if (sims.isEmpty()) LdText("Koi SIM nahi mili (Phone permission check karo)", 13f, color = p.muted)
+}
+
+/** Royal / luxury "call ended" finish: gold gradient headline, ornamental rules, soft halo. */
+@Composable
+private fun CallEndedScreen(last: Triple<String, String, String>?) {
+    val p = LocalLd.current
+    val gold = Brush.linearGradient(listOf(Color(0xFFF9E7B2), Color(0xFFD4AF37), Color(0xFF8C6D1F)))
+    Box(Modifier.fillMaxSize().testTag("call_ended"), contentAlignment = Alignment.Center) {
+        // soft golden halo behind the headline
+        Box(Modifier.size(300.dp).background(Brush.radialGradient(listOf(Color(0x33D4AF37), Color.Transparent)), CircleShape))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(54.dp).height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, Color(0xFFD4AF37)))))
+                Box(Modifier.padding(horizontal = 10.dp).size(7.dp).rotate(45f).background(Color(0xFFD4AF37)))
+                Box(Modifier.width(54.dp).height(1.dp).background(Brush.horizontalGradient(listOf(Color(0xFFD4AF37), Color.Transparent))))
+            }
+            Text("CALL SAMAPT",
+                Modifier.padding(top = 18.dp).testTag("call_ended_title"),
+                style = androidx.compose.ui.text.TextStyle(brush = gold),
+                fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 6.sp)
+            LdText("Call ended", 12.5f, color = p.muted, letter = 3f, modifier = Modifier.padding(top = 8.dp))
+            if (last != null && last.first.isNotBlank()) {
+                LdText(last.first, 16f, FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp), maxLines = 1)
+                val sub = listOf(Repo.pretty(last.second), last.third).filter { it.isNotBlank() }.joinToString("  ·  ")
+                if (sub.isNotBlank()) LdText(sub, 12.5f, color = p.muted, modifier = Modifier.padding(top = 4.dp))
+            }
+            Row(Modifier.padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.width(54.dp).height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, Color(0xFFD4AF37)))))
+                Box(Modifier.padding(horizontal = 10.dp).size(7.dp).rotate(45f).background(Color(0xFFD4AF37)))
+                Box(Modifier.width(54.dp).height(1.dp).background(Brush.horizontalGradient(listOf(Color(0xFFD4AF37), Color.Transparent))))
+            }
+        }
+    }
 }
