@@ -72,14 +72,23 @@ fun voiceErrorNotice(error: Int): String = when (error) {
     else -> VOICE_NOTICE_BROKEN
 }
 
+/** What trigger() should do next. Unit-tested: fallback capture always goes through explicit consent. */
+enum class VoiceStart { LISTEN, ASK_CONSENT, REQUEST_PERMISSION }
+fun voiceStartDecision(micGranted: Boolean, sdkInt: Int, onDeviceAvailable: Boolean): VoiceStart = when {
+    !micGranted -> VoiceStart.REQUEST_PERMISSION
+    sdkInt >= 31 && onDeviceAvailable -> VoiceStart.LISTEN
+    else -> VoiceStart.ASK_CONSENT
+}
+
 /** Observable voice UI state. */
 class VoiceUiState {
     var listening by mutableStateOf(false)
     var notice by mutableStateOf<String?>(null)     // inline message (errors, no-match)
     var confirm by mutableStateOf<VoiceMatch?>(null) // pending confirmation
+    var pendingConsent by mutableStateOf(false)     // network-capable fallback needs explicit OK
 }
 
-class VoiceDialer internal constructor(val ui: VoiceUiState, val trigger: () -> Unit, val stop: () -> Unit)
+class VoiceDialer internal constructor(val ui: VoiceUiState, val trigger: () -> Unit, val stop: () -> Unit, val consentOk: () -> Unit, val consentCancel: () -> Unit)
 
 /** Owns SpeechRecognizer lifecycle; trigger() starts (or cancels while listening). */
 @Composable
@@ -90,18 +99,14 @@ fun rememberVoiceDialer(onHeard: (String) -> Unit): VoiceDialer {
 
     fun destroy() { try { recognizer?.destroy() } catch (_: Exception) { }; recognizer = null }
 
-    fun startListening() {
-        if (!SpeechRecognizer.isRecognitionAvailable(ctx)) {
-            ui.notice = VOICE_NOTICE_UNAVAILABLE
-            return
-        }
+    fun onDeviceReady(): Boolean =
+        android.os.Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)
+
+    /** Actually starts capture. Reached only via on-device path or explicit consent. */
+    fun beginCapture() {
         destroy()
-        // Privacy: prefer the guaranteed on-device recognizer (Android 12+/API 31 with on-device pack).
-        // On older devices the system's default speech service is used; depending on that service
-        // (usually Google's) audio may leave the phone when no offline pack is present.
         val r = try {
-            if (android.os.Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx))
-                SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx)
+            if (onDeviceReady()) SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx)
             else SpeechRecognizer.createSpeechRecognizer(ctx)
         } catch (e: Exception) {
             ui.notice = VOICE_NOTICE_BROKEN; return
@@ -140,6 +145,15 @@ fun rememberVoiceDialer(onHeard: (String) -> Unit): VoiceDialer {
         try { r.startListening(intent) } catch (e: Exception) { ui.listening = false; ui.notice = VOICE_NOTICE_BROKEN; destroy() }
     }
 
+    fun startListening() {
+        if (!SpeechRecognizer.isRecognitionAvailable(ctx)) {
+            ui.notice = VOICE_NOTICE_UNAVAILABLE
+            return
+        }
+        if (!onDeviceReady()) { ui.pendingConsent = true; return }
+        beginCapture()
+    }
+
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) startListening() else ui.notice = VOICE_NOTICE_MIC_DENIED
     }
@@ -154,7 +168,9 @@ fun rememberVoiceDialer(onHeard: (String) -> Unit): VoiceDialer {
                 else -> permLauncher.launch(Manifest.permission.RECORD_AUDIO)
             }
         },
-        stop = { try { recognizer?.cancel() } catch (_: Exception) { }; ui.listening = false; destroy() })
+        stop = { try { recognizer?.cancel() } catch (_: Exception) { }; ui.listening = false; destroy() },
+        consentOk = { ui.pendingConsent = false; beginCapture() },
+        consentCancel = { ui.pendingConsent = false })
 }
 
 /** Look up contact type label (Mobile/Work/Home...) for a number. */
@@ -213,6 +229,20 @@ fun androidx.compose.foundation.layout.BoxScope.VoiceConfirmCard(m: VoiceMatch, 
             Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF1EA446)).clickable { onCall() }.testTag("voice_call_now"), contentAlignment = Alignment.Center) {
                 LdIcon(LdIcons.Phone, 26.dp, Color.White)
             }
+        }
+    }
+}
+
+/** One-screen consent shown before any network-capable (non-on-device) capture. */
+@Composable
+fun androidx.compose.foundation.layout.BoxScope.VoiceConsentCard(align: Alignment, onOk: () -> Unit, onCancel: () -> Unit) {
+    val p = LocalLd.current
+    Column(Modifier.align(align).widthIn(max = 310.dp).clip(RoundedCornerShape(22.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(22.dp)).padding(20.dp).testTag("voice_consent")) {
+        LdText("Voice search private rahegi?", 15f, FontWeight.Bold)
+        LdText("Is phone pe on-device voice pack nahi mila. Aapki awaaz phone ki speech service ko internet par bheji ja sakti hai (jaise Gboard voice typing). Humare paas kuch nahi aata.", 12.5f, color = p.muted, maxLines = 6, modifier = Modifier.padding(top = 8.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(p.glass).clickable { onCancel() }.padding(vertical = 12.dp).testTag("voice_consent_cancel"), contentAlignment = Alignment.Center) { LdText("Radd karo", 13f, FontWeight.SemiBold) }
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(p.accent).clickable { onOk() }.padding(vertical = 12.dp).testTag("voice_consent_ok"), contentAlignment = Alignment.Center) { LdText("Theek hai", 13f, FontWeight.SemiBold, Color.White) }
         }
     }
 }
