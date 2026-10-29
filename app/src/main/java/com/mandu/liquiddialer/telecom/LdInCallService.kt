@@ -63,7 +63,9 @@ class LdInCallService : InCallService() {
             CallNotifier.update(this)
             if (s.incomingFull) launchUi()
             if (s.flipToMute) startFlip()
-            if (s.announceCaller) announce(CallManager.nameFor(this, call))
+            if (s.announceCaller) announce(CallManager.nameFor(this, call), s.announceRepeat.coerceIn(1, 3))
+            if (s.flashOnRing) startFlash()
+            if (s.ringVolumeMax) maxStream(android.media.AudioManager.STREAM_RING)
         } else {
             if (st == Call.STATE_DIALING || st == Call.STATE_CONNECTING || st == Call.STATE_SELECT_PHONE_ACCOUNT) wasOutgoing += call
             CallNotifier.update(this)
@@ -79,16 +81,28 @@ class LdInCallService : InCallService() {
         val s = LdApp.settings.value
         val cause = call.details?.disconnectCause?.code
         if (wasRinging.contains(call) && !answered.contains(call) && cause == DisconnectCause.MISSED && s.missedAlerts) {
-            CallNotifier.missed(this, CallManager.number(call), CallManager.nameFor(this, call))
+            CallNotifier.missed(this, CallManager.number(call), CallManager.nameFor(this, call), s.missedRemind)
+        }
+        // outgoing call that never connected (busy/error): suggest redial
+        if (wasOutgoing.contains(call) && !answered.contains(call) && s.redialSuggest &&
+            (cause == DisconnectCause.BUSY || cause == DisconnectCause.ERROR)) {
+            CallNotifier.redial(this, CallManager.number(call), CallManager.nameFor(this, call))
+        }
+        // finished call with an unsaved number: offer save/block
+        if (answered.contains(call) && s.postCallSave) {
+            val n = CallManager.number(call)
+            val canRead = checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (n.isNotBlank() && canRead && !CallManager.isKnown(this, call)) CallNotifier.savePrompt(this, n)
         }
         if (answered.contains(call) && s.vibrateEnd) vibrate(60)
         wasRinging -= call; wasOutgoing -= call; answered -= call
         if (CallManager.calls.value.isEmpty()) {
             CallRecorder.stop()
             CallNotifier.cancelAll(this)
-            stopFlip()
+            stopFlip(); stopFlash(); stopMinuteBeep()
         } else CallNotifier.update(this)
-        if (CallManager.ringing() == null) stopFlip()
+        if (CallManager.ringing() == null) { stopFlip(); stopFlash() }
+        if (CallManager.calls.value.none { CallManager.state(it) == Call.STATE_ACTIVE }) stopMinuteBeep()
         CallManager.bump()
     }
 
@@ -97,11 +111,14 @@ class LdInCallService : InCallService() {
         if (state == Call.STATE_ACTIVE && !answered.contains(call)) {
             answered += call
             if (wasOutgoing.contains(call) && s.vibrateAnswer) vibrate(80)
-            if (s.autoRecord && !CallRecorder.isRecording()) {
+            val unknownOk = !s.recordUnknownOnly || !CallManager.isKnown(this, call)
+            if (s.autoRecord && unknownOk && !CallRecorder.isRecording()) {
                 CallRecorder.start(this, CallManager.number(call), CallManager.nameFor(this, call))
             }
+            if (s.callVolumeMax) maxStream(android.media.AudioManager.STREAM_VOICE_CALL)
+            startMinuteBeep(s.minuteBeep)
         }
-        if (state != Call.STATE_RINGING) { stopFlip(); tts?.stop() }
+        if (state != Call.STATE_RINGING) { stopFlip(); stopFlash(); tts?.stop() }
         CallNotifier.update(this)
         CallManager.bump()
     }
@@ -125,14 +142,70 @@ class LdInCallService : InCallService() {
         } catch (_: Exception) { }
     }
 
-    private fun announce(name: String) {
+    private fun announce(name: String, repeat: Int = 1) {
         tts?.shutdown()
         tts = TextToSpeech(this) { st ->
             if (st == TextToSpeech.SUCCESS) {
                 tts?.language = Locale("hi", "IN")
-                main.postDelayed({ if (CallManager.ringing() != null) tts?.speak("$name calling", TextToSpeech.QUEUE_FLUSH, null, "caller") }, 1200)
+                for (i in 0 until repeat) {
+                    main.postDelayed({ if (CallManager.ringing() != null) tts?.speak("$name calling", TextToSpeech.QUEUE_FLUSH, null, "caller$i") }, 1200L + i * 5000L)
+                }
             }
         }
+    }
+
+    // ---- flash on ring (opt-in) ----
+    private var flashOn = false
+    private val flashTick = object : Runnable {
+        override fun run() {
+            if (!flashOn) return
+            torch(toggle = true)
+            main.postDelayed(this, 350)
+        }
+    }
+    private var torchLit = false
+    private fun torch(toggle: Boolean) {
+        try {
+            val cm = getSystemService(android.hardware.camera2.CameraManager::class.java)
+            val id = cm.cameraIdList.firstOrNull { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true } ?: return
+            torchLit = !torchLit
+            cm.setTorchMode(id, torchLit)
+        } catch (_: Exception) { }
+    }
+    private fun startFlash() { if (flashOn) return; flashOn = true; torchLit = false; main.post(flashTick) }
+    private fun stopFlash() {
+        if (!flashOn) return
+        flashOn = false; main.removeCallbacks(flashTick)
+        if (torchLit) { torch(toggle = true); torchLit = false }
+    }
+
+    // ---- minute beep (opt-in) ----
+    private var beepMin = 0
+    private var toneGen: android.media.ToneGenerator? = null
+    private val beepTick = object : Runnable {
+        override fun run() {
+            if (beepMin <= 0) return
+            try { toneGen?.startTone(android.media.ToneGenerator.TONE_PROP_ACK, 180) } catch (_: Exception) { }
+            main.postDelayed(this, beepMin * 60_000L)
+        }
+    }
+    private fun startMinuteBeep(min: Int) {
+        if (min <= 0 || beepMin == min) return
+        stopMinuteBeep()
+        beepMin = min
+        try { toneGen = android.media.ToneGenerator(android.media.AudioManager.STREAM_VOICE_CALL, 70) } catch (_: Exception) { }
+        main.postDelayed(beepTick, beepMin * 60_000L)
+    }
+    private fun stopMinuteBeep() {
+        beepMin = 0; main.removeCallbacks(beepTick)
+        try { toneGen?.release() } catch (_: Exception) { }; toneGen = null
+    }
+
+    private fun maxStream(stream: Int) {
+        try {
+            val am = getSystemService(android.media.AudioManager::class.java)
+            am.setStreamVolume(stream, am.getStreamMaxVolume(stream), 0)
+        } catch (_: Exception) { }
     }
 
     // ---- flip to mute ----
