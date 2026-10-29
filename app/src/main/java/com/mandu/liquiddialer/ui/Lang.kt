@@ -24,6 +24,8 @@ fun trNow(s: String): String {
 }
 
 private val TR_HI: Map<String, String> = mapOf(
+        "Voice search private rahegi?" to "वॉइस सर्च प्राइवेट रहेगी?",
+        "Is phone pe on-device voice pack nahi mila. Aapki awaaz phone ki speech service ko internet par bheji ja sakti hai (jaise Gboard voice typing). Humare paas kuch nahi aata." to "इस फोन पर ऑन-डिवाइस वॉइस पैक नहीं मिला। आपकी आवाज़ फोन की स्पीच सेवा को इंटरनेट पर भेजी जा सकती है (जैसे Gboard वॉइस टाइपिंग)। हमारे पास कुछ नहीं आता।",
         "Sun raha hoon..." to "सुन रहा हूँ...",
         "Naam ya number bolein" to "नाम या नंबर बोलें",
         "Radd karo" to "रद्द करो",
@@ -423,6 +425,8 @@ private val TR_HI: Map<String, String> = mapOf(
     )
 
 private val TR_EN: Map<String, String> = mapOf(
+        "Voice search private rahegi?" to "Will voice search stay private?",
+        "Is phone pe on-device voice pack nahi mila. Aapki awaaz phone ki speech service ko internet par bheji ja sakti hai (jaise Gboard voice typing). Humare paas kuch nahi aata." to "No on-device voice pack found on this phone. Your audio may be sent over the internet to the phone's speech service (like Gboard voice typing). Nothing comes to us.",
         "Sun raha hoon..." to "Listening...",
         "Naam ya number bolein" to "Say a name or number",
         "Radd karo" to "Cancel",
@@ -822,6 +826,8 @@ private val TR_EN: Map<String, String> = mapOf(
     )
 
 private val TR_BN: Map<String, String> = mapOf(
+        "Voice search private rahegi?" to "ভয়েস সার্চ কি প্রাইভেট থাকবে?",
+        "Is phone pe on-device voice pack nahi mila. Aapki awaaz phone ki speech service ko internet par bheji ja sakti hai (jaise Gboard voice typing). Humare paas kuch nahi aata." to "এই ফোনে অন-ডিভাইস ভয়েস প্যাক পাওয়া যায়নি। আপনার অডিও ফোনের স্পিচ পরিষেবায় ইন্টারনেটে পাঠানো হতে পারে (যেমন Gboard ভয়েস টাইপিং)। আমাদের কাছে কিছুই আসে না।",
         "Sun raha hoon..." to "শুনছি...",
         "Naam ya number bolein" to "নাম বা নম্বর বলুন",
         "Radd karo" to "বাতিল করো",
