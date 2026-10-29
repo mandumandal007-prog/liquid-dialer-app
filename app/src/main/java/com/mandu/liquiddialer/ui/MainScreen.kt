@@ -366,7 +366,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val contactHits = remember(st.contacts, query) { if (query.isBlank()) emptyList() else st.contacts.filter { Repo.matches(it, query) }.take(8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 190.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 190.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -492,7 +492,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val s by LdApp.settings.collectAsState()
     val list = remember(st.contacts, query) { st.contacts.filter { Repo.matches(it, query) } }
     val hasPerm = act.has(android.Manifest.permission.READ_CONTACTS)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
