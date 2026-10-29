@@ -102,7 +102,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             AnimatedVisibility(st.tab != "dialer", enter = fadeIn() + slideInVertically { -it / 4 }, exit = fadeOut() + slideOutVertically { -it / 4 }) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.size(42.dp).liquid(CircleShape, 6.dp).clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu) }
+                    Box(Modifier.size(42.dp).liquid(CircleShape, 6.dp).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu) }
                     Row(Modifier.weight(1f).height(46.dp).liquid(RoundedCornerShape(18.dp), 8.dp).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LdIcon(LdIcons.Search, 18.dp, p.muted)
@@ -167,6 +167,23 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 DialerSheet(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it })
             }
             // ===== drawer =====
+            // confirm-before-call card (setting: confirmCall)
+            st.confirmNumber?.let { n ->
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .35f)).clickable(remember { MutableInteractionSource() }, null) { st.confirmNumber = null })
+                VoiceConfirmCard(VoiceMatch(if (st.contacts.firstOrNull { Repo.key(it.number) == Repo.key(n) } != null) st.contacts.first { Repo.key(it.number) == Repo.key(n) }.name else Repo.pretty(n), n),
+                    Alignment.Center,
+                    onCall = { st.confirmNumber = null; act.call(n) },
+                    onCancel = { st.confirmNumber = null })
+            }
+            // 3-second undo window before dialing (setting: undoCall)
+            st.undoInfo?.let { (n, _) ->
+                Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp).clip(RoundedCornerShape(18.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(18.dp)).padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LdText("3 sec me call: ${Repo.pretty(n)}", 13f, FontWeight.SemiBold, maxLines = 1)
+                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { act.cancelUndo() }.padding(horizontal = 10.dp, vertical = 6.dp)) { LdText("Radd karo", 13f, FontWeight.Bold, p.danger) }
+                    }
+                }
+            }
             if (drawer) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f)).clickable(remember { MutableInteractionSource() }, null) { drawer = false })
             AnimatedVisibility(drawer, enter = slideInHorizontally(tween(360, easing = CubicBezierEasing(.22f, 1f, .36f, 1f))) { -it },
                 exit = slideOutHorizontally(tween(300)) { -it }) {
@@ -295,7 +312,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     var confirmClear by remember { mutableStateOf(false) }
     var filter by remember { mutableIntStateOf(0) }
     val favs = st.contacts.filter { it.starred }
-    val rows = remember(st.recents, query, filter) {
+    val rows = remember(st.recents, query, filter, s.groupByDay) {
         val out = mutableListOf<RItem>()
         var lastKey = ""; var lastDay = ""
         st.recents.filter { r ->
@@ -309,7 +326,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             qok && fok
         }.forEach { r ->
             val day = dayLabel(r.date)
-            if (day != lastDay) { out += RHead(day); lastDay = day; lastKey = "" }
+            if (s.groupByDay && day != lastDay) { out += RHead(day); lastDay = day; lastKey = "" }
             val k = Repo.key(r.number) + ":" + r.type
             val prev = out.lastOrNull()
             if (k == lastKey && prev is RRow) out[out.size - 1] = RRow(prev.r, prev.count + 1)
@@ -323,21 +340,21 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
-        if (favs.isNotEmpty() && query.isBlank() && filter == 0) item {
+        if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
                 Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     LdText("FAVOURITES", 12f, FontWeight.Bold, p.muted, letter = 1.2f)
                     Spacer(Modifier.weight(1f))
                     Box(Modifier.size(30.dp).clip(CircleShape).testTag("fav_toggle").clickable { scope.launch { LdApp.instance.repo.set(K.showFavourites, !s.showFavourites) } }, contentAlignment = Alignment.Center) {
-                        LdIcon(if (s.showFavourites) LdIcons.EyeOff else LdIcons.Eye, 17.dp, p.muted)
+                        LdIcon(LdIcons.EyeOff, 17.dp, p.muted)
                     }
                     Spacer(Modifier.width(2.dp))
                 }
-                if (s.showFavourites) LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
                     items(favs, key = { it.id }) { c ->
-                        Column(Modifier.width(62.dp).clickable(remember { MutableInteractionSource() }, null) { act.call(c.number) },
+                        Column(Modifier.width(62.dp).clickable(remember { MutableInteractionSource() }, null) { act.callUi(c.number) },
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Box(Modifier.clickable { act.call(c.number) }) { Avatar(c.name, c.photo, 54.dp, 17f) }
+                            Box(Modifier.clickable { act.callUi(c.number) }) { Avatar(c.name, c.photo, 54.dp, 17f) }
                             LdText(c.name.split(" ").first(), 11f, color = p.muted)
                         }
                     }
@@ -353,7 +370,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         LdText(c.name, 14.5f, FontWeight.SemiBold)
                         LdText(c.label + "  ·  " + Repo.pretty(c.number), 11.5f, color = p.muted, modifier = Modifier.padding(top = 3.dp))
                     }
-                    CallMini { act.call(c.number) }
+                    CallMini { act.callUi(c.number) }
                 }
             }
         }
@@ -393,12 +410,14 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                             LdText(name + if (count > 1) " ($count)" else "", 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
                             Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 LdIcon(typeIcon(r.type), 13.dp, if (missed) p.danger else p.muted)
-                                val parts = listOfNotNull(typeLabel(r.type), DateUtils.getRelativeTimeSpanString(r.date, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString(),
+                                val timeTxt = if (s.exactTime) SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(r.date))
+                                    else DateUtils.getRelativeTimeSpanString(r.date, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+                                val parts = listOfNotNull(typeLabel(r.type), timeTxt,
                                     if (r.duration > 0) fmtDur(r.duration) else null, simLabel)
                                 LdText(parts.joinToString("  ·  "), 11.5f, color = if (missed) p.danger else p.muted)
                             }
                         }
-                        CallMini { act.call(r.number) }
+                        CallMini { act.callUi(r.number) }
                     }
                 }
             }
@@ -492,6 +511,12 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         scope.launch { LdApp.instance.repo.set(K.defaultSim, next) }
     }
     val matches = remember(dial, st.contacts) { if (dial.length < 2) emptyList() else st.contacts.filter { Repo.matches(it, dial) }.take(3) }
+    var voiceConfirmHolder by remember { mutableStateOf<VoiceMatch?>(null) }
+    var voiceNoticeHolder by remember { mutableStateOf<String?>(null) }
+    val voice = rememberVoiceDialer { said ->
+        val m = matchVoiceCommand(said, st.contacts)
+        if (m != null) voiceConfirmHolder = m else voiceNoticeHolder = "Contact nahi mila: $said"
+    }
     val scrH = LocalConfiguration.current.screenHeightDp
     // ~half the screen including sheet chrome; dialerScale grows the whole sheet so round keys never clip
     BoxWithConstraints(Modifier.fillMaxWidth().height(((scrH * .70f) * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(440f, 860f).dp)) {
@@ -507,7 +532,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
             Box(Modifier.fillMaxWidth().height(76.dp)) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
-                LdText(formatDial(dial), (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
+                LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
                     modifier = Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
                 Spacer(Modifier.height(3.dp))
                 LdText(when { dial.isEmpty() -> "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f)
@@ -517,7 +542,10 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                     }
                 }
             }
-            Box(Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)) {
+            Row(Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).clip(CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                    LdIcon(LdIcons.Mic, 21.dp, if (voice.ui.listening) p.accent else p.muted)
+                }
                 Box(Modifier.size(40.dp).clip(CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
             }
             }
@@ -533,7 +561,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             else st.dial += k
                         }
                     }
-                }, maxKey = minOf(keyByH, keyByW).dp)
+                }, maxKey = minOf(keyByH, keyByW).dp, letters = s.keypadLetters)
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
@@ -554,7 +582,16 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 }
             }
         }
-            if (dialMenu) {
+            // voice dialing overlays
+        voice.ui.notice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { voice.ui.notice = null } }
+        voiceNoticeHolder?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { voiceNoticeHolder = null } }
+        if (voice.ui.listening) VoiceListeningCard(Alignment.Center) { voice.stop() }
+        voiceConfirmHolder?.let { m ->
+            VoiceConfirmCard(m, Alignment.Center,
+                onCall = { voiceConfirmHolder = null; act.call(m.number) },
+                onCancel = { voiceConfirmHolder = null })
+        }
+        if (dialMenu) {
                 Column(Modifier.align(Alignment.TopEnd).padding(top = 96.dp, end = 8.dp).width(200.dp).clip(RoundedCornerShape(16.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(16.dp)).padding(vertical = 6.dp).testTag("dial_menu_popup")) {
                     Row(Modifier.fillMaxWidth().clickable {
                         dialMenu = false
