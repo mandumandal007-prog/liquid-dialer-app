@@ -204,8 +204,6 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Contact ki SIM yaad rakho", "Pichli use ki hui SIM apne aap chunega", s.simMemory) { save(K.simMemory, it) }
             SwitchRow("3 sec ka undo", "Call lagne se pehle rukne ka mauka", s.undoCall) { save(K.undoCall, it) }
             SwitchRow("Busy pe redial suggest", "Call na lage to Dobara call button", s.redialSuggest) { save(K.redialSuggest, it) }
-            LdText("Busy pe auto redial", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
-            Segmented(listOf("Off", "1 baar", "2 baar", "3 baar"), s.autoRedial.coerceIn(0, 3)) { save(K.autoRedial, it) }
             SwitchRow("Connect pe speaker", "Outgoing call lagte hi speaker on (bluetooth pe nahi)", s.autoSpeaker) { save(K.autoSpeaker, it) }
             SwitchRow("Cut pe confirm", "End button dabate hi poochega", s.confirmBeforeEnd) { save(K.confirmBeforeEnd, it) }
             SwitchRow("Naya number save prompt", "Unknown number ki call ke baad Save/Block", s.postCallSave) { save(K.postCallSave, it) }
