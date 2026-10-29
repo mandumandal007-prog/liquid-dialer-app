@@ -110,8 +110,22 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
     Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
         .shadow(8.dp, CircleShape, ambientColor = Color(0x59000000), spotColor = Color(0x59000000)).clip(CircleShape)
         .background(Color(0xFFD93025))
+        .testTag("end_call")
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
         LdIcon(LdIcons.Phone, size * .42f, Color.White, Modifier.rotate(135f))
+    }
+}
+
+@Composable
+fun androidx.compose.foundation.layout.BoxScope.EndConfirmCard(align: Alignment, onOk: () -> Unit, onCancel: () -> Unit) {
+    val p = LocalLd.current
+    Column(Modifier.align(align).widthIn(max = 310.dp).clip(RoundedCornerShape(22.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(22.dp)).padding(20.dp).testTag("end_confirm")) {
+        LdText("Call kaatein?", 15f, FontWeight.Bold)
+        LdText("Call abhi chal rahi hai.", 12.5f, color = p.muted, maxLines = 3, modifier = Modifier.padding(top = 8.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(p.glass).clickable { onCancel() }.padding(vertical = 12.dp).testTag("end_confirm_cancel"), contentAlignment = Alignment.Center) { LdText("Wapas", 13f, FontWeight.SemiBold) }
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(Color(0xFFD93025)).clickable { onOk() }.padding(vertical = 12.dp).testTag("end_confirm_ok"), contentAlignment = Alignment.Center) { LdText("Haan, cut karo", 13f, FontWeight.SemiBold, Color.White) }
+        }
     }
 }
 
@@ -126,6 +140,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     val haze = remember { HazeState() }
     val call = remember(ver, calls) { CallManager.primary() }
     var sheet by remember { mutableStateOf<String?>(null) }
+    var confirmEnd by remember { mutableStateOf(false) }
     // keep the last call's identity so the end screen still shows who it was and how long it ran
     var lastEnded by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     call?.let { c ->
@@ -141,10 +156,12 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
             } else {
                 val st = CallManager.state(call)
                 if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" })
-                else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { sheet = it })
+                else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { sheet = it },
+                    onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) })
                 if (st == Call.STATE_SELECT_PHONE_ACCOUNT && sheet == null) sheet = "sim"
             }
             val c = call
+            if (confirmEnd && c != null) EndConfirmCard(align = Alignment.BottomCenter, onOk = { confirmEnd = false; CallManager.end(c) }, onCancel = { confirmEnd = false })
             if (sheet != null && c != null) {
                 Sheet(onDismiss = { sheet = null }) {
                     when (sheet) {
@@ -226,7 +243,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
 
 @Composable
 private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.RecInfo?, onRecord: () -> Unit, onAddCall: () -> Unit,
-                           onMinimize: () -> Unit, openSheet: (String) -> Unit) {
+                           onMinimize: () -> Unit, openSheet: (String) -> Unit, onEndRequest: (Call) -> Unit) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val now = nowTicker()
@@ -310,7 +327,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
         }
         if (!keypad) {
             Box(Modifier.padding(top = 6.dp, bottom = 4.dp)) {
-                CallControlsLayout(gridL, bottomL, s.gridScale, s.bottomScale, spec, onEnd = { CallManager.end(call) })
+                CallControlsLayout(gridL, bottomL, s.gridScale, s.bottomScale, spec, onEnd = { onEndRequest(call) })
             }
         } else {
             // keypad open: only the bottom row stays
