@@ -542,6 +542,18 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         scope.launch { LdApp.instance.repo.set(K.defaultSim, next) }
     }
     val matches = remember(dial, st.contacts) { if (dial.length < 2) emptyList() else st.contacts.filter { Repo.matches(it, dial) }.take(3) }
+    // live suggestions while typing: saved contacts first, then numbers from call history (local data only; tapping fills the number, never calls)
+    val suggest = remember(dial, st.contacts, st.recents) {
+        if (dial.length < 2) emptyList() else {
+            val dd = dial.filter { it.isDigit() }
+            val out = LinkedHashMap<String, Pair<String, String>>()
+            st.contacts.filter { Repo.matches(it, dial) }.take(6).forEach { out.putIfAbsent(Repo.key(it.number), it.name to it.number) }
+            if (dd.length >= 2) st.recents.filter { r -> r.number.filter { it.isDigit() }.contains(dd) }.take(40).forEach { r ->
+                out.putIfAbsent(Repo.key(r.number), (r.name?.takeIf { it.isNotBlank() } ?: Repo.pretty(r.number)) to r.number)
+            }
+            out.values.filter { Repo.key(it.second) != Repo.key(dial) }.take(4).toList()
+        }
+    }
     var voiceConfirmHolder by remember { mutableStateOf<VoiceMatch?>(null) }
     var voiceNoticeHolder by remember { mutableStateOf<String?>(null) }
     val voice = rememberVoiceDialer { said ->
@@ -552,17 +564,22 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
     // digit keys keep their original size; sheet height wraps content (top row 28 + number 68 + keypad + call row 70 + slack) so no dead gaps
     val scrW = LocalConfiguration.current.screenWidthDp
     val natKey = minOf((scrW * .19f).coerceIn(54f, 92f), (scrW - 52f) / 3.55f)
-    val dialerNaturalH = 28f + 68f + 4f * natKey + 3f * (natKey * .16f).coerceIn(7f, 14f) + 70f + 8f
+    val dialerNaturalH = 28f + 68f + 4f * natKey + 3f * 5f + 70f + 8f
     // ~half the screen including sheet chrome; dialerScale grows the whole sheet so round keys never clip
     BoxWithConstraints(Modifier.fillMaxWidth().height((dialerNaturalH * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(380f, 860f).dp)) {
         // keypad gets what is left after the number area (~76dp), top row (~24dp), call row (~78dp) and slack; width caps the keys too
-        val keyByH = ((maxHeight.value - 174f) / 4.4f).coerceIn(40f, 96f)
+        val keyByH = ((maxHeight.value - 174f) / 4.15f).coerceIn(40f, 96f)
         val keyByW = (maxWidth.value - 16f) / 3.55f
         var dialMenu by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(bottom = 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
-                LdText("0 dabake rakho = +", 11f, color = p.muted, letter = .3f)
+                Row(Modifier, horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(32.dp).clip(CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                    LdIcon(LdIcons.Mic, 21.dp, if (voice.ui.listening) p.accent else p.muted)
+                }
+                Box(Modifier.size(32.dp).clip(CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
+            }
             }
             Box(Modifier.fillMaxWidth().height(68.dp)) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
@@ -570,18 +587,20 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
                     modifier = Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
                 Spacer(Modifier.height(3.dp))
-                LdText(when { dial.isEmpty() -> "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f)
+                if (suggest.isNotEmpty() && nameMatch == null) {
+                    LazyRow(Modifier.padding(top = 2.dp).testTag("dial_suggest"), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(suggest, key = { it.second }) { (nm, num) ->
+                            Box(Modifier.clip(RoundedCornerShape(999.dp)).background(p.accent.pct(.14f)).clickable { st.dial = num.filter { c -> c.isDigit() || c in "+*#" } }.padding(horizontal = 10.dp, vertical = 4.dp)) {
+                                LdText(if (nm == Repo.pretty(num)) nm else nm.split(" ").first() + " · " + Repo.pretty(num), 11.5f, FontWeight.SemiBold, p.accent, maxLines = 1)
+                            }
+                        }
+                    }
+                } else LdText(when { dial.isEmpty() -> "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3) {
                     Box(Modifier.padding(top = 3.dp).clip(RoundedCornerShape(12.dp)).clickable { onAddContact(dial) }.padding(horizontal = 10.dp, vertical = 2.dp)) {
                         LdText("+ Contact me add karo", 12f, FontWeight.SemiBold, p.accent)
                     }
                 }
-            }
-            Row(Modifier.align(Alignment.CenterEnd).padding(end = 4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp).clip(CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
-                    LdIcon(LdIcons.Mic, 21.dp, if (voice.ui.listening) p.accent else p.muted)
-                }
-                Box(Modifier.size(40.dp).clip(CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
             }
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -596,7 +615,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             else st.dial += k
                         }
                     }
-                }, maxKey = minOf(keyByH, keyByW).dp, letters = s.keypadLetters)
+                }, maxKey = minOf(keyByH, keyByW).dp, letters = s.keypadLetters, rowGap = 5.dp)
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 0.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
