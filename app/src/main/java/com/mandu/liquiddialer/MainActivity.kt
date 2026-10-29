@@ -1,5 +1,6 @@
 package com.mandu.liquiddialer
 
+import com.mandu.liquiddialer.ui.trNow
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.Intent
@@ -188,7 +189,7 @@ class MainActivity : ComponentActivity() {
     fun call(number: String, account: PhoneAccountHandle? = null) {
         val n = number.trim()
         if (n.isEmpty()) return
-        if (!has(Manifest.permission.CALL_PHONE)) { askPermission(Manifest.permission.CALL_PHONE); Toast.makeText(this, "Call permission do", Toast.LENGTH_SHORT).show(); return }
+        if (!has(Manifest.permission.CALL_PHONE)) { askPermission(Manifest.permission.CALL_PHONE); Toast.makeText(this, trNow("Call permission do"), Toast.LENGTH_SHORT).show(); return }
         var acc = account
         if (acc == null) {
             val sims = Repo.sims(this)
@@ -197,7 +198,7 @@ class MainActivity : ComponentActivity() {
             if (acc == null && sims.size > 1) { state.pendingCall = n; return }
             if (acc == null && sims.size == 1) acc = sims[0].handle
         }
-        if (!CallManager.place(this, n, acc)) Toast.makeText(this, "Call nahi lag paayi", Toast.LENGTH_SHORT).show()
+        if (!CallManager.place(this, n, acc)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show()
     }
 
     fun voicemail() {
@@ -206,6 +207,6 @@ class MainActivity : ComponentActivity() {
         try {
             @Suppress("MissingPermission")
             getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("voicemail", "", null), Bundle())
-        } catch (_: Exception) { Toast.makeText(this, "Voicemail number Settings me daalo", Toast.LENGTH_LONG).show() }
+        } catch (_: Exception) { Toast.makeText(this, trNow("Voicemail number Settings me daalo"), Toast.LENGTH_LONG).show() }
     }
 }
