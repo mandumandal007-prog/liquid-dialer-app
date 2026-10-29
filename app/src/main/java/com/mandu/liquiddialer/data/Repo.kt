@@ -191,6 +191,17 @@ object Repo {
         } catch (e: Exception) { null }
     }
 
+    /** True jab number kisi starred (favourite) contact ka ho. */
+    fun contactStarred(ctx: Context, number: String): Boolean {
+        if (number.isBlank()) return false
+        return try {
+            val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+            ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.STARRED), null, null, null)?.use { c ->
+                c.moveToFirst() && c.getInt(0) == 1
+            } ?: false
+        } catch (e: Exception) { false }
+    }
+
     /** Latest call-log entry for a number: (dateMillis, type, durationSec). */
     fun lastCallFor(ctx: Context, number: String): Triple<Long, Int, Long>? {
         if (number.isBlank()) return null
