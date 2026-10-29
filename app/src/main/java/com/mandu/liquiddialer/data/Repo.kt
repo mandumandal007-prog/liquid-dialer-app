@@ -173,6 +173,36 @@ object Repo {
         } catch (e: Exception) { null }
     }
 
+    /** Contact phone type label (Mobile/Work/Home...) for incoming-call display. */
+    fun contactLabel(ctx: Context, number: String): String? {
+        if (number.isBlank()) return null
+        return try {
+            val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+            ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.STARRED), null, null, null)?.use { c ->
+                if (!c.moveToFirst()) return null
+                val starred = c.getInt(1) == 1
+                val cid = contactIdFor(ctx, number) ?: return if (starred) "Favourite" else null
+                ctx.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                    arrayOf(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.LABEL),
+                    ContactsContract.CommonDataKinds.Phone.CONTACT_ID + "=?", arrayOf(cid.toString()), null)?.use { p2 ->
+                    if (p2.moveToFirst()) ContactsContract.CommonDataKinds.Phone.getTypeLabel(ctx.resources, p2.getInt(0), p2.getString(1))?.toString() else null
+                }?.let { lbl -> if (starred) "$lbl · Favourite" else lbl } ?: if (starred) "Favourite" else null
+            }
+        } catch (e: Exception) { null }
+    }
+
+    /** Latest call-log entry for a number: (dateMillis, type, durationSec). */
+    fun lastCallFor(ctx: Context, number: String): Triple<Long, Int, Long>? {
+        if (number.isBlank()) return null
+        return try {
+            ctx.contentResolver.query(CallLog.Calls.CONTENT_URI,
+                arrayOf(CallLog.Calls.DATE, CallLog.Calls.TYPE, CallLog.Calls.DURATION),
+                CallLog.Calls.NUMBER + "=?", arrayOf(number), CallLog.Calls.DATE + " DESC")?.use {
+                if (it.moveToFirst()) Triple(it.getLong(0), it.getInt(1), it.getLong(2)) else null
+            }
+        } catch (e: Exception) { null }
+    }
+
     fun contactIdFor(ctx: Context, number: String): Long? = try {
         val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
         ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup._ID), null, null, null)?.use { if (it.moveToFirst()) it.getLong(0) else null }
