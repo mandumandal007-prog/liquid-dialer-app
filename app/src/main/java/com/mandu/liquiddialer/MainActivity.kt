@@ -167,7 +167,7 @@ class MainActivity : ComponentActivity() {
             val (c, r, b, sims) = withContext(Dispatchers.IO) {
                 listOf(
                     if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList<Contact>(),
-                    if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity) else emptyList<Recent>(),
+                    if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit) else emptyList<Recent>(),
                     if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList<String>(),
                     if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList<SimInfo>(),
                 )
@@ -254,4 +254,16 @@ internal object CallPrep {
 
     /** Multi-SIM picker shows only when nothing was chosen and more than one SIM exists. */
     fun needsSimPicker(simCount: Int): Boolean = simCount > 1
+
+    /** Next auto-redial attempt (1-based), or null jab configured limit khatam. */
+    fun nextRedialTry(attempts: Int, max: Int): Int? = if (max > 0 && attempts < max) attempts + 1 else null
+
+    /** Auto-redial sirf asli phone numbers pe: koi USSD (*...#), service short code, pause/wait (, ya ;) nahi. */
+    fun redialable(num: String): Boolean {
+        if (num.isBlank()) return false
+        if (num.any { it == '*' || it == '#' || it == ',' || it == ';' }) return false
+        val digits = num.filter { it.isDigit() }
+        if (digits.length < 5) return false
+        return num.all { it.isDigit() || it == '+' || it == ' ' || it == '-' } && num.count { it == '+' } <= 1 && (num.indexOf('+') <= 0)
+    }
 }
