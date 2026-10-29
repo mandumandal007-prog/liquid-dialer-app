@@ -49,6 +49,7 @@ data class LdSettings(
     val callAvatarShape: String = "circle",   // "circle" | "squircle"
     val callShowNumber: Boolean = true,
     val callBgStyle: String = "blobs",   // "blobs" | "photo" | "solid"
+    val showFavourites: Boolean = true,
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
@@ -102,6 +103,7 @@ object K {
     val callAvatarShape = stringPreferencesKey("callAvatarShape")
     val callShowNumber = booleanPreferencesKey("callShowNumber")
     val callBgStyle = stringPreferencesKey("callBgStyle")
+    val showFavourites = booleanPreferencesKey("showFavourites")
 }
 
 fun Preferences.toSettings(): LdSettings {
@@ -148,6 +150,7 @@ fun Preferences.toSettings(): LdSettings {
         dialerScale = this[K.dialerScale] ?: 1f,
         callAvatarShape = this[K.callAvatarShape] ?: "circle",
         callShowNumber = this[K.callShowNumber] ?: true,
+        showFavourites = this[K.showFavourites] ?: true,
         callBgStyle = this[K.callBgStyle] ?: "blobs",
     )
 }
