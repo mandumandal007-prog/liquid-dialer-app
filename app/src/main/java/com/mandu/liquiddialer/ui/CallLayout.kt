@@ -108,10 +108,43 @@ fun CallLayoutPage(onBack: () -> Unit) {
         LdText("PREVIEW", 12f, FontWeight.Bold, p.muted, letter = 1.2f, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(p.accent.pct(.10f)).glass(p, RoundedCornerShape(28.dp), 0.dp)
             .padding(vertical = 18.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Avatar("Preview", null, 56.dp, 18f, seed = "preview")
-            LdText("Call card", 15f, FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+            Avatar("Preview", null, 56.dp * s.callCardScale, 18f * s.callCardScale, seed = "preview",
+                shape = if (s.callAvatarShape == "squircle") RoundedCornerShape(28) else CircleShape)
+            LdText("Call card", 15f * s.callCardScale, FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+            if (s.callShowNumber) LdText("+91 98765 43210", 12f, color = p.muted)
             LdText("00:42", 13f, FontWeight.SemiBold, p.muted, modifier = Modifier.padding(bottom = 14.dp))
             CallControlsLayout(grid, bottom, gs, bs, spec = { id -> BtnSpec(btnIcon(id), btnName(id).substringBefore(" /")) {} }, onEnd = {}, compact = true)
+        }
+
+        Spacer(Modifier.height(16.dp))
+        LdText("CALLING CARD (naam · photo)", 12f, FontWeight.Bold, p.muted, letter = 1f, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+        GlassCard {
+            var hs by remember(s.callCardScale) { mutableFloatStateOf(s.callCardScale) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LdText("Naam aur photo ka size", 13.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                LdText("${(hs * 100).toInt()}%", 12.5f, FontWeight.SemiBold, p.muted)
+            }
+            Slider(hs, { hs = it }, valueRange = .8f..1.3f, onValueChangeFinished = { saveFl(K.callCardScale, hs) },
+                colors = SliderDefaults.colors(thumbColor = p.accent, activeTrackColor = p.accent))
+            ChoiceRow("Photo ka shape", listOf("Gol", "Rounded"), if (s.callAvatarShape == "squircle") 1 else 0) { saveF(K.callAvatarShape, if (it == 1) "squircle" else "circle") }
+            ToggleRow("Number dikhao", "Naam ke neeche phone number", s.callShowNumber) { LdApp.instance.scope.launch { LdApp.instance.repo.set(K.callShowNumber, it) } }
+            ChoiceRow("Call screen ka background", listOf("Blobs", "Photo", "Solid"), when (s.callBgStyle) { "photo" -> 1; "solid" -> 2; else -> 0 }) {
+                saveF(K.callBgStyle, when (it) { 1 -> "photo"; 2 -> "solid"; else -> "blobs" })
+            }
+            Spacer(Modifier.height(6.dp))
+        }
+        LdText("Photo wala background caller ki photo ko blur karke poori screen pe dikhata hai.", 11f, color = p.muted, modifier = Modifier.padding(start = 6.dp, top = 6.dp))
+
+        Spacer(Modifier.height(16.dp))
+        LdText("DIALER KEYPAD", 12f, FontWeight.Bold, p.muted, letter = 1f, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+        GlassCard {
+            var ds by remember(s.dialerScale) { mutableFloatStateOf(s.dialerScale) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LdText("Number buttons ka size", 13.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                LdText("${(ds * 100).toInt()}%", 12.5f, FontWeight.SemiBold, p.muted)
+            }
+            Slider(ds, { ds = it }, valueRange = .85f..1.25f, onValueChangeFinished = { saveFl(K.dialerScale, ds) },
+                colors = SliderDefaults.colors(thumbColor = p.accent, activeTrackColor = p.accent))
         }
 
         Spacer(Modifier.height(16.dp))
@@ -166,6 +199,34 @@ private fun ArrowBtn(up: Boolean, enabled: Boolean, onClick: () -> Unit) {
     Box(Modifier.size(32.dp).alpha(if (enabled) 1f else .3f).clip(CircleShape).border(1.dp, p.stroke, CircleShape).clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center) {
         LdIcon(LdIcons.ChevronDown, 16.dp, p.text, if (up) Modifier.rotate(180f) else Modifier)
+    }
+}
+
+@Composable
+private fun ChoiceRow(title: String, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    val p = LocalLd.current
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        LdText(title, 13.5f, FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEachIndexed { i, o ->
+                val on = i == selected
+                Box(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if (on) p.accent.pct(.30f) else Color.Transparent)
+                    .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(14.dp)).clickable { onSelect(i) }.padding(vertical = 9.dp),
+                    contentAlignment = Alignment.Center) { LdText(o, 12f, FontWeight.SemiBold) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(title: String, sub: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val p = LocalLd.current
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.weight(1f)) {
+            LdText(title, 13.5f, FontWeight.SemiBold)
+            if (sub != null) LdText(sub, 11f, color = p.muted, maxLines = 2)
+        }
+        Switch(checked, onChange, colors = SwitchDefaults.colors(checkedTrackColor = p.accent, checkedThumbColor = Color.White))
     }
 }
 

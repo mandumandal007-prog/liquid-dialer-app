@@ -149,7 +149,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         }
         Spacer(Modifier.height(10.dp))
         GlassCard {
-            SRow("Calling card layout", "Kaun button kahan aur kitna bada", LdIcons.Dialpad, last = true) { onOpen("calllayout") }
+            SRow("Calling card layout", "Calling card, photo, background, buttons - sab customize karo", LdIcons.Dialpad) { onOpen("calllayout") }
+            SwitchRow("Swipe se tab badlo", "Recents, Contacts aur Dialer ke beech ungli ghumao", s.tabSwipe) { save(K.tabSwipe, it) }
         }
 
         SecTitle("Default app")
@@ -363,6 +364,7 @@ private fun AppearancePage(onBack: () -> Unit) {
         GlassCard {
             val opts = listOf(.9f, 1f, 1.1f, 1.2f)
             Segmented(listOf("Chhota", "Normal", "Bada", "Bahut bada"), opts.indexOfFirst { it == s.fontScale }.coerceAtLeast(1)) { save(K.fontScale, opts[it]) }
+            SwitchRow("Text bold karo", "Poori app me moti likhai", s.boldText, last = true) { save(K.boldText, it) }
         }
         SecTitle("Motion")
         GlassCard { SwitchRow("Animations", "Blobs ka chalna aur floating avatar", s.motion, last = true) { save(K.motion, it) } }

@@ -1,5 +1,6 @@
 package com.mandu.liquiddialer.ui
 
+import android.os.Build
 import android.telecom.Call
 import android.telecom.CallAudioState
 import androidx.compose.animation.*
@@ -21,6 +22,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -53,13 +55,28 @@ fun nowTicker(): Long {
     return now
 }
 
-/** .call-screen background: radial accent 28% at top + linear bg2 -> bg, with blobs */
+/** Call screen background: "blobs" (default), "photo" (caller photo, blurred), "solid" (flat). */
 @Composable
-fun CallBackground(modifier: Modifier = Modifier) {
+fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo: String? = null) {
     val p = LocalLd.current
     Box(modifier.fillMaxSize()) {
-        BlobBackground(strong = true)
-        Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.28f), .62f to Color.Transparent, center = Offset(540f, 0f), radius = 1400f)))
+        when (style) {
+            "solid" -> Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(p.bg2, p.bg))))
+            "photo" -> {
+                val bmp = rememberPhoto(photo)
+                if (bmp != null) {
+                    Image(bmp, null, Modifier.fillMaxSize().then(if (Build.VERSION.SDK_INT >= 31) Modifier.blur(70.dp, BlurredEdgeTreatment.Unbounded) else Modifier), contentScale = ContentScale.Crop, alpha = .6f)
+                    Box(Modifier.fillMaxSize().background(p.bg.copy(alpha = .62f)))
+                } else {
+                    BlobBackground(strong = true)
+                    Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.28f), .62f to Color.Transparent, center = Offset(540f, 0f), radius = 1400f)))
+                }
+            }
+            else -> {
+                BlobBackground(strong = true)
+                Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.28f), .62f to Color.Transparent, center = Offset(540f, 0f), radius = 1400f)))
+            }
+        }
     }
 }
 
@@ -107,7 +124,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     var sheet by remember { mutableStateOf<String?>(null) }
 
     Box(Modifier.fillMaxSize()) {
-        CallBackground(Modifier.haze(haze))
+        CallBackground(Modifier.haze(haze), s.callBgStyle, call?.let { CallManager.photoFor(it) })
         CompositionLocalProvider(LocalHaze provides haze) {
             if (call == null) {
                 Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -150,21 +167,24 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
 private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean) {
     val ctx = LocalContext.current
     val p = LocalLd.current
+    val s by LdApp.settings.collectAsState()
+    val heroScale = s.callCardScale
+    val aShape = if (s.callAvatarShape == "squircle") RoundedCornerShape(28) else CircleShape
     val name = CallManager.nameFor(ctx, call)
     val number = CallManager.number(call)
     val inf = rememberInfiniteTransition(label = "floaty")
     val fy by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(if (ringing) 2000 else 2750, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "fy")
     val pr by inf.animateFloat(1f, 1.035f, infiniteRepeatable(tween(1200), RepeatMode.Reverse), label = "pr")
     val sh = LocalConfiguration.current.screenHeightDp
-    val av = when { sh < 640 -> 76.dp; sh < 740 -> 88.dp; else -> 100.dp }
+    val av = (when { sh < 640 -> 76.dp; sh < 740 -> 88.dp; else -> 100.dp }) * heroScale
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name) }
+        }) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) }
         Spacer(Modifier.height(4.dp))
-        LdText(name, if (sh < 700) 21f else 23f, FontWeight.Bold, letter = -.3f, maxLines = 1)
-        if (number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f, color = p.muted, letter = .3f)
+        LdText(name, (if (sh < 700) 21f else 23f) * heroScale, FontWeight.Bold, letter = -.3f, maxLines = 1)
+        if (s.callShowNumber && number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f, color = p.muted, letter = .3f)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 6.dp)) {
             if (ringing) LiveDot()
             LdText(status, 12.5f, FontWeight.SemiBold, statusColor)

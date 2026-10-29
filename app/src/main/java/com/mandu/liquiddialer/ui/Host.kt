@@ -20,7 +20,7 @@ fun LdThemeHost(content: @Composable () -> Unit) {
     val d = LocalDensity.current
     val scheme = if (pal.isLight) lightColorScheme(primary = pal.accent, background = pal.bg, surface = pal.bg2, onSurface = pal.text, onBackground = pal.text)
                  else darkColorScheme(primary = pal.accent, background = pal.bg, surface = pal.bg2, onSurface = pal.text, onBackground = pal.text)
-    CompositionLocalProvider(LocalLd provides pal, LocalDensity provides Density(d.density, d.fontScale * s.fontScale)) {
+    CompositionLocalProvider(LocalLd provides pal, LocalBold provides s.boldText, LocalDensity provides Density(d.density, d.fontScale * s.fontScale)) {
         MaterialTheme(colorScheme = scheme) { content() }
     }
 }

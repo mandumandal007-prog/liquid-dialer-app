@@ -38,6 +38,9 @@ import dev.chrisbanes.haze.hazeChild
 
 val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 
+/** Accessibility: bold text everywhere when enabled. */
+val LocalBold = staticCompositionLocalOf { false }
+
 /** .bg-blobs: three big accent blobs with blur(72px), drifting. */
 @Composable
 fun BlobBackground(modifier: Modifier = Modifier, strong: Boolean = false) {
@@ -152,16 +155,16 @@ fun initials(name: String): String {
 
 /** .avatar (gradient var(--av) -> 52% mix with #0b1224, inset highlight, coloured shadow) */
 @Composable
-fun Avatar(name: String, photo: String?, size: Dp = 46.dp, fontSize: Float = 15f, glow: Boolean = false, seed: String = name) {
+fun Avatar(name: String, photo: String?, size: Dp = 46.dp, fontSize: Float = 15f, glow: Boolean = false, seed: String = name, shape: Shape = CircleShape) {
     val av = avatarColor(seed)
     val m = Modifier
         .then(if (glow) Modifier.drawBehind {
             drawCircle(av.copy(alpha = .14f), radius = size.toPx() / 2 + 10.dp.toPx())
         } else Modifier)
-        .shadow(if (glow) 26.dp else 6.dp, CircleShape, ambientColor = av.copy(alpha = .38f), spotColor = av.copy(alpha = .38f))
-        .size(size).clip(CircleShape)
+        .shadow(if (glow) 26.dp else 6.dp, shape, ambientColor = av.copy(alpha = .38f), spotColor = av.copy(alpha = .38f))
+        .size(size).clip(shape)
         .background(Brush.linearGradient(listOf(av, mix(av, Color(0xFF0B1224), .52f))))
-        .drawWithContent { drawContent(); drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .42f), 0.04f to Color.Transparent), style = Stroke(1.dp.toPx())) }
+        .drawWithContent { drawContent(); if (shape == CircleShape) drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .42f), 0.04f to Color.Transparent), style = Stroke(1.dp.toPx())) }
     Box(m, contentAlignment = Alignment.Center) {
         val bmp = rememberPhoto(photo)
         if (bmp != null) Image(bmp, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
@@ -171,8 +174,10 @@ fun Avatar(name: String, photo: String?, size: Dp = 46.dp, fontSize: Float = 15f
 
 @Composable
 fun LdText(text: String, size: Float, weight: FontWeight = FontWeight.Normal, color: Color = LocalLd.current.text, modifier: Modifier = Modifier,
-           maxLines: Int = 1, letter: Float = 0f) =
-    Text(text, modifier, color = color, fontSize = size.sp, fontWeight = weight, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
+           maxLines: Int = 1, letter: Float = 0f) {
+    val w = if (LocalBold.current && weight < FontWeight.Bold) FontWeight.Bold else weight
+    Text(text, modifier, color = color, fontSize = size.sp, fontWeight = w, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
+}
 
 /** .switch */
 @Composable
