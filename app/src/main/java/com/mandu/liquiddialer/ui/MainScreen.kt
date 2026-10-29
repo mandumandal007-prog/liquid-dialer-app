@@ -139,7 +139,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
             val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users))
-            Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 14.dp).fillMaxWidth().height(66.dp)
+            Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 14.dp).fillMaxWidth().height(66.dp).testTag("bottom_bar")
                 .liquid(RoundedCornerShape(999.dp), 22.dp)
                 .pointerInput(Unit) {
                     var dragX = 0f
