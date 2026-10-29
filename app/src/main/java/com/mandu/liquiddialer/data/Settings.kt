@@ -36,7 +36,14 @@ data class LdSettings(
     val onboarded: Boolean = false,
     val incomingFull: Boolean = true,
     val swipeAnswer: Boolean = true,
+    val callCardScale: Float = 1f,
+    val callBtnSize: Int = 68,
+    val dialerScale: Float = 1f,
+    val callBtns: String = DEFAULT_CALL_BTNS,
+    val profilePhoto: String = "",
 )
+
+val DEFAULT_CALL_BTNS = "mute,keypad,record,hold,addcall,audio"
 
 val DEFAULT_REPLIES = listOf(
     "Abhi baat nahi kar sakta, baad mein call karta hoon.",
@@ -73,6 +80,11 @@ object K {
     val onboarded = booleanPreferencesKey("onboarded")
     val incomingFull = booleanPreferencesKey("incomingFull")
     val swipeAnswer = booleanPreferencesKey("swipeAnswer")
+    val callCardScale = floatPreferencesKey("callCardScale")
+    val callBtnSize = intPreferencesKey("callBtnSize")
+    val dialerScale = floatPreferencesKey("dialerScale")
+    val callBtns = stringPreferencesKey("callBtns")
+    val profilePhoto = stringPreferencesKey("profilePhoto")
 }
 
 fun Preferences.toSettings(): LdSettings {
@@ -107,6 +119,11 @@ fun Preferences.toSettings(): LdSettings {
         onboarded = this[K.onboarded] ?: false,
         incomingFull = this[K.incomingFull] ?: true,
         swipeAnswer = this[K.swipeAnswer] ?: true,
+        callCardScale = this[K.callCardScale] ?: d.callCardScale,
+        callBtnSize = this[K.callBtnSize] ?: d.callBtnSize,
+        dialerScale = this[K.dialerScale] ?: d.dialerScale,
+        callBtns = this[K.callBtns] ?: d.callBtns,
+        profilePhoto = this[K.profilePhoto] ?: d.profilePhoto,
     )
 }
 
