@@ -81,15 +81,19 @@ fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo
 }
 
 @Composable
-fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68.dp, enabled: Boolean = true, onClick: () -> Unit) {
+fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68.dp, enabled: Boolean = true, flat: Boolean = false, onClick: () -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .93f)
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.alpha(if (enabled) 1f else .4f)) {
         val base = Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
-        val m = if (on) base.shadow(14.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
-            .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
-        else base.glass(p, CircleShape, 12.dp, .32f)
+        val m = when {
+            flat && on -> base.clip(CircleShape).background(p.accent)
+            flat -> base.clip(CircleShape).background(p.text.copy(alpha = .10f))
+            on -> base.shadow(14.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
+                .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
+            else -> base.glass(p, CircleShape, 12.dp, .32f)
+        }
         Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
             LdIcon(icon, size * .38f, if (on) Color.White else p.text)
         }
@@ -102,10 +106,8 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .94f)
     Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
-        .shadow(18.dp, CircleShape, ambientColor = Color(0x5CFF3C50), spotColor = Color(0x5CFF3C50)).clip(CircleShape)
-        .background(Brush.linearGradient(listOf(Color(0xF5FF5D6C), Color(0xF0C82034))))
-        .border(1.dp, Color.White.copy(alpha = .24f), CircleShape)
-        .drawWithContent { drawContent(); drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .4f), .05f to Color.Transparent), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx())) }
+        .shadow(8.dp, CircleShape, ambientColor = Color(0x59000000), spotColor = Color(0x59000000)).clip(CircleShape)
+        .background(Color(0xFFD93025))
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
         LdIcon(LdIcons.Phone, size * .42f, Color.White, Modifier.rotate(135f))
     }
@@ -257,7 +259,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
-                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, small = true, maxKey = (LocalConfiguration.current.screenHeightDp * .075f).coerceIn(48f, 62f).dp)
+                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, keyDp = (LocalConfiguration.current.screenHeightDp * .095f).coerceIn(58f, 84f).dp)
                 Row(Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp).clickable { keypad = false }.padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdIcon(LdIcons.X, 16.dp); LdText("Keypad band karo", 13f, FontWeight.SemiBold)
@@ -283,7 +285,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                     else -> BtnSpec(LdIcons.Merge, "Merge", enabled = false) {}
                 }
                 "audio" -> BtnSpec(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", bt) { openSheet("audio") }
-                "speaker" -> BtnSpec(LdIcons.Volume, if (speaker) "Speaker on" else "Speaker", speaker) {
+                "speaker" -> BtnSpec(LdIcons.SpeakerFill, if (speaker) "Speaker on" else "Speaker", speaker, flat = true) {
                     if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
                 }
                 "notes" -> BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") }
@@ -338,9 +340,7 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
     val inf = rememberInfiniteTransition(label = "glow")
     val pulse by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1700, easing = LinearEasing), RepeatMode.Restart), label = "pulse")
     val hint by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1300, easing = LinearEasing), RepeatMode.Restart), label = "hint")
-    val base = if (danger) Color(0xFFE5322F) else Color(0xFF22B455)
-    val light = if (danger) Color(0xFFFF8F84) else Color(0xFF9BF7B4)
-    val dark = if (danger) Color(0xFF7E0C0E) else Color(0xFF0A5C25)
+    val base = if (danger) Color(0xFFD93025) else Color(0xFF1EA446)
     val pull = (-off.value / threshold).coerceIn(0f, 1.2f)
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (swipe) {
@@ -382,28 +382,16 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                     drawCircle(base.copy(alpha = .55f * (1f - t)), r0 + r0 * .55f * t, style = Stroke((3.dp.toPx() * (1f - t)) + .6f))
                 }
             }
-            // the glossy 3D ball
+            // flat Google-Dialer style circle
             Box(Modifier
                 .graphicsLayer { scaleX = 1f + .08f * pull; scaleY = 1f + .08f * pull }
                 .size(btn)
-                .shadow(18.dp, CircleShape, ambientColor = dark, spotColor = dark)
-                .drawBehind {
-                    val r = size.minDimension / 2f
-                    val c = center
-                    drawCircle(Brush.radialGradient(0f to light, .48f to base, 1f to dark, center = Offset(c.x - r * .28f, c.y - r * .38f), radius = r * 1.45f), r)
-                    // reflected light at the bottom rim
-                    drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = .28f), 1f to Color.Transparent, center = Offset(c.x, c.y + r * .82f), radius = r * .62f), r)
-                    // glossy highlight cap
-                    drawOval(Brush.verticalGradient(0f to Color.White.copy(alpha = .78f), 1f to Color.White.copy(alpha = 0f), startY = c.y - r * .9f, endY = c.y - r * .08f),
-                        topLeft = Offset(c.x - r * .6f, c.y - r * .88f), size = Size(r * 1.2f, r * .78f))
-                    // dark rim + thin light edge
-                    drawCircle(Color.Black.copy(alpha = .22f), r - .6.dp.toPx(), style = Stroke(1.2.dp.toPx()))
-                    drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .55f), .5f to Color.Transparent), r - 1.8.dp.toPx(), style = Stroke(1.dp.toPx()))
-                }, contentAlignment = Alignment.Center) {
-                // handset with a soft drop shadow (red = handset down)
+                .shadow(8.dp, CircleShape, ambientColor = Color(0x59000000), spotColor = Color(0x59000000))
+                .clip(CircleShape)
+                .background(base), contentAlignment = Alignment.Center) {
+                // handset (red = handset down)
                 val ic = btn * .42f
                 val rot = if (danger) 135f else 0f
-                LdIcon(LdIcons.Phone, ic, Color.Black.copy(alpha = .28f), Modifier.offset(y = 1.5.dp).rotate(rot))
                 LdIcon(LdIcons.Phone, ic, Color.White, Modifier.rotate(rot))
             }
         }
