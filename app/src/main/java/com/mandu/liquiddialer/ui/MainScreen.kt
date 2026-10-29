@@ -26,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
@@ -217,7 +218,7 @@ private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp, on
         }
         IconBtn(LdIcons.Mic, 38.dp, 18.dp, on = audio?.isMuted == true) { CallManager.toggleMute() }
         IconBtn(LdIcons.Volume, 38.dp, 18.dp, on = CallManager.isSpeaker()) { CallManager.toggleSpeaker() }
-        IconBtn(LdIcons.PhoneOff, 38.dp, 18.dp, danger = true) { CallManager.end(call) }
+        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFD93025)).clickable { CallManager.end(call) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 18.dp, Color.White, Modifier.rotate(135f)) }
     }
 }
 
@@ -289,6 +290,8 @@ private fun dayLabel(ts: Long): String {
 private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit) {
     val p = LocalLd.current
     val ctx = LocalContext.current
+    val s by LdApp.settings.collectAsState()
+    val scope = rememberCoroutineScope()
     var confirmClear by remember { mutableStateOf(false) }
     var filter by remember { mutableIntStateOf(0) }
     val favs = st.contacts.filter { it.starred }
@@ -322,8 +325,15 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         if (!st.isDefault) item { DefaultBanner(act) }
         if (favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
-                LdText("FAVOURITES", 12f, FontWeight.Bold, p.muted, Modifier.padding(start = 4.dp, top = 4.dp, bottom = 10.dp), letter = 1.2f)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
+                Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    LdText("FAVOURITES", 12f, FontWeight.Bold, p.muted, letter = 1.2f)
+                    Spacer(Modifier.weight(1f))
+                    Box(Modifier.size(30.dp).clip(CircleShape).testTag("fav_toggle").clickable { scope.launch { LdApp.instance.repo.set(K.showFavourites, !s.showFavourites) } }, contentAlignment = Alignment.Center) {
+                        LdIcon(if (s.showFavourites) LdIcons.EyeOff else LdIcons.Eye, 17.dp, p.muted)
+                    }
+                    Spacer(Modifier.width(2.dp))
+                }
+                if (s.showFavourites) LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
                     items(favs, key = { it.id }) { c ->
                         Column(Modifier.width(62.dp).clickable(remember { MutableInteractionSource() }, null) { act.call(c.number) },
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -484,16 +494,18 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
     val matches = remember(dial, st.contacts) { if (dial.length < 2) emptyList() else st.contacts.filter { Repo.matches(it, dial) }.take(3) }
     val scrH = LocalConfiguration.current.screenHeightDp
     // ~half the screen including sheet chrome; dialerScale grows the whole sheet so round keys never clip
-    BoxWithConstraints(Modifier.fillMaxWidth().height(((scrH * .62f) * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(400f, 780f).dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth().height(((scrH * .70f) * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(440f, 860f).dp)) {
         // keypad gets what is left after the number area (~76dp), top row (~24dp), call row (~78dp) and slack; width caps the keys too
-        val keyByH = ((maxHeight.value - 196f) / 4.35f).coerceIn(40f, 92f)
+        val keyByH = ((maxHeight.value - 204f) / 4.15f).coerceIn(44f, 96f)
         val keyByW = (maxWidth.value - 16f) / 3.55f
+        var dialMenu by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
                 LdText("0 dabake rakho = +", 11f, color = p.muted, letter = .3f)
             }
-            Column(Modifier.fillMaxWidth().height(76.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Box(Modifier.fillMaxWidth().height(76.dp)) {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
                 LdText(formatDial(dial), (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
                     modifier = Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
@@ -504,6 +516,10 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                         LdText("+ Contact me add karo", 12f, FontWeight.SemiBold, p.accent)
                     }
                 }
+            }
+            Box(Modifier.align(Alignment.CenterEnd).padding(end = 4.dp)) {
+                Box(Modifier.size(40.dp).clip(CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
+            }
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Keypad(onKey = { k -> st.dial = st.dial + k }, onLong = { k ->
@@ -520,24 +536,37 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 }, maxKey = minOf(keyByH, keyByW).dp)
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(52.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
-                    contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace, 24.dp) }
+                Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
+                    contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace, 27.dp) }
                 val ready = dial.isNotEmpty()
                 val src = remember { MutableInteractionSource() }
                 val sc = pressScale(src, .94f)
-                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(72.dp).alpha(if (ready) 1f else .55f)
+                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(90.dp).alpha(if (ready) 1f else .55f)
                     .shadow(16.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
                     .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .88f), p.accent)))
                     .border(1.dp, p.accent.pct(.55f), CircleShape)
                     .clickable(src, null) {
                         if (dial.isNotEmpty()) { act.call(dial); st.dial = "" }
                         else st.recents.firstOrNull { it.type == CallLog.Calls.OUTGOING_TYPE }?.let { st.dial = it.number }
-                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 31.dp, Color.White) }
-                Box(Modifier.size(52.dp).glass(p, CircleShape, 6.dp).clickable { cycleSim() }, contentAlignment = Alignment.Center) {
+                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 40.dp, Color.White) }
+                Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).clickable { cycleSim() }, contentAlignment = Alignment.Center) {
                     LdText(if (simIdx >= 0) "SIM${simIdx + 1}" else if (sims.size > 1) "ASK" else "SIM1", 11f, FontWeight.ExtraBold, letter = .4f)
                 }
             }
         }
+            if (dialMenu) {
+                Column(Modifier.align(Alignment.TopEnd).padding(top = 96.dp, end = 8.dp).width(200.dp).clip(RoundedCornerShape(16.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(16.dp)).padding(vertical = 6.dp).testTag("dial_menu_popup")) {
+                    Row(Modifier.fillMaxWidth().clickable {
+                        dialMenu = false
+                        val clip = ctx.getSystemService(ClipboardManager::class.java)?.primaryClip
+                        val t = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(ctx)?.toString().orEmpty()
+                        val clean = t.filter { it.isDigit() || it in "+*#,;" }
+                        if (clean.isNotEmpty()) st.dial += clean
+                    }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Number paste karo", 14f, FontWeight.SemiBold) }
+                    Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += "," }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Pause add karo (,)", 14f, FontWeight.SemiBold) }
+                    Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += ";" }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Wait add karo (;)", 14f, FontWeight.SemiBold) }
+                }
+            }
     }
 }
 
