@@ -41,6 +41,13 @@ data class LdSettings(
     val layoutBottom: String = DEFAULT_BOTTOM,
     val gridScale: Float = 1f,
     val bottomScale: Float = 1f,
+    val tabSwipe: Boolean = true,
+    val boldText: Boolean = false,
+    val callCardScale: Float = 1f,       // calling card: naam + photo ka size
+    val dialerScale: Float = 1f,         // dialer keypad ka size
+    val callAvatarShape: String = "circle",   // "circle" | "squircle"
+    val callShowNumber: Boolean = true,
+    val callBgStyle: String = "blobs",   // "blobs" | "photo" | "solid"
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
@@ -86,6 +93,13 @@ object K {
     val layoutBottom = stringPreferencesKey("layoutBottom")
     val gridScale = floatPreferencesKey("gridScale")
     val bottomScale = floatPreferencesKey("bottomScale")
+    val tabSwipe = booleanPreferencesKey("tabSwipe")
+    val boldText = booleanPreferencesKey("boldText")
+    val callCardScale = floatPreferencesKey("callCardScale")
+    val dialerScale = floatPreferencesKey("dialerScale")
+    val callAvatarShape = stringPreferencesKey("callAvatarShape")
+    val callShowNumber = booleanPreferencesKey("callShowNumber")
+    val callBgStyle = stringPreferencesKey("callBgStyle")
 }
 
 fun Preferences.toSettings(): LdSettings {
@@ -125,13 +139,20 @@ fun Preferences.toSettings(): LdSettings {
         layoutBottom = this[K.layoutBottom] ?: DEFAULT_BOTTOM,
         gridScale = this[K.gridScale] ?: 1f,
         bottomScale = this[K.bottomScale] ?: 1f,
+        tabSwipe = this[K.tabSwipe] ?: true,
+        boldText = this[K.boldText] ?: false,
+        callCardScale = this[K.callCardScale] ?: 1f,
+        dialerScale = this[K.dialerScale] ?: 1f,
+        callAvatarShape = this[K.callAvatarShape] ?: "circle",
+        callShowNumber = this[K.callShowNumber] ?: true,
+        callBgStyle = this[K.callBgStyle] ?: "blobs",
     )
 }
 
 class SettingsRepo(private val ctx: Context) {
     val flow: Flow<LdSettings> = ctx.ldStore.data.map { it.toSettings() }
     suspend fun <T> set(key: Preferences.Key<T>, value: T) { ctx.ldStore.edit { it[key] = value } }
-    suspend fun resetCallLayout() { ctx.ldStore.edit { it.remove(K.layoutGrid); it.remove(K.layoutBottom); it.remove(K.gridScale); it.remove(K.bottomScale) } }
+    suspend fun resetCallLayout() { ctx.ldStore.edit { it.remove(K.layoutGrid); it.remove(K.layoutBottom); it.remove(K.gridScale); it.remove(K.bottomScale); it.remove(K.callCardScale); it.remove(K.dialerScale); it.remove(K.callAvatarShape); it.remove(K.callShowNumber); it.remove(K.callBgStyle) } }
     suspend fun setReplies(list: List<String>) = set(K.quickReplies, list.joinToString("\n"))
     suspend fun setSpeedDial(map: Map<Int, String>) = set(K.speedDial, map.entries.joinToString(";") { "${it.key}=${it.value}" })
 }
