@@ -176,7 +176,7 @@ fun Avatar(name: String, photo: String?, size: Dp = 46.dp, fontSize: Float = 15f
 fun LdText(text: String, size: Float, weight: FontWeight = FontWeight.Normal, color: Color = LocalLd.current.text, modifier: Modifier = Modifier,
            maxLines: Int = 1, letter: Float = 0f) {
     val w = if (LocalBold.current && weight < FontWeight.Bold) FontWeight.Bold else weight
-    Text(text, modifier, color = color, fontSize = size.sp, fontWeight = w, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
+    Text(T(text), modifier, color = color, fontSize = size.sp, fontWeight = w, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
 }
 
 /** .switch */
