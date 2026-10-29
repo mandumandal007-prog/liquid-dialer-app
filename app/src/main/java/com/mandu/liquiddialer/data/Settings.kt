@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.map
 val Context.ldStore by preferencesDataStore(name = "ld_settings")
 
 data class LdSettings(
+    val lang: String = "hinglish",
     val theme: String = "midnight",
     val accent: Long = 0xFF5B8CFF,
     val blur: Int = 22,
@@ -61,6 +62,7 @@ val DEFAULT_REPLIES = listOf(
 )
 
 object K {
+    val lang = stringPreferencesKey("lang")
     val theme = stringPreferencesKey("theme")
     val accent = longPreferencesKey("accent")
     val blur = intPreferencesKey("blur")
@@ -105,6 +107,7 @@ object K {
 fun Preferences.toSettings(): LdSettings {
     val d = LdSettings()
     return LdSettings(
+        lang = this[K.lang] ?: d.lang,
         theme = this[K.theme] ?: d.theme,
         accent = this[K.accent] ?: d.accent,
         blur = this[K.blur] ?: d.blur,
