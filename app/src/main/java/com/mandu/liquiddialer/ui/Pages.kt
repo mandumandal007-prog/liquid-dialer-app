@@ -166,6 +166,12 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("App language", LANGS.firstOrNull { it.first == s.lang }?.second ?: "Hinglish", LdIcons.Message) { sheet = "lang" }
             SwitchRow("Favourites section", "Home pe favourite contacts dikhao/chhupao", s.showFavourites) { save(K.showFavourites, it) }
             SwitchRow("Din ke headers", "Recents me Aaj/Kal ke groups", s.groupByDay) { save(K.groupByDay, it) }
+            SwitchRow("Call duration dikhao", "Recents me kitni der baat hui", s.recentsShowDuration) { save(K.recentsShowDuration, it) }
+            SwitchRow("SIM label dikhao", "Multi-SIM pe recents me SIM 1/2", s.showSimInRecents) { save(K.showSimInRecents, it) }
+            SwitchRow("Compact recents", "Choti rows, ek screen pe zyada entries", s.recentsCompact) { save(K.recentsCompact, it) }
+            SwitchRow("Blocked calls chhupao", "Blocked number ki entries recents me na dikhein", s.recentsHideBlocked) { save(K.recentsHideBlocked, it) }
+            LdText("Recents me kitni entries", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
+            Segmented(listOf("100", "300", "500"), listOf(100, 300, 500).indexOf(s.recentLimit).coerceAtLeast(0)) { save(K.recentLimit, listOf(100, 300, 500)[it]) }
             SwitchRow("Exact time", "Recents me '2 min pehle' ki jagah exact samay", s.exactTime) { save(K.exactTime, it) }
             SwitchRow("Keypad letters (ABC)", "Dial pad pe English akshar", s.keypadLetters) { save(K.keypadLetters, it) }
             SwitchRow("Keypad haptic", "Key dabane pe halki vibration", s.hapticKeys) { save(K.hapticKeys, it) }
@@ -198,6 +204,10 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Contact ki SIM yaad rakho", "Pichli use ki hui SIM apne aap chunega", s.simMemory) { save(K.simMemory, it) }
             SwitchRow("3 sec ka undo", "Call lagne se pehle rukne ka mauka", s.undoCall) { save(K.undoCall, it) }
             SwitchRow("Busy pe redial suggest", "Call na lage to Dobara call button", s.redialSuggest) { save(K.redialSuggest, it) }
+            LdText("Busy pe auto redial", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
+            Segmented(listOf("Off", "1 baar", "2 baar", "3 baar"), s.autoRedial.coerceIn(0, 3)) { save(K.autoRedial, it) }
+            SwitchRow("Connect pe speaker", "Outgoing call lagte hi speaker on (bluetooth pe nahi)", s.autoSpeaker) { save(K.autoSpeaker, it) }
+            SwitchRow("Cut pe confirm", "End button dabate hi poochega", s.confirmBeforeEnd) { save(K.confirmBeforeEnd, it) }
             SwitchRow("Naya number save prompt", "Unknown number ki call ke baad Save/Block", s.postCallSave) { save(K.postCallSave, it) }
             LdText("App khule to pehle dikhao", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
             Segmented(listOf("Recents", "Dialer"), if (s.defaultTab == "dialer") 1 else 0) { save(K.defaultTab, if (it == 1) "dialer" else "recents") }
@@ -219,11 +229,13 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Caller ka naam bolo", "Ringing pe naam announce", s.announceCaller) { save(K.announceCaller, it) }
             LdText("Naam kitni baar bolo", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
             Segmented(listOf("1 baar", "2 baar", "3 baar"), (s.announceRepeat - 1).coerceIn(0, 2)) { save(K.announceRepeat, it + 1) }
+            SwitchRow("Sirf favourite ka naam bolo", "Announce sirf starred contacts ke liye", s.announceOnlyFav) { save(K.announceOnlyFav, it) }
             SwitchRow("Ring volume max", "Call aane pe ring volume system ka max (usse upar nahi)", s.ringVolumeMax) { save(K.ringVolumeMax, it) }
             SwitchRow("Call volume max", "Call connect hone pe volume system ka max (usse upar boost nahi)", s.callVolumeMax) { save(K.callVolumeMax, it) }
             LdText("Call me minute beep", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
             Segmented(listOf("Off", "1 min", "5 min", "10 min"), when (s.minuteBeep) { 1 -> 1; 5 -> 2; 10 -> 3; else -> 0 }) { save(K.minuteBeep, listOf(0, 1, 5, 10)[it]) }
-            SwitchRow("Flash blink on ring", "Call aane pe flashlight chamkegi", s.flashOnRing, last = true) { save(K.flashOnRing, it) }
+            SwitchRow("Flash blink on ring", "Call aane pe flashlight chamkegi", s.flashOnRing) { save(K.flashOnRing, it) }
+            SwitchRow("Sirf favourite pe flash", "Flash sirf starred contacts pe", s.flashOnlyFav, last = true) { save(K.flashOnlyFav, it) }
         }
 
         SecTitle("Caller pehchan")
