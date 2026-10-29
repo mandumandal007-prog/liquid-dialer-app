@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 val Context.ldStore by preferencesDataStore(name = "ld_settings")
@@ -50,6 +51,29 @@ data class LdSettings(
     val callShowNumber: Boolean = true,
     val callBgStyle: String = "blobs",   // "blobs" | "photo" | "solid"
     val showFavourites: Boolean = true,
+    // ---- v1.0.52: calling & caller-pehchan pack ----
+    val flashOnRing: Boolean = false,        // opt-in: torch blink while ringing
+    val announceRepeat: Int = 1,             // 1..3 baar caller naam bolo
+    val showLastCall: Boolean = true,        // incoming screen pe pichli call ki jankari
+    val showContactType: Boolean = true,     // Mobile/Work label incoming pe
+    val favStarBadge: Boolean = true,        // favourite star incoming pe
+    val confirmCall: Boolean = false,        // recents/contacts tap pe confirm card
+    val autoPrefix: Boolean = false,         // 10-digit number ke aage +91
+    val formatNumber: Boolean = true,        // dialer me live number formatting
+    val redialSuggest: Boolean = true,       // busy/fail pe "Dobara call" notification
+    val postCallSave: Boolean = true,        // unknown number ke baad Save/Block prompt
+    val missedRemind: Boolean = false,       // opt-in: missed call reminder 5 min x3
+    val keypadLetters: Boolean = true,       // keypad pe ABC letters
+    val defaultTab: String = "recents",      // "recents" | "dialer"
+    val undoCall: Boolean = false,           // opt-in: 3s undo before dialing
+    val simMemory: Boolean = true,           // contact-wise pichli SIM yaad rakho
+    val minuteBeep: Int = 0,                 // 0=off else har N minute pe beep
+    val callVolumeMax: Boolean = false,      // opt-in: call connect pe volume system max
+    val ringVolumeMax: Boolean = false,      // opt-in: ring pe volume system max
+    val groupByDay: Boolean = true,          // recents me din ke headers
+    val hapticKeys: Boolean = false,         // keypad tap pe haptic
+    val recordUnknownOnly: Boolean = false,  // sirf unknown numbers record
+    val exactTime: Boolean = true,           // recents me exact samay vs relative
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
@@ -104,6 +128,29 @@ object K {
     val callShowNumber = booleanPreferencesKey("callShowNumber")
     val callBgStyle = stringPreferencesKey("callBgStyle")
     val showFavourites = booleanPreferencesKey("showFavourites")
+    val flashOnRing = booleanPreferencesKey("flashOnRing")
+    val announceRepeat = intPreferencesKey("announceRepeat")
+    val showLastCall = booleanPreferencesKey("showLastCall")
+    val showContactType = booleanPreferencesKey("showContactType")
+    val favStarBadge = booleanPreferencesKey("favStarBadge")
+    val confirmCall = booleanPreferencesKey("confirmCall")
+    val autoPrefix = booleanPreferencesKey("autoPrefix")
+    val formatNumber = booleanPreferencesKey("formatNumber")
+    val redialSuggest = booleanPreferencesKey("redialSuggest")
+    val postCallSave = booleanPreferencesKey("postCallSave")
+    val missedRemind = booleanPreferencesKey("missedRemind")
+    val keypadLetters = booleanPreferencesKey("keypadLetters")
+    val defaultTab = stringPreferencesKey("defaultTab")
+    val undoCall = booleanPreferencesKey("undoCall")
+    val simMemory = booleanPreferencesKey("simMemory")
+    val minuteBeep = intPreferencesKey("minuteBeep")
+    val callVolumeMax = booleanPreferencesKey("callVolumeMax")
+    val ringVolumeMax = booleanPreferencesKey("ringVolumeMax")
+    val groupByDay = booleanPreferencesKey("groupByDay")
+    val hapticKeys = booleanPreferencesKey("hapticKeys")
+    val recordUnknownOnly = booleanPreferencesKey("recordUnknownOnly")
+    val exactTime = booleanPreferencesKey("exactTime")
+    val simUse = stringPreferencesKey("simUse")   // "digits=handleId;digits=handleId"
 }
 
 fun Preferences.toSettings(): LdSettings {
@@ -151,6 +198,28 @@ fun Preferences.toSettings(): LdSettings {
         callAvatarShape = this[K.callAvatarShape] ?: "circle",
         callShowNumber = this[K.callShowNumber] ?: true,
         showFavourites = this[K.showFavourites] ?: true,
+        flashOnRing = this[K.flashOnRing] ?: false,
+        announceRepeat = this[K.announceRepeat] ?: 1,
+        showLastCall = this[K.showLastCall] ?: true,
+        showContactType = this[K.showContactType] ?: true,
+        favStarBadge = this[K.favStarBadge] ?: true,
+        confirmCall = this[K.confirmCall] ?: false,
+        autoPrefix = this[K.autoPrefix] ?: false,
+        formatNumber = this[K.formatNumber] ?: true,
+        redialSuggest = this[K.redialSuggest] ?: true,
+        postCallSave = this[K.postCallSave] ?: true,
+        missedRemind = this[K.missedRemind] ?: false,
+        keypadLetters = this[K.keypadLetters] ?: true,
+        defaultTab = this[K.defaultTab] ?: "recents",
+        undoCall = this[K.undoCall] ?: false,
+        simMemory = this[K.simMemory] ?: true,
+        minuteBeep = this[K.minuteBeep] ?: 0,
+        callVolumeMax = this[K.callVolumeMax] ?: false,
+        ringVolumeMax = this[K.ringVolumeMax] ?: false,
+        groupByDay = this[K.groupByDay] ?: true,
+        hapticKeys = this[K.hapticKeys] ?: false,
+        recordUnknownOnly = this[K.recordUnknownOnly] ?: false,
+        exactTime = this[K.exactTime] ?: true,
         callBgStyle = this[K.callBgStyle] ?: "blobs",
     )
 }
@@ -161,4 +230,19 @@ class SettingsRepo(private val ctx: Context) {
     suspend fun resetCallLayout() { ctx.ldStore.edit { it.remove(K.layoutGrid); it.remove(K.layoutBottom); it.remove(K.gridScale); it.remove(K.bottomScale); it.remove(K.callCardScale); it.remove(K.dialerScale); it.remove(K.callAvatarShape); it.remove(K.callShowNumber); it.remove(K.callBgStyle) } }
     suspend fun setReplies(list: List<String>) = set(K.quickReplies, list.joinToString("\n"))
     suspend fun setSpeedDial(map: Map<Int, String>) = set(K.speedDial, map.entries.joinToString(";") { "${it.key}=${it.value}" })
+
+    suspend fun simFor(digits: String): String? {
+        if (digits.isBlank()) return null
+        val raw = ctx.ldStore.data.first()[K.simUse] ?: return null
+        return raw.split(";").mapNotNull { val kv = it.split("=", limit = 2); if (kv.size == 2) kv[0] to kv[1] else null }.toMap()[digits]
+    }
+
+    // contact-wise last-used SIM ("digits=handleId;...")
+    fun simUseMap(p: Preferences): Map<String, String> = (p[K.simUse] ?: "").split(";").mapNotNull {
+        val kv = it.split("=", limit = 2); if (kv.size == 2 && kv[0].isNotBlank()) kv[0] to kv[1] else null
+    }.toMap()
+    suspend fun rememberSim(digits: String, handleId: String) { ctx.ldStore.edit { p ->
+        val m = (p[K.simUse] ?: "").split(";").filter { e -> e.isNotBlank() && !e.startsWith("$digits=") }
+        p[K.simUse] = (m + "$digits=$handleId").takeLast(80).joinToString(";")
+    } }
 }
