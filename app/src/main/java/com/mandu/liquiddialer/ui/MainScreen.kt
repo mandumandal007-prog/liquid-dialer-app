@@ -549,18 +549,22 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         if (m != null) voiceConfirmHolder = m else voiceNoticeHolder = "Contact nahi mila: $said"
     }
     val scrH = LocalConfiguration.current.screenHeightDp
+    // digit keys keep their original size; sheet height wraps content (top row 28 + number 68 + keypad + call row 70 + slack) so no dead gaps
+    val scrW = LocalConfiguration.current.screenWidthDp
+    val natKey = minOf((scrW * .19f).coerceIn(54f, 92f), (scrW - 52f) / 3.55f)
+    val dialerNaturalH = 28f + 68f + 4f * natKey + 3f * (natKey * .16f).coerceIn(7f, 14f) + 70f + 8f
     // ~half the screen including sheet chrome; dialerScale grows the whole sheet so round keys never clip
-    BoxWithConstraints(Modifier.fillMaxWidth().height(((scrH * .70f) * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(440f, 860f).dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth().height((dialerNaturalH * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(380f, 860f).dp)) {
         // keypad gets what is left after the number area (~76dp), top row (~24dp), call row (~78dp) and slack; width caps the keys too
-        val keyByH = ((maxHeight.value - 204f) / 4.15f).coerceIn(44f, 96f)
+        val keyByH = ((maxHeight.value - 174f) / 4.4f).coerceIn(40f, 96f)
         val keyByW = (maxWidth.value - 16f) / 3.55f
         var dialMenu by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
                 LdText("0 dabake rakho = +", 11f, color = p.muted, letter = .3f)
             }
-            Box(Modifier.fillMaxWidth().height(76.dp)) {
+            Box(Modifier.fillMaxWidth().height(68.dp)) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
                 LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
@@ -594,20 +598,20 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                     }
                 }, maxKey = minOf(keyByH, keyByW).dp, letters = s.keypadLetters)
             }
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 0.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
                     contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace, 27.dp) }
                 val ready = dial.isNotEmpty()
                 val src = remember { MutableInteractionSource() }
                 val sc = pressScale(src, .94f)
-                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(90.dp).alpha(if (ready) 1f else .55f)
+                Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(64.dp).alpha(if (ready) 1f else .55f)
                     .shadow(16.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
                     .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .88f), p.accent)))
                     .border(1.dp, p.accent.pct(.55f), CircleShape)
                     .clickable(src, null) {
                         if (dial.isNotEmpty()) { act.call(dial); st.dial = "" }
                         else st.recents.firstOrNull { it.type == CallLog.Calls.OUTGOING_TYPE }?.let { st.dial = it.number }
-                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 40.dp, Color.White) }
+                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 30.dp, Color.White) }
                 Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).clickable { cycleSim() }, contentAlignment = Alignment.Center) {
                     LdText(if (simIdx >= 0) "SIM${simIdx + 1}" else if (sims.size > 1) "ASK" else "SIM1", 11f, FontWeight.ExtraBold, letter = .4f)
                 }
