@@ -142,10 +142,10 @@ fun playTone(k: String) {
 
 /** .keypad grid of .key glass circles */
 @Composable
-fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null) {
+fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null, keyDp: Dp? = null) {
     val p = LocalLd.current
     val w = LocalConfiguration.current.screenWidthDp
-    val keySize = (w * (if (small) .15f else .19f)).coerceIn(if (small) 44f else 54f, if (small) 62f else 92f).let { k -> maxKey?.let { minOf(k, it.value) } ?: k }.dp
+    val keySize = (keyDp?.value ?: (w * (if (small) .15f else .19f)).coerceIn(if (small) 44f else 54f, if (small) 62f else 92f)).let { k -> maxKey?.let { minOf(k, it.value) } ?: k }.dp
     val gap = (keySize.value * .16f).coerceIn(7f, 14f).dp
     val haptic = LocalHapticFeedback.current
     Column(Modifier.widthIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
