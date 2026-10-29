@@ -83,7 +83,6 @@ data class LdSettings(
     val recentLimit: Int = 300,              // recents me kitni entries (100/300/500)
     val announceOnlyFav: Boolean = false,    // sirf favourite ka naam bolo
     val flashOnlyFav: Boolean = false,       // sirf favourite pe flash
-    val autoRedial: Int = 0,                 // 0=off else busy pe kitni baar auto redial (1..3)
     val recentsHideBlocked: Boolean = false, // blocked calls recents me na dikhao
 )
 
@@ -169,7 +168,6 @@ object K {
     val recentLimit = intPreferencesKey("recentLimit")
     val announceOnlyFav = booleanPreferencesKey("announceOnlyFav")
     val flashOnlyFav = booleanPreferencesKey("flashOnlyFav")
-    val autoRedial = intPreferencesKey("autoRedial")
     val recentsHideBlocked = booleanPreferencesKey("recentsHideBlocked")
     val simUse = stringPreferencesKey("simUse")   // "digits=handleId;digits=handleId"
 }
@@ -249,7 +247,6 @@ fun Preferences.toSettings(): LdSettings {
         recentLimit = (this[K.recentLimit] ?: 300).let { if (it == 100 || it == 300 || it == 500) it else 300 },
         announceOnlyFav = this[K.announceOnlyFav] ?: false,
         flashOnlyFav = this[K.flashOnlyFav] ?: false,
-        autoRedial = (this[K.autoRedial] ?: 0).coerceIn(0, 3),
         recentsHideBlocked = this[K.recentsHideBlocked] ?: false,
         callBgStyle = this[K.callBgStyle] ?: "blobs",
     )
