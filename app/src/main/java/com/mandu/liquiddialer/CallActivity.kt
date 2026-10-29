@@ -1,5 +1,6 @@
 package com.mandu.liquiddialer
 
+import com.mandu.liquiddialer.ui.trNow
 import android.Manifest
 import android.app.KeyguardManager
 import android.content.Intent
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
 class CallActivity : ComponentActivity() {
     private var prox: PowerManager.WakeLock? = null
     private val micPerm = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) toggleRecord() else Toast.makeText(this, "Record ke liye Microphone permission chahiye", Toast.LENGTH_LONG).show()
+        if (ok) toggleRecord() else Toast.makeText(this, trNow("Record ke liye Microphone permission chahiye"), Toast.LENGTH_LONG).show()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,7 +84,7 @@ class CallActivity : ComponentActivity() {
 
     private fun toggleRecord() {
         if (CallRecorder.isRecording()) {
-            CallRecorder.stop(); Toast.makeText(this, "Recording save ho gayi (Menu > Recordings)", Toast.LENGTH_SHORT).show(); return
+            CallRecorder.stop(); Toast.makeText(this, trNow("Recording save ho gayi (Menu > Recordings)"), Toast.LENGTH_SHORT).show(); return
         }
         val c = CallManager.primary() ?: return
         val ok = CallRecorder.start(this, CallManager.number(c), CallManager.nameFor(this, c))
