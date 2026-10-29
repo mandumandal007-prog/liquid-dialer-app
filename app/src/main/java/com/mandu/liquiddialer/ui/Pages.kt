@@ -121,8 +121,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         @Suppress("DEPRECATION")
         val uri: Uri? = r.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
         if (uri != null) {
-            if (Settings.System.canWrite(ctx)) { RingtoneManager.setActualDefaultRingtoneUri(ctx, RingtoneManager.TYPE_RINGTONE, uri); Toast.makeText(ctx, "Ringtone set ho gayi", Toast.LENGTH_SHORT).show() }
-            else { Toast.makeText(ctx, "Pehle 'Modify system settings' allow karo, phir dobara chuno", Toast.LENGTH_LONG).show()
+            if (Settings.System.canWrite(ctx)) { RingtoneManager.setActualDefaultRingtoneUri(ctx, RingtoneManager.TYPE_RINGTONE, uri); Toast.makeText(ctx, trNow("Ringtone set ho gayi"), Toast.LENGTH_SHORT).show() }
+            else { Toast.makeText(ctx, trNow("Pehle 'Modify system settings' allow karo, phir dobara chuno"), Toast.LENGTH_LONG).show()
                 ctx.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:" + ctx.packageName))) }
         }
     }
@@ -135,7 +135,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
     val importVcf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) try {
             ctx.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "text/x-vcard").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
-        } catch (e: Exception) { Toast.makeText(ctx, "Phone me VCF import karne wala app nahi mila", Toast.LENGTH_LONG).show() }
+        } catch (e: Exception) { Toast.makeText(ctx, trNow("Phone me VCF import karne wala app nahi mila"), Toast.LENGTH_LONG).show() }
     }
     fun open(i: Intent) { try { ctx.startActivity(i) } catch (_: Exception) { act.openAppSettings() } }
 
@@ -163,6 +163,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         SecTitle("Display")
         GlassCard {
             SRow("Theme & appearance", "${paletteFor(s.theme, p.accent, true).name.let { if (s.theme == "auto") "Auto (system)" else it }} · blur ${s.blur}px", LdIcons.Palette) { onOpen("appearance") }
+            SRow("App language", LANGS.firstOrNull { it.first == s.lang }?.second ?: "Hinglish", LdIcons.Message) { sheet = "lang" }
             LdText("Contact sort", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 10.dp, bottom = 8.dp))
             Segmented(listOf("First name", "Last name"), if (s.sortByLast) 1 else 0) { save(K.sortByLast, it == 1); act.reload() }
             LdText("Naam ka format", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
@@ -261,6 +262,9 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
     }
 
     when (sheet) {
+        "lang" -> Sheet({ sheet = null }) {
+            LANGS.forEach { (code, name) -> SheetRow(LdIcons.Check, name, if (s.lang == code) "\u2713" else null) { save(K.lang, code); sheet = null } }
+        }
         "sim" -> Sheet({ sheet = null }) {
             SheetTitle("Default SIM")
             SheetRow(LdIcons.Sim, "Har baar poochho") { save(K.defaultSim, "ask"); sheet = null }
@@ -387,7 +391,7 @@ private fun ProfilePage(onBack: () -> Unit) {
             LdApp.instance.scope.launch(Dispatchers.IO) {
                 val out = Repo.saveProfilePhoto(ctx, uri)
                 if (out != null) LdApp.instance.repo.set(K.profilePhoto, out)
-                withContext(Dispatchers.Main) { busy = false; if (out == null) Toast.makeText(ctx, "Photo load nahi hui", Toast.LENGTH_SHORT).show() }
+                withContext(Dispatchers.Main) { busy = false; if (out == null) Toast.makeText(ctx, trNow("Photo load nahi hui"), Toast.LENGTH_SHORT).show() }
             }
         }
     }
@@ -537,7 +541,7 @@ private fun RecordingsPage(onBack: () -> Unit) {
                     if (isP) playing = null else try {
                         player[0] = MediaPlayer().apply { setDataSource(f.absolutePath); prepare(); start(); setOnCompletionListener { playing = null } }
                         playing = f
-                    } catch (_: Exception) { Toast.makeText(ctx, "Play nahi hua", Toast.LENGTH_SHORT).show() }
+                    } catch (_: Exception) { Toast.makeText(ctx, trNow("Play nahi hua"), Toast.LENGTH_SHORT).show() }
                 }
                 Column(Modifier.weight(1f)) {
                     LdText(f.nameWithoutExtension.removePrefix("Call_").substringBeforeLast("_").substringBeforeLast("_").replace("_", " "), 13.5f, FontWeight.SemiBold)
