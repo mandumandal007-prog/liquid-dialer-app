@@ -481,8 +481,9 @@ fun CallMini(onClick: () -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(40.dp).clip(CircleShape).background(p.accent.pct(.18f)).border(1.dp, p.stroke, CircleShape)
-        .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 18.dp, p.accent) }
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape)
+        .background(Brush.linearGradient(listOf(p.accent.pct(.30f), p.accent.pct(.12f)))).border(1.dp, p.accent.pct(.45f), CircleShape)
+        .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 20.dp, p.accent) }
 }
 
 @Composable
