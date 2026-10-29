@@ -96,7 +96,14 @@ fun rememberVoiceDialer(onHeard: (String) -> Unit): VoiceDialer {
             return
         }
         destroy()
-        val r = try { SpeechRecognizer.createSpeechRecognizer(ctx) } catch (e: Exception) {
+        // Privacy: prefer the guaranteed on-device recognizer (Android 12+/API 31 with on-device pack).
+        // On older devices the system's default speech service is used; depending on that service
+        // (usually Google's) audio may leave the phone when no offline pack is present.
+        val r = try {
+            if (android.os.Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx))
+                SpeechRecognizer.createOnDeviceSpeechRecognizer(ctx)
+            else SpeechRecognizer.createSpeechRecognizer(ctx)
+        } catch (e: Exception) {
             ui.notice = VOICE_NOTICE_BROKEN; return
         }
         recognizer = r
