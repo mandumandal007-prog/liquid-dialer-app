@@ -586,6 +586,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         voice.ui.notice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { voice.ui.notice = null } }
         voiceNoticeHolder?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { voiceNoticeHolder = null } }
         if (voice.ui.listening) VoiceListeningCard(Alignment.Center) { voice.stop() }
+        if (voice.ui.pendingConsent) VoiceConsentCard(Alignment.Center, onOk = { voice.consentOk() }, onCancel = { voice.consentCancel() })
         voiceConfirmHolder?.let { m ->
             VoiceConfirmCard(m, Alignment.Center,
                 onCall = { voiceConfirmHolder = null; act.call(m.number) },
