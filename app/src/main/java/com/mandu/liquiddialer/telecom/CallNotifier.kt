@@ -105,10 +105,10 @@ object CallNotifier {
             b.setLargeIcon(avatarBitmap(name, 0xFF5B8CFF.toInt()))
             if (st == Call.STATE_ACTIVE && connect > 0) b.setWhen(connect).setUsesChronometer(true).setShowWhen(true)
             // CallStyle needs a foreground service or fullScreenIntent on Android 12+, so the ongoing card uses plain actions.
-            b.addAction(0, "\uD83D\uDCDE Call kaato", receiverPi(ctx, CallActionReceiver.HANGUP, 3))
+            b.addAction(0, "Call kaato", receiverPi(ctx, CallActionReceiver.HANGUP, 3))
             val muted = CallManager.audio.value?.isMuted == true
-            b.addAction(0, if (muted) "\uD83D\uDD0A Unmute" else "\uD83D\uDD07 Mute", receiverPi(ctx, CallActionReceiver.MUTE, 4))
-            b.addAction(0, if (CallManager.isSpeaker()) "\uD83D\uDD08 Speaker off" else "\uD83D\uDD0A Speaker", receiverPi(ctx, CallActionReceiver.SPEAKER, 5))
+            b.addAction(0, if (muted) "Unmute" else "Mute", receiverPi(ctx, CallActionReceiver.MUTE, 4))
+            b.addAction(0, if (CallManager.isSpeaker()) "Speaker off" else "Speaker", receiverPi(ctx, CallActionReceiver.SPEAKER, 5))
         }
         try { nm.notify(ID_CALL, b.build()) } catch (e: Exception) { }
     }
