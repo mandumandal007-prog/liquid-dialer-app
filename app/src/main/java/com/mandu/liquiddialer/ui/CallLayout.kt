@@ -29,7 +29,7 @@ import com.mandu.liquiddialer.data.K
 import kotlinx.coroutines.launch
 
 /** One button on the in-call card. */
-data class BtnSpec(val icon: ImageVector, val label: String, val on: Boolean = false, val enabled: Boolean = true, val onClick: () -> Unit)
+data class BtnSpec(val icon: ImageVector, val label: String, val on: Boolean = false, val enabled: Boolean = true, val flat: Boolean = false, val onClick: () -> Unit)
 
 val GRID_IDS = listOf("mute", "keypad", "record", "hold", "add", "merge", "audio")
 val BOTTOM_IDS = listOf("speaker", "end", "notes")
@@ -73,7 +73,7 @@ fun CallControlsLayout(grid: List<Pair<String, Boolean>>, bottom: List<Pair<Stri
             val vis = grid.filter { it.second }.mapNotNull { spec(it.first) }
             vis.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    row.forEach { b -> Box(Modifier.width(cell), contentAlignment = Alignment.Center) { CallBtn(b.icon, b.label, b.on, gsz, b.enabled, b.onClick) } }
+                    row.forEach { b -> Box(Modifier.width(cell), contentAlignment = Alignment.Center) { CallBtn(b.icon, b.label, b.on, gsz, b.enabled, b.flat, b.onClick) } }
                 }
             }
             Spacer(Modifier.height(gap / 2))
@@ -81,7 +81,7 @@ fun CallControlsLayout(grid: List<Pair<String, Boolean>>, bottom: List<Pair<Stri
                 bottom.filter { it.second || it.first == "end" }.forEach { (id, _) ->
                     Box(Modifier.width(cell), contentAlignment = Alignment.TopCenter) {
                         if (id == "end") EndCallBtn(bsz * 1.12f, onEnd)
-                        else spec(id)?.let { b -> CallBtn(b.icon, b.label, b.on, bsz, b.enabled, b.onClick) }
+                        else spec(id)?.let { b -> CallBtn(b.icon, b.label, b.on, bsz, b.enabled, b.flat, b.onClick) }
                     }
                 }
             }
