@@ -107,7 +107,7 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
         .border(1.dp, Color.White.copy(alpha = .24f), CircleShape)
         .drawWithContent { drawContent(); drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .4f), .05f to Color.Transparent), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx())) }
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
-        LdIcon(LdIcons.PhoneOff, size * .4f, Color.White)
+        LdIcon(LdIcons.Phone, size * .4f, Color.White, Modifier.rotate(137f))
     }
 }
 

@@ -29,8 +29,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -74,6 +76,10 @@ fun MainScreen(st: AppState, act: MainActivity) {
 
     CompositionLocalProvider(LocalHaze provides haze) {
         Box(Modifier.fillMaxSize()) {
+            val live = remember(ver, calls) { CallManager.primary() }
+            val showBanner = live != null && s.banner && CallManager.state(live!!) != Call.STATE_RINGING
+            var bannerHPx by remember { mutableIntStateOf(0) }
+            val bannerPad = if (showBanner) with(LocalDensity.current) { bannerHPx.toDp() } + 10.dp else 0.dp
             // ===== haze source: blobs + screens =====
             Box(Modifier.fillMaxSize().haze(haze)) {
                 BlobBackground()
@@ -83,10 +89,10 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 LaunchedEffect(st.tab) { val i = tabKeys.indexOf(st.tab).coerceAtLeast(0); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) }
                 HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding(), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
-                        "recents" -> RecentsScreen(st, act, query, 86.dp, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
+                        "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it })
-                        "contacts" -> ContactsScreen(st, act, query, 86.dp, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it })
-                        else -> DialerScreen(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it })
+                        "contacts" -> ContactsScreen(st, act, query, 86.dp + bannerPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it })
+                        else -> Box(Modifier.padding(top = bannerPad)) { DialerScreen(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it }) }
                     }
                 }
             }
@@ -116,9 +122,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 }
             }
             // ===== ongoing call banner =====
-            val live = remember(ver, calls) { CallManager.primary() }
-            if (live != null && s.banner && CallManager.state(live) != Call.STATE_RINGING) {
-                CallBanner(live, if (st.tab == "dialer") 8.dp else 82.dp)
+            if (showBanner) {
+                CallBanner(live!!, if (st.tab == "dialer") 8.dp else 82.dp, onHeight = { bannerHPx = it })
             }
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
             val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users), Triple("dialer", "Dialer", LdIcons.Dialpad))
@@ -181,14 +186,14 @@ fun MainScreen(st: AppState, act: MainActivity) {
 }
 
 @Composable
-private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp) {
+private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp, onHeight: (Int) -> Unit = {}) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val now = nowTicker()
     val audio by CallManager.audio.collectAsState()
     val connect = call.details?.connectTimeMillis ?: 0
     val t = if (CallManager.state(call) == Call.STATE_ACTIVE && connect > 0) fmtDur((now - connect) / 1000) else if (CallManager.state(call) == Call.STATE_HOLDING) "On hold" else "Calling…"
-    Row(Modifier.statusBarsPadding().padding(start = 10.dp, end = 10.dp, top = bannerTopPad).fillMaxWidth().liquid(RoundedCornerShape(22.dp), 22.dp)
+    Row(Modifier.statusBarsPadding().padding(start = 10.dp, end = 10.dp, top = bannerTopPad).onSizeChanged { onHeight(it.height) }.fillMaxWidth().liquid(RoundedCornerShape(22.dp), 22.dp)
         .padding(start = 12.dp, end = 8.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.weight(1f).clickable { ctx.startActivity(Intent(ctx, com.mandu.liquiddialer.CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
