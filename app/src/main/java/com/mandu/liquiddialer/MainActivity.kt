@@ -42,6 +42,8 @@ class AppState {
     var isDefault by mutableStateOf(true)
     var dial by mutableStateOf("")
     var pendingCall by mutableStateOf<String?>(null)   // number waiting for SIM choice
+    var confirmNumber by mutableStateOf<String?>(null) // number waiting for call confirmation
+    var undoInfo by mutableStateOf<Pair<String, android.telecom.PhoneAccountHandle?>?>(null) // number waiting out the undo window
     var permsTick by mutableIntStateOf(0)
     var showOnboarding by mutableStateOf(false)
 }
@@ -80,6 +82,10 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        LdApp.instance.scope.launch {
+            val s0 = LdApp.settings.first()
+            if (s0.defaultTab == "dialer") state.tab = "dialer"
+        }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent { LdThemeHost { MainScreen(state, this) } }
@@ -187,19 +193,40 @@ class MainActivity : ComponentActivity() {
 
     /** Place a real call, picking the SIM per settings. */
     fun call(number: String, account: PhoneAccountHandle? = null) {
-        val n = number.trim()
+        var n = number.trim()
         if (n.isEmpty()) return
         if (!has(Manifest.permission.CALL_PHONE)) { askPermission(Manifest.permission.CALL_PHONE); Toast.makeText(this, trNow("Call permission do"), Toast.LENGTH_SHORT).show(); return }
+        val s = LdApp.settings.value
+        n = CallPrep.applyPrefix(n, s.autoPrefix)
         var acc = account
+        val sims = Repo.sims(this)
         if (acc == null) {
-            val sims = Repo.sims(this)
-            val def = LdApp.settings.value.defaultSim
-            acc = sims.firstOrNull { it.handle.id == def }?.handle
-            if (acc == null && sims.size > 1) { state.pendingCall = n; return }
-            if (acc == null && sims.size == 1) acc = sims[0].handle
+            val remembered = if (s.simMemory) kotlinx.coroutines.runBlocking { LdApp.instance.repo.simFor(Repo.key(n)) } else null
+            acc = CallPrep.chooseSim(null, s.defaultSim, remembered, sims) { it.handle.id }?.handle
+            if (acc == null && CallPrep.needsSimPicker(sims.size)) { state.pendingCall = n; return }
+        }
+        if (s.simMemory && acc != null) {
+            val hid = acc.id
+            LdApp.instance.scope.launch { LdApp.instance.repo.rememberSim(Repo.key(n), hid) }
+        }
+        if (s.undoCall && n.firstOrNull()?.let { it.isDigit() || it == '+' } == true) {
+            state.undoInfo = n to acc
+            val token = Runnable { state.undoInfo = null; if (!CallManager.place(this, n, acc)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show() }
+            undoRunnable = token
+            handler.postDelayed(token, 3000)
+            return
         }
         if (!CallManager.place(this, n, acc)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show()
     }
+
+    private var undoRunnable: Runnable? = null
+
+    /** Tap-to-call from lists: respects the confirm-before-call setting. */
+    fun callUi(number: String) {
+        if (LdApp.settings.value.confirmCall) state.confirmNumber = number else call(number)
+    }
+
+    fun cancelUndo() { undoRunnable?.let { handler.removeCallbacks(it) }; undoRunnable = null; state.undoInfo = null }
 
     fun voicemail() {
         val custom = LdApp.settings.value.voicemail
@@ -209,4 +236,22 @@ class MainActivity : ComponentActivity() {
             getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("voicemail", "", null), Bundle())
         } catch (_: Exception) { Toast.makeText(this, trNow("Voicemail number Settings me daalo"), Toast.LENGTH_LONG).show() }
     }
+}
+
+/** Pure call-prep decisions extracted for unit tests. */
+internal object CallPrep {
+    /** +91 prefix for 10-digit local numbers when enabled. */
+    fun applyPrefix(n: String, enabled: Boolean): String =
+        if (enabled && n.length == 10 && n.all { it.isDigit() }) "+91$n" else n
+
+    /** SIM pick order: default SIM first, then remembered per-contact, then single-SIM; null = must ask. */
+    fun <T> chooseSim(explicit: T?, defaultId: String?, rememberedId: String?, sims: List<T>, idOf: (T) -> String): T? {
+        if (explicit != null) return explicit
+        if (defaultId != null) sims.firstOrNull { idOf(it) == defaultId }?.let { return it }
+        if (rememberedId != null) sims.firstOrNull { idOf(it) == rememberedId }?.let { return it }
+        return if (sims.size == 1) sims[0] else null
+    }
+
+    /** Multi-SIM picker shows only when nothing was chosen and more than one SIM exists. */
+    fun needsSimPicker(simCount: Int): Boolean = simCount > 1
 }
