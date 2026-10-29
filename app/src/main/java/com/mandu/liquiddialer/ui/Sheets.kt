@@ -27,7 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit) {
+fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val detail = remember(contact) { contact?.let { Repo.contactDetail(ctx, it.id) } }
@@ -43,7 +43,9 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
         Avatar(name, contact?.photo, 72.dp, 24f, seed = name)
         Spacer(Modifier.height(10.dp))
         LdText(name, 20f, FontWeight.Bold)
-        if (contact != null) LdText("${contact.label} · ${Repo.pretty(number)}", 12.5f, color = p.muted)
+        if (contact != null) LdText("${contact.label} · ${Repo.pretty(number)}", 12.5f, color = p.muted,
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).combinedClickable(onClick = {}, onLongClick = { onLongNumber(number) }).padding(horizontal = 6.dp, vertical = 2.dp))
+        else if (number.isNotBlank()) LdText("Number par dabake rakho = options", 11f, color = p.muted, modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { onLongNumber(number) }))
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             ActionBubble(LdIcons.Phone, "Call", true) { onClose(); act.call(number) }
@@ -59,7 +61,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     }
     Spacer(Modifier.height(16.dp))
     detail?.phones?.filter { Repo.key(it.first) != Repo.key(number) }?.forEach { (n, _) ->
-        SheetRow(LdIcons.Phone, Repo.pretty(n), "Doosra number") { onClose(); act.call(n) }
+        SheetRow(LdIcons.Phone, Repo.pretty(n), "Doosra number · dabake rakho = options", onLongClick = { onLongNumber(n) }) { onClose(); act.call(n) }
     }
     detail?.emails?.forEach { e -> SheetRow(LdIcons.Message, e, "Email") { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$e"))) } }
     if (contact != null) SheetRow(LdIcons.Edit, "Contact edit karo") { onEdit(contact.id) }
@@ -122,9 +124,9 @@ fun ActionBubble(icon: ImageVector, label: String, on: Boolean = false, onClick:
 }
 
 @Composable
-fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Boolean = false, onClick: () -> Unit) {
+fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Boolean = false, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     val p = LocalLd.current
-    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).glass(p, RoundedCornerShape(16.dp), 2.dp).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).glass(p, RoundedCornerShape(16.dp), 2.dp).combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background((if (danger) p.danger else p.accent).pct(.16f)), contentAlignment = Alignment.Center) {
             LdIcon(icon, 17.dp, if (danger) p.danger else p.accent)
@@ -137,33 +139,55 @@ fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Bool
 }
 
 
-/** Compact options sheet opened by long-pressing a number/contact row. */
+/** Long-press menu for any number (Recents, Contacts, contact detail, dialer). */
 @Composable
-fun QuickNumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit) {
+fun NumberMenu(number: String, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit) {
+    val p = LocalLd.current
     val ctx = LocalContext.current
-    var blocked by remember { mutableStateOf(Repo.isBlocked(ctx, number)) }
-    SheetTitle(contact?.name ?: if (number.isBlank()) "Private number" else Repo.pretty(number))
-    if (number.isNotBlank()) {
-        SheetRow(LdIcons.Phone, "Call karo") { onClose(); act.call(number) }
-        SheetRow(LdIcons.Message, "SMS bhejo") { try { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) } catch (_: Exception) { } }
-        SheetRow(LdIcons.Message, "WhatsApp kholo") {
-            val digits = number.filter { it.isDigit() }.let { if (it.length == 10) "91$it" else it }
-            try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits"))) } catch (_: Exception) { }
-        }
-        SheetRow(LdIcons.Check, "Number copy karo") {
-            ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
-            Toast.makeText(ctx, "Copy ho gaya", Toast.LENGTH_SHORT).show()
+    val contact = remember(number, st.contacts) { st.contacts.firstOrNull { Repo.key(it.number) == Repo.key(number) } }
+    var blocked by remember(number) { mutableStateOf(Repo.isBlocked(ctx, number)) }
+    var starred by remember(contact) { mutableStateOf(contact?.starred == true) }
+    val inLog = remember(number, st.recents) { st.recents.any { Repo.key(it.number) == Repo.key(number) } }
+    val name = contact?.name ?: Repo.pretty(number)
+    fun go(i: Intent) { try { ctx.startActivity(i) } catch (e: Exception) { Toast.makeText(ctx, "Koi app nahi mila", Toast.LENGTH_SHORT).show() } }
+
+    Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Avatar(name, contact?.photo, 46.dp, 16f, seed = name)
+        Column(Modifier.weight(1f)) {
+            LdText(name, 16.5f, FontWeight.Bold, maxLines = 1)
+            if (contact != null) LdText(Repo.pretty(number), 12.5f, color = p.muted)
         }
     }
+    SheetRow(LdIcons.Phone, "Call") { onClose(); act.call(number) }
+    SheetRow(LdIcons.Message, "Message (SMS)") { onClose(); go(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
+    SheetRow(LdIcons.Message, "WhatsApp") {
+        val digits = number.filter { it.isDigit() }.let { if (it.length == 10) "91$it" else it.removePrefix("00") }
+        onClose(); go(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits")))
+    }
+    SheetRow(LdIcons.Check, "Number copy karo") {
+        ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
+        Toast.makeText(ctx, "Copy ho gaya", Toast.LENGTH_SHORT).show(); onClose()
+    }
+    SheetRow(LdIcons.Dialpad, "Call se pehle edit karo") { st.dial = number.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }; st.tab = "dialer"; onClose() }
     if (contact != null) SheetRow(LdIcons.Edit, "Contact edit karo") { onEdit(contact.id) }
-    else if (number.isNotBlank()) SheetRow(LdIcons.Plus, "Contact me add karo") { onEdit(null) }
-    if (number.isNotBlank()) {
-        SheetRow(LdIcons.Block, if (blocked) "Unblock karo" else "Number block karo", if (!st.isDefault) "Default phone app hone par kaam karega" else null, danger = !blocked) {
-            if (!Repo.canBlock(ctx)) { act.requestDefault(); return@SheetRow }
-            blocked = if (blocked) !Repo.unblock(ctx, number) else Repo.block(ctx, number)
-            Toast.makeText(ctx, if (blocked) "Block ho gaya" else "Unblock ho gaya", Toast.LENGTH_SHORT).show()
-            act.reload(); onClose()
-        }
-        SheetRow(LdIcons.Trash, "Call history se hatao", danger = true) { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }
+    else SheetRow(LdIcons.Plus, "Contacts me add karo") { onEdit(null) }
+    SheetRow(if (starred) LdIcons.StarFill else LdIcons.Star, if (starred) "Favourite se hatao" else "Favourite me add karo",
+        if (contact == null) "Pehle contact save hoga" else null) {
+        if (contact == null) { onEdit(null); return@SheetRow }
+        starred = !starred; Repo.setStarred(ctx, contact.id, starred); act.reload()
+        Toast.makeText(ctx, if (starred) "Favourite me add ho gaya" else "Favourite se hat gaya", Toast.LENGTH_SHORT).show()
+    }
+    SheetRow(LdIcons.Block, if (blocked) "Unblock karo" else "Block karo", if (!st.isDefault) "Default phone app hone par kaam karega" else null, danger = !blocked) {
+        if (!Repo.canBlock(ctx)) { act.requestDefault(); return@SheetRow }
+        blocked = if (blocked) !Repo.unblock(ctx, number) else Repo.block(ctx, number)
+        Toast.makeText(ctx, if (blocked) "Block ho gaya" else "Unblock ho gaya", Toast.LENGTH_SHORT).show()
+        act.reload()
+    }
+    if (inLog) SheetRow(LdIcons.Trash, "Call log se delete karo", danger = true) {
+        Repo.deleteRecentsFor(ctx, number); act.reload(); onClose()
+        Toast.makeText(ctx, "Call log se hata diya", Toast.LENGTH_SHORT).show()
+    }
+    SheetRow(LdIcons.Chevron, "Share karo") {
+        onClose(); go(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, if (contact != null) "${contact.name}: $number" else number), "Share"))
     }
 }

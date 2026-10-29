@@ -260,6 +260,46 @@ object Repo {
     } catch (e: Exception) { "" }
 
     @SuppressLint("MissingPermission", "HardwareIds")
+    fun ownNumbers(ctx: Context): List<String> {
+        val out = mutableListOf<String>()
+        try {
+            val sm = ctx.getSystemService(android.telephony.SubscriptionManager::class.java)
+            sm?.activeSubscriptionInfoList?.forEach { info ->
+                @Suppress("DEPRECATION")
+                val n = if (android.os.Build.VERSION.SDK_INT >= 33) sm.getPhoneNumber(info.subscriptionId) else info.number
+                if (!n.isNullOrBlank()) out.add("SIM ${info.simSlotIndex + 1} · ${info.displayName ?: ""}: ${pretty(n)}")
+            }
+        } catch (e: Exception) { }
+        if (out.isEmpty()) ownNumber(ctx).takeIf { it.isNotBlank() }?.let { out.add(pretty(it)) }
+        return out
+    }
+
+    /** Decodes the picked image, centre-crops it to a 512px circle and stores it in app storage. Returns a file:// uri. */
+    fun saveProfilePhoto(ctx: Context, uri: android.net.Uri): String? = try {
+        val src: android.graphics.Bitmap = if (android.os.Build.VERSION.SDK_INT >= 28) {
+            android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(ctx.contentResolver, uri)) { d, info, _ ->
+                val m = maxOf(info.size.width, info.size.height)
+                if (m > 1600) { val f = 1600f / m; d.setTargetSize((info.size.width * f).toInt().coerceAtLeast(1), (info.size.height * f).toInt().coerceAtLeast(1)) }
+                d.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+        } else {
+            val o = android.graphics.BitmapFactory.Options().apply { inSampleSize = 2 }
+            ctx.contentResolver.openInputStream(uri)!!.use { android.graphics.BitmapFactory.decodeStream(it, null, o)!! }
+        }
+        val side = minOf(src.width, src.height)
+        val x = (src.width - side) / 2; val y = (src.height - side) / 2
+        val out = android.graphics.Bitmap.createBitmap(512, 512, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(out)
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG)
+        c.drawCircle(256f, 256f, 256f, paint)
+        paint.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.SRC_IN)
+        c.drawBitmap(src, android.graphics.Rect(x, y, x + side, y + side), android.graphics.Rect(0, 0, 512, 512), paint)
+        val f = File(ctx.filesDir, "profile.png")
+        f.outputStream().use { out.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        "file://${f.absolutePath}?v=${System.currentTimeMillis()}"
+    } catch (e: Exception) { null }
+
+    @SuppressLint("MissingPermission", "HardwareIds")
     fun ownNumber(ctx: Context): String = try { ctx.getSystemService(TelephonyManager::class.java).line1Number ?: "" } catch (e: Exception) { "" }
 
     fun pretty(n: String): String = try { PhoneNumberUtils.formatNumber(n, "IN") ?: n } catch (e: Exception) { n }

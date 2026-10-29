@@ -36,14 +36,15 @@ data class LdSettings(
     val onboarded: Boolean = false,
     val incomingFull: Boolean = true,
     val swipeAnswer: Boolean = true,
-    val callCardScale: Float = 1f,
-    val callBtnSize: Int = 68,
-    val dialerScale: Float = 1f,
-    val callBtns: String = DEFAULT_CALL_BTNS,
     val profilePhoto: String = "",
+    val layoutGrid: String = DEFAULT_GRID,
+    val layoutBottom: String = DEFAULT_BOTTOM,
+    val gridScale: Float = 1f,
+    val bottomScale: Float = 1f,
 )
 
-val DEFAULT_CALL_BTNS = "mute,keypad,record,hold,addcall,audio"
+const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
+const val DEFAULT_BOTTOM = "speaker,end,notes"
 
 val DEFAULT_REPLIES = listOf(
     "Abhi baat nahi kar sakta, baad mein call karta hoon.",
@@ -80,11 +81,11 @@ object K {
     val onboarded = booleanPreferencesKey("onboarded")
     val incomingFull = booleanPreferencesKey("incomingFull")
     val swipeAnswer = booleanPreferencesKey("swipeAnswer")
-    val callCardScale = floatPreferencesKey("callCardScale")
-    val callBtnSize = intPreferencesKey("callBtnSize")
-    val dialerScale = floatPreferencesKey("dialerScale")
-    val callBtns = stringPreferencesKey("callBtns")
     val profilePhoto = stringPreferencesKey("profilePhoto")
+    val layoutGrid = stringPreferencesKey("layoutGrid")
+    val layoutBottom = stringPreferencesKey("layoutBottom")
+    val gridScale = floatPreferencesKey("gridScale")
+    val bottomScale = floatPreferencesKey("bottomScale")
 }
 
 fun Preferences.toSettings(): LdSettings {
@@ -119,17 +120,18 @@ fun Preferences.toSettings(): LdSettings {
         onboarded = this[K.onboarded] ?: false,
         incomingFull = this[K.incomingFull] ?: true,
         swipeAnswer = this[K.swipeAnswer] ?: true,
-        callCardScale = this[K.callCardScale] ?: d.callCardScale,
-        callBtnSize = this[K.callBtnSize] ?: d.callBtnSize,
-        dialerScale = this[K.dialerScale] ?: d.dialerScale,
-        callBtns = this[K.callBtns] ?: d.callBtns,
-        profilePhoto = this[K.profilePhoto] ?: d.profilePhoto,
+        profilePhoto = this[K.profilePhoto] ?: "",
+        layoutGrid = this[K.layoutGrid] ?: DEFAULT_GRID,
+        layoutBottom = this[K.layoutBottom] ?: DEFAULT_BOTTOM,
+        gridScale = this[K.gridScale] ?: 1f,
+        bottomScale = this[K.bottomScale] ?: 1f,
     )
 }
 
 class SettingsRepo(private val ctx: Context) {
     val flow: Flow<LdSettings> = ctx.ldStore.data.map { it.toSettings() }
     suspend fun <T> set(key: Preferences.Key<T>, value: T) { ctx.ldStore.edit { it[key] = value } }
+    suspend fun resetCallLayout() { ctx.ldStore.edit { it.remove(K.layoutGrid); it.remove(K.layoutBottom); it.remove(K.gridScale); it.remove(K.bottomScale) } }
     suspend fun setReplies(list: List<String>) = set(K.quickReplies, list.joinToString("\n"))
     suspend fun setSpeedDial(map: Map<Int, String>) = set(K.speedDial, map.entries.joinToString(";") { "${it.key}=${it.value}" })
 }

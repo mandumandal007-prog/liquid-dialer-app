@@ -24,7 +24,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
@@ -45,7 +44,6 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.roundToInt
 
 private fun <T> save(key: Preferences.Key<T>, v: T) { LdApp.instance.scope.launch { LdApp.instance.repo.set(key, v) } }
 
@@ -97,8 +95,8 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     when {
         page == "settings" -> SettingsPage(st, act, onBack, onOpen)
         page == "appearance" -> AppearancePage(onBack)
-        page == "callayout" -> CallLayoutPage(onBack)
         page == "profile" -> ProfilePage(onBack)
+        page == "calllayout" -> CallLayoutPage(onBack)
         page == "editor" -> ContactEditor(editContactId, editPrefill, act, onBack)
         page == "recordings" -> RecordingsPage(onBack)
         page == "notes" -> NotesPage(null, onBack)
@@ -145,9 +143,13 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         // profile card
         Row(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(26.dp)).clickable { onOpen("profile") }.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Avatar(s.profileName.ifBlank { "You" }, s.profilePhoto.takeIf { it.isNotBlank() }?.let { "file://$it" }, 58.dp, 19f, seed = "me")
-            Column(Modifier.weight(1f)) { LdText(s.profileName.ifBlank { "You" }, 17f, FontWeight.Bold); LdText(s.profileNumber.ifBlank { "Profile edit karo" }, 12.5f, color = p.muted) }
+            Avatar(s.profileName.ifBlank { "You" }, s.profilePhoto.ifBlank { null }, 58.dp, 19f, seed = "me")
+            Column(Modifier.weight(1f)) { LdText(s.profileName.ifBlank { "My profile" }, 17f, FontWeight.Bold); LdText(s.profileNumber.ifBlank { "Naam, photo aur number set karo" }, 12.5f, color = p.muted) }
             LdIcon(LdIcons.Edit, 18.dp, p.muted)
+        }
+        Spacer(Modifier.height(10.dp))
+        GlassCard {
+            SRow("Calling card layout", "Kaun button kahan aur kitna bada", LdIcons.Dialpad, last = true) { onOpen("calllayout") }
         }
 
         SecTitle("Default app")
@@ -160,7 +162,6 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         SecTitle("Display")
         GlassCard {
             SRow("Theme & appearance", "${paletteFor(s.theme, p.accent, true).name.let { if (s.theme == "auto") "Auto (system)" else it }} · blur ${s.blur}px", LdIcons.Palette) { onOpen("appearance") }
-            SRow("Call screen & dialer layout", "Calling card ka size, kaunsa button kahan, kitna bada", LdIcons.Dialpad) { onOpen("callayout") }
             LdText("Contact sort", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 10.dp, bottom = 8.dp))
             Segmented(listOf("First name", "Last name"), if (s.sortByLast) 1 else 0) { save(K.sortByLast, it == 1); act.reload() }
             LdText("Naam ka format", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
@@ -372,102 +373,60 @@ private fun AppearancePage(onBack: () -> Unit) {
 @Composable
 private fun ProfilePage(onBack: () -> Unit) {
     val s by LdApp.settings.collectAsState()
-    val p = LocalLd.current
     val ctx = LocalContext.current
+    val p = LocalLd.current
     var name by remember { mutableStateOf(s.profileName) }
-    var num by remember { mutableStateOf(s.profileNumber.ifBlank { Repo.ownNumber(ctx) }) }
-    var photoPreview by remember { mutableStateOf<ImageBitmap?>(null) }
-    val existingPhoto = rememberPhoto(s.profilePhoto.takeIf { it.isNotBlank() }?.let { "file://$it" })
+    var num by remember { mutableStateOf(s.profileNumber) }
+    val own = remember { Repo.ownNumbers(ctx) }
+    var busy by remember { mutableStateOf(false) }
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) try {
-            val bmp = ctx.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
-            if (bmp != null) {
-                val side = minOf(bmp.width, bmp.height)
-                val sq = android.graphics.Bitmap.createBitmap(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side)
-                val sc = android.graphics.Bitmap.createScaledBitmap(sq, 512, 512, true)
-                val f = File(ctx.filesDir, "profile_photo.jpg")
-                java.io.FileOutputStream(f).use { sc.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
-                photoPreview = sc.asImageBitmap()
-                save(K.profilePhoto, f.absolutePath)
-                Toast.makeText(ctx, "Profile photo set ho gayi", Toast.LENGTH_SHORT).show()
-            }
-        } catch (_: Exception) { Toast.makeText(ctx, "Photo nahi lag paayi", Toast.LENGTH_SHORT).show() }
-    }
-    PageFrame("Edit profile", onBack) {
-        Box(Modifier.fillMaxWidth().padding(bottom = 6.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.clickable { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
-                val img = photoPreview ?: existingPhoto
-                if (img != null) Image(img, null, Modifier.size(96.dp).clip(CircleShape).border(1.dp, p.stroke, CircleShape), contentScale = androidx.compose.ui.layout.ContentScale.Crop)
-                else Avatar(name.ifBlank { "You" }, null, 96.dp, 30f, glow = true, seed = "me")
-                Box(Modifier.align(Alignment.BottomEnd).size(30.dp).glass(p, CircleShape, 4.dp), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Edit, 14.dp, p.accent) }
+        if (uri != null) {
+            busy = true
+            LdApp.instance.scope.launch(Dispatchers.IO) {
+                val out = Repo.saveProfilePhoto(ctx, uri)
+                if (out != null) LdApp.instance.repo.set(K.profilePhoto, out)
+                withContext(Dispatchers.Main) { busy = false; if (out == null) Toast.makeText(ctx, "Photo load nahi hui", Toast.LENGTH_SHORT).show() }
             }
         }
-        LdText("Photo badalne ke liye photo pe dabao", 11.5f, color = p.muted, modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 14.dp))
-        if (s.profilePhoto.isNotBlank()) Box(Modifier.padding(bottom = 12.dp)) {
-            GhostButton("Photo hatao") { File(ctx.filesDir, "profile_photo.jpg").delete(); save(K.profilePhoto, ""); photoPreview = null }
+    }
+    fun pickPhoto() = pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    PageFrame("My profile", onBack) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.clickable(remember { MutableInteractionSource() }, null) { pickPhoto() }) {
+                Avatar(name.ifBlank { "You" }, s.profilePhoto.ifBlank { null }, 112.dp, 34f, glow = true, seed = "me")
+                Box(Modifier.align(Alignment.BottomEnd).size(36.dp).clip(CircleShape).background(p.accent).border(2.dp, p.bg, CircleShape), contentAlignment = Alignment.Center) {
+                    LdIcon(LdIcons.Edit, 16.dp, Color.White)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { pickPhoto() }.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    LdText(if (busy) "Photo set ho rahi hai…" else if (s.profilePhoto.isBlank()) "Gallery se photo chuno" else "Photo badlo", 13f, FontWeight.SemiBold, p.accent)
+                }
+                if (s.profilePhoto.isNotBlank()) Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable {
+                    java.io.File(ctx.filesDir, "profile.png").delete(); save(K.profilePhoto, "")
+                }.padding(horizontal = 10.dp, vertical = 6.dp)) { LdText("Photo hatao", 13f, FontWeight.SemiBold, p.danger) }
+            }
+            LdText("Photo beech se gol (circle) kat ke app me save hoti hai", 11f, color = p.muted)
         }
         GlassCard {
             LdField(name, { name = it }, "Aapka naam")
-            LdField(num, { num = it }, "Aapka number", phone = true)
+            Spacer(Modifier.height(8.dp))
+            LdField(num, { num = it }, "Aapka number (optional)", phone = true)
+            Spacer(Modifier.height(10.dp))
             PrimaryButton("Save") { save(K.profileName, name.trim()); save(K.profileNumber, num.trim()); onBack() }
         }
-    }
-}
-
-private val CALL_BTN_LABELS = listOf(
-    "mute" to "Mute", "keypad" to "Keypad", "record" to "Record",
-    "hold" to "Hold", "addcall" to "Add call", "audio" to "Audio / Speaker",
-)
-
-@Composable
-private fun SizeSlider(title: String, value: Float, range: ClosedFloatingPointRange<Float>, format: (Float) -> String, onDone: (Float) -> Unit) {
-    val p = LocalLd.current
-    GlassCard {
-        var v by remember { mutableFloatStateOf(value) }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            LdText(title, 12.5f, FontWeight.SemiBold, p.muted); LdText(format(v), 12.5f, FontWeight.Bold, p.accent)
-        }
-        Slider(v, { v = it }, valueRange = range, onValueChangeFinished = { onDone((v * 100).roundToInt() / 100f) },
-            colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = p.accent, inactiveTrackColor = p.accent.pct(.2f)))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { LdText("Chhota", 10.5f, color = p.muted); LdText("Bada", 10.5f, color = p.muted) }
-    }
-}
-
-@Composable
-private fun CallLayoutPage(onBack: () -> Unit) {
-    val p = LocalLd.current
-    val s by LdApp.settings.collectAsState()
-    val order = s.callBtns.split(",").filter { it.isNotBlank() }
-    fun saveOrder(list: List<String>) = save(K.callBtns, list.joinToString(","))
-    PageFrame("Call screen layout", onBack) {
-        LdText("Call ke dauran dikhne wali screen apne hisaab se sajao. End call (lal) button hamesha neeche beech me rahega.", 12f, color = p.muted, maxLines = 3, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
-        SecTitle("Calling card size")
-        SizeSlider("Naam aur photo", s.callCardScale, .8f..1.3f, { "${(it * 100).roundToInt()}%" }) { save(K.callCardScale, it) }
-        SecTitle("Dialer (keypad) size")
-        SizeSlider("Number ke buttons", s.dialerScale, .85f..1.25f, { "${(it * 100).roundToInt()}%" }) { save(K.dialerScale, it) }
-        SecTitle("In-call button size")
-        SizeSlider("Mute, keypad jaise buttons", s.callBtnSize.toFloat(), 56f..84f, { "${it.roundToInt()} dp" }) { save(K.callBtnSize, it.roundToInt()) }
-        SecTitle("Buttons ka order")
-        GlassCard {
-            order.forEachIndexed { i, id ->
-                val label = CALL_BTN_LABELS.firstOrNull { it.first == id }?.second ?: id
-                SRow(label, "Position ${i + 1}", last = i == order.lastIndex && CALL_BTN_LABELS.all { it.first in order }, trailing = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Box(Modifier.size(34.dp).clip(CircleShape).clickable(enabled = i > 0) { if (i > 0) { val l = order.toMutableList(); l.removeAt(i); l.add(i - 1, id); saveOrder(l) } }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.ChevronDown, 18.dp, if (i > 0) p.accent else p.muted.copy(alpha = .3f), Modifier.rotate(180f)) }
-                        Box(Modifier.size(34.dp).clip(CircleShape).clickable(enabled = i < order.lastIndex) { if (i < order.lastIndex) { val l = order.toMutableList(); l.removeAt(i); l.add(i + 1, id); saveOrder(l) } }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.ChevronDown, 18.dp, if (i < order.lastIndex) p.accent else p.muted.copy(alpha = .3f)) }
-                        Box(Modifier.size(34.dp).clip(CircleShape).clickable(enabled = order.size > 1) { if (order.size > 1) saveOrder(order - id) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 16.dp, if (order.size > 1) p.danger else p.muted.copy(alpha = .3f)) }
-                    }
-                })
-            }
-            val hidden = CALL_BTN_LABELS.filter { it.first !in order }
-            hidden.forEachIndexed { i, (id, label) ->
-                SRow(label, "Chhupa hua - wapas jodo", last = i == hidden.lastIndex, trailing = {
-                    Box(Modifier.size(34.dp).clip(CircleShape).clickable { saveOrder(order + id) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Plus, 18.dp, p.accent) }
-                })
-            }
-        }
         Spacer(Modifier.height(14.dp))
-        GhostButton("Default layout wapas lao") { save(K.callBtns, DEFAULT_CALL_BTNS); save(K.callCardScale, 1f); save(K.callBtnSize, 68); save(K.dialerScale, 1f) }
+        GlassCard {
+            LdText("MERE NUMBER (SIM se)", 12f, FontWeight.Bold, p.muted, letter = 1.2f)
+            Spacer(Modifier.height(6.dp))
+            if (own.isEmpty()) LdText("SIM se number nahi padh paya. Phone permission do, ya kuch SIM number batati hi nahi. Upar khud likh do.", 12.5f, color = p.muted, maxLines = 4)
+            own.forEach { n ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    LdIcon(LdIcons.Sim, 18.dp, p.accent); LdText(n, 14f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2)
+                }
+            }
+        }
     }
 }
 

@@ -18,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -65,15 +68,15 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .93f)
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.alpha(if (enabled) 1f else .4f)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.alpha(if (enabled) 1f else .4f)) {
         val base = Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
         val m = if (on) base.shadow(14.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
             .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
         else base.glass(p, CircleShape, 12.dp, .32f)
         Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
-            LdIcon(icon, 26.dp, if (on) Color.White else p.text)
+            LdIcon(icon, size * .38f, if (on) Color.White else p.text)
         }
-        LdText(label, 11f, FontWeight.SemiBold, p.muted)
+        LdText(label, (size.value * .165f).coerceIn(9.5f, 12.5f), FontWeight.SemiBold, p.muted, maxLines = 1)
     }
 }
 
@@ -87,7 +90,7 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
         .border(1.dp, Color.White.copy(alpha = .24f), CircleShape)
         .drawWithContent { drawContent(); drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .4f), .05f to Color.Transparent), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx())) }
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
-        LdIcon(LdIcons.Phone, 30.dp, Color.White, Modifier.rotate(137f))
+        LdIcon(LdIcons.PhoneOff, size * .4f, Color.White)
     }
 }
 
@@ -144,7 +147,7 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
 }
 
 @Composable
-private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean, scale: Float = 1f) {
+private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     val name = CallManager.nameFor(ctx, call)
@@ -152,14 +155,16 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
     val inf = rememberInfiniteTransition(label = "floaty")
     val fy by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(if (ringing) 2000 else 2750, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "fy")
     val pr by inf.animateFloat(1f, 1.035f, infiniteRepeatable(tween(1200), RepeatMode.Reverse), label = "pr")
+    val sh = LocalConfiguration.current.screenHeightDp
+    val av = when { sh < 640 -> 76.dp; sh < 740 -> 88.dp; else -> 100.dp }
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Avatar(name, CallManager.photoFor(call), (118f * scale).dp, 34f * scale, glow = true, seed = name) }
+        }) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name) }
         Spacer(Modifier.height(4.dp))
-        LdText(name, 25f * scale, FontWeight.Bold, letter = -.3f)
-        if (number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f * scale, color = p.muted, letter = .3f)
+        LdText(name, if (sh < 700) 21f else 23f, FontWeight.Bold, letter = -.3f, maxLines = 1)
+        if (number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f, color = p.muted, letter = .3f)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 6.dp)) {
             if (ringing) LiveDot()
             LdText(status, 12.5f, FontWeight.SemiBold, statusColor)
@@ -185,7 +190,6 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
 private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.RecInfo?, onRecord: () -> Unit, onAddCall: () -> Unit,
                            onMinimize: () -> Unit, openSheet: (String) -> Unit) {
     val p = LocalLd.current
-    val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
     val now = nowTicker()
     val st = CallManager.state(call)
@@ -213,9 +217,8 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
         if (bt) add("BLUETOOTH" to p.muted)
     }
     val others = CallManager.others()
-    val btnDp = s.callBtnSize.dp
 
-    Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
+    Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 18.dp)) {
         TopChips(call, true, onMinimize)
         if (others.isNotEmpty()) {
             val o = others.first()
@@ -230,50 +233,50 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (!keypad) Hero(call, status, p.accent, timer, badges, false, scale = s.callCardScale)
+            if (!keypad) Hero(call, status, p.accent, timer, badges, false)
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
-                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, small = true, scale = s.dialerScale)
+                Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, small = true, maxKey = (LocalConfiguration.current.screenHeightDp * .075f).coerceIn(48f, 62f).dp)
                 Row(Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp).clickable { keypad = false }.padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdIcon(LdIcons.X, 16.dp); LdText("Keypad band karo", 13f, FontWeight.SemiBold)
                 }
             }
         }
-        if (!keypad) {
-            val btns = linkedMapOf<String, @Composable () -> Unit>(
-                "mute" to { CallBtn(LdIcons.Mic, if (muted) "Unmute" else "Mute", on = muted, size = btnDp) { CallManager.toggleMute() } },
-                "keypad" to { CallBtn(LdIcons.Dialpad, "Keypad", size = btnDp) { keypad = true } },
-                "record" to { CallBtn(LdIcons.Record, if (rec != null) "Stop rec" else "Record", on = rec != null, size = btnDp, onClick = onRecord) },
-                "hold" to { CallBtn(LdIcons.Pause, if (st == Call.STATE_HOLDING) "Resume" else "Hold", on = st == Call.STATE_HOLDING, size = btnDp,
-                    enabled = call.details?.can(Call.Details.CAPABILITY_HOLD) == true || st == Call.STATE_HOLDING) { CallManager.toggleHold(call) } },
-                "addcall" to { CallBtn(LdIcons.Plus, "Add call", size = btnDp, onClick = onAddCall) },
-                "audio" to {
-                    when {
-                        others.isNotEmpty() && CallManager.canMerge() -> CallBtn(LdIcons.Merge, "Merge", size = btnDp) { CallManager.merge() }
-                        others.isNotEmpty() -> CallBtn(LdIcons.Swap, "Swap", size = btnDp) { CallManager.swap() }
-                        else -> CallBtn(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", on = bt, size = btnDp) { openSheet("audio") }
-                    }
-                },
-            )
-            val savedOrder = s.callBtns.split(",")
-            val order = savedOrder.filter { btns.containsKey(it) } + btns.keys.filter { it !in savedOrder }
-            Column(verticalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.padding(bottom = 16.dp, top = 6.dp)) {
-                order.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        row.forEach { id -> btns[id]?.invoke() }
-                    }
+        val s by LdApp.settings.collectAsState()
+        val gridL = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
+        val bottomL = remember(s.layoutBottom) { parseLayout(s.layoutBottom, BOTTOM_IDS) }
+        val audioVisible = gridL.any { it.first == "audio" && it.second }
+        val spec: (String) -> BtnSpec? = { id ->
+            when (id) {
+                "mute" -> BtnSpec(LdIcons.Mic, if (muted) "Unmute" else "Mute", muted) { CallManager.toggleMute() }
+                "keypad" -> BtnSpec(LdIcons.Dialpad, "Keypad") { keypad = true }
+                "record" -> BtnSpec(LdIcons.Record, if (rec != null) "Stop rec" else "Record", rec != null, onClick = onRecord)
+                "hold" -> BtnSpec(LdIcons.Pause, if (st == Call.STATE_HOLDING) "Resume" else "Hold", st == Call.STATE_HOLDING,
+                    call.details?.can(Call.Details.CAPABILITY_HOLD) == true || st == Call.STATE_HOLDING) { CallManager.toggleHold(call) }
+                "add" -> BtnSpec(LdIcons.Plus, "Add call", onClick = onAddCall)
+                "merge" -> when {
+                    others.isNotEmpty() && CallManager.canMerge() -> BtnSpec(LdIcons.Merge, "Merge") { CallManager.merge() }
+                    others.isNotEmpty() -> BtnSpec(LdIcons.Swap, "Swap") { CallManager.swap() }
+                    !audioVisible -> BtnSpec(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", bt) { openSheet("audio") }
+                    else -> BtnSpec(LdIcons.Merge, "Merge", enabled = false) {}
                 }
+                "audio" -> BtnSpec(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", bt) { openSheet("audio") }
+                "speaker" -> BtnSpec(LdIcons.Volume, if (speaker) "Speaker on" else "Speaker", speaker) {
+                    if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
+                }
+                "notes" -> BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") }
+                else -> null
             }
         }
-        // bottom row: Speaker | End | Notes
-        Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
-            CallBtn(LdIcons.Volume, if (speaker) "Speaker on" else "Speaker", on = speaker, size = btnDp) {
-                if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
+        if (!keypad) {
+            Box(Modifier.padding(top = 6.dp, bottom = 4.dp)) {
+                CallControlsLayout(gridL, bottomL, s.gridScale, s.bottomScale, spec, onEnd = { CallManager.end(call) })
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) { EndCallBtn(size = btnDp + 6.dp) { CallManager.end(call) } }
-            CallBtn(LdIcons.Edit, "Notes", size = btnDp) { openSheet("notes") }
+        } else {
+            // keypad open: only the bottom row stays
+            CallControlsLayout(emptyList(), bottomL, s.gridScale, s.bottomScale, spec, onEnd = { CallManager.end(call) }, compact = true)
         }
     }
 }
@@ -281,22 +284,22 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
 @Composable
 private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     val p = LocalLd.current
-    val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
     val sim = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { "SIM ${it.slot}" } ?: "SIM"
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, false) {}
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true, scale = s.callCardScale)
+            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true)
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.Bottom) {
-            SwipeCallBtn(danger = true, label = "Decline", swipe = swipe) { CallManager.reject(call) }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+            SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(Modifier.size(52.dp).glass(p, CircleShape, 6.dp).clickable { onMessage() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Message, 22.dp) }
                 LdText("Message", 11f, FontWeight.SemiBold, p.muted)
+                Spacer(Modifier.height(18.dp))
             }
-            SwipeCallBtn(danger = false, label = "Accept", swipe = swipe) { CallManager.answer(call) }
+            SwipeCallBtn(danger = false, label = "Answer", swipe = swipe) { CallManager.answer(call) }
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -308,35 +311,32 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
     val scope = rememberCoroutineScope()
     val off = remember { Animatable(0f) }
     val density = LocalDensity.current
-    val threshold = with(density) { 120.dp.toPx() }
+    val threshold = with(density) { 110.dp.toPx() }
     var fired by remember { mutableStateOf(false) }
+    val sw = LocalConfiguration.current.screenWidthDp
+    val btn = (sw * .19f).coerceIn(62f, 76f).dp
     val inf = rememberInfiniteTransition(label = "glow")
-    val g by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1000), RepeatMode.Reverse), label = "g")
-    val hint by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1400), RepeatMode.Restart), label = "hint")
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    val pulse by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1700, easing = LinearEasing), RepeatMode.Restart), label = "pulse")
+    val hint by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1300, easing = LinearEasing), RepeatMode.Restart), label = "hint")
+    val base = if (danger) Color(0xFFE5322F) else Color(0xFF22B455)
+    val light = if (danger) Color(0xFFFF8F84) else Color(0xFF9BF7B4)
+    val dark = if (danger) Color(0xFF7E0C0E) else Color(0xFF0A5C25)
+    val pull = (-off.value / threshold).coerceIn(0f, 1.2f)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (swipe) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.alpha(1f - (-off.value / threshold).coerceIn(0f, 1f))) {
-                Box(Modifier.offset { IntOffset(0, (-14.dp.toPx() * hint).roundToInt()) }.alpha(1f - hint)) {
-                    LdIcon(LdIcons.ChevronDown, 20.dp, if (danger) p.danger else p.ok, Modifier.rotate(180f))
+            // three stacked chevrons that light up bottom -> top: "swipe up"
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.alpha(1f - pull.coerceIn(0f, 1f)).padding(bottom = 2.dp)) {
+                for (i in 2 downTo 0) {
+                    val ph = ((hint * 3f) - i).let { if (it < 0f) it + 3f else it }
+                    val a = (1f - kotlin.math.abs(ph - .5f) * 1.6f).coerceIn(.18f, 1f)
+                    LdIcon(LdIcons.ChevronDown, 18.dp, base.copy(alpha = a), Modifier.rotate(180f).offset(y = (i * -4).dp))
                 }
                 LdText("Upar khiskao", 10.5f, FontWeight.SemiBold, p.muted)
             }
         }
-        val pull = (-off.value / threshold).coerceIn(0f, 1.2f)
-        val base = Modifier
+        Box(Modifier
             .offset { IntOffset(0, off.value.roundToInt()) }
-            .graphicsLayer { scaleX = 1f + .08f * pull; scaleY = 1f + .08f * pull }
-            .size(78.dp)
-        val col = if (danger) Color(0x5CFF3C50) else Color(0x5C2DDC96)
-        val m = base
-            .drawBehind { if (!danger) drawCircle(Color(0x593DDC97).copy(alpha = .35f * (1 - g)), radius = size.minDimension / 2 + 12.dp.toPx() * g) }
-            .shadow(14.dp, CircleShape, ambientColor = col, spotColor = col).clip(CircleShape)
-            .background(if (danger) Brush.linearGradient(listOf(Color(0xF2FF5D6C), Color(0xE6D6263A))) else Brush.linearGradient(listOf(Color(0xFF4FF0AE), Color(0xFF1FBF7D))))
-            .drawWithContent {
-                drawContent()
-                drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = .5f), .35f to Color.White.copy(alpha = .08f), 1f to Color.Transparent), alpha = .55f)
-            }
-            .border(1.dp, Color.White.copy(alpha = .25f), CircleShape)
+            .size(btn * 1.6f)
             .then(
                 if (swipe) Modifier.pointerInput(Unit) {
                     detectVerticalDragGestures(
@@ -351,10 +351,43 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                         change.consume()
                         scope.launch { off.snapTo((off.value + drag).coerceIn(-threshold * 1.4f, 0f)) }
                     }
-                } else Modifier.clickable { if (!fired) { fired = true; onTrigger() } }
-            )
-        Box(m, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 28.dp, Color.White, if (danger) Modifier.rotate(137f) else Modifier) }
-        LdText(label, 12f, FontWeight.SemiBold, p.muted)
+                } else Modifier.clickable(remember { MutableInteractionSource() }, null) { if (!fired) { fired = true; onTrigger() } }
+            ), contentAlignment = Alignment.Center) {
+            // glow + expanding pulse rings
+            Canvas(Modifier.matchParentSize()) {
+                val r0 = size.minDimension / 1.6f / 2f
+                drawCircle(Brush.radialGradient(0f to base.copy(alpha = .38f + .25f * pull), 1f to Color.Transparent, center = center, radius = r0 * 1.6f), r0 * 1.6f)
+                if (p.motion) for (k in 0..1) {
+                    val t = (pulse + k * .5f) % 1f
+                    drawCircle(base.copy(alpha = .55f * (1f - t)), r0 + r0 * .55f * t, style = Stroke((3.dp.toPx() * (1f - t)) + .6f))
+                }
+            }
+            // the glossy 3D ball
+            Box(Modifier
+                .graphicsLayer { scaleX = 1f + .08f * pull; scaleY = 1f + .08f * pull }
+                .size(btn)
+                .shadow(18.dp, CircleShape, ambientColor = dark, spotColor = dark)
+                .drawBehind {
+                    val r = size.minDimension / 2f
+                    val c = center
+                    drawCircle(Brush.radialGradient(0f to light, .48f to base, 1f to dark, center = Offset(c.x - r * .28f, c.y - r * .38f), radius = r * 1.45f), r)
+                    // reflected light at the bottom rim
+                    drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = .28f), 1f to Color.Transparent, center = Offset(c.x, c.y + r * .82f), radius = r * .62f), r)
+                    // glossy highlight cap
+                    drawOval(Brush.verticalGradient(0f to Color.White.copy(alpha = .78f), 1f to Color.White.copy(alpha = 0f), startY = c.y - r * .9f, endY = c.y - r * .08f),
+                        topLeft = Offset(c.x - r * .6f, c.y - r * .88f), size = Size(r * 1.2f, r * .78f))
+                    // dark rim + thin light edge
+                    drawCircle(Color.Black.copy(alpha = .22f), r - .6.dp.toPx(), style = Stroke(1.2.dp.toPx()))
+                    drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .55f), .5f to Color.Transparent), r - 1.8.dp.toPx(), style = Stroke(1.dp.toPx()))
+                }, contentAlignment = Alignment.Center) {
+                // handset with a soft drop shadow (red = handset down)
+                val ic = btn * .42f
+                val rot = if (danger) 135f else 0f
+                LdIcon(LdIcons.Phone, ic, Color.Black.copy(alpha = .28f), Modifier.offset(y = 1.5.dp).rotate(rot))
+                LdIcon(LdIcons.Phone, ic, Color.White, Modifier.rotate(rot))
+            }
+        }
+        LdText(label, 12.5f, FontWeight.SemiBold, p.text.copy(alpha = .85f))
     }
 }
 

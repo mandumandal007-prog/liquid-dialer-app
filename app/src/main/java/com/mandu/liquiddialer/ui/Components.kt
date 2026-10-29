@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mandu.liquiddialer.LdApp
@@ -117,11 +118,11 @@ fun playTone(k: String) {
 
 /** .keypad grid of .key glass circles */
 @Composable
-fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, scale: Float = 1f) {
+fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null) {
     val p = LocalLd.current
     val w = LocalConfiguration.current.screenWidthDp
-    val keySize = ((w * (if (small) .16f else .172f)).coerceIn(58f, if (small) 66f else 74f) * scale).dp
-    val gap = (w * .026f).coerceIn(8f, 16f).dp
+    val keySize = (w * (if (small) .15f else .165f)).coerceIn(48f, if (small) 62f else 68f).let { k -> maxKey?.let { minOf(k, it.value) } ?: k }.dp
+    val gap = (keySize.value * .16f).coerceIn(6f, 12f).dp
     val haptic = LocalHapticFeedback.current
     Column(Modifier.widthIn(max = 330.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
         KEY_DEFS.chunked(3).forEach { row ->
@@ -140,8 +141,8 @@ fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: B
                             )
                         }, contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            LdText(d, (if (small) 22f else 25f) * scale, FontWeight.Medium)
-                            if (sub.isNotEmpty()) LdText(sub, 8.5f * scale, FontWeight.Bold, p.muted, letter = 1.6f)
+                            LdText(d, if (small) 22f else 25f, FontWeight.Medium)
+                            if (sub.isNotEmpty()) LdText(sub, 8.5f, FontWeight.Bold, p.muted, letter = 1.6f)
                         }
                     }
                 }

@@ -54,14 +54,14 @@ fun MainScreen(st: AppState, act: MainActivity) {
     val pages = remember { mutableStateListOf<String>() }
     var sheetNumber by remember { mutableStateOf<String?>(null) }
     var sheetContact by remember { mutableStateOf<Contact?>(null) }
-    var quickPair by remember { mutableStateOf<Pair<String, Contact?>?>(null) }
     var editContactId by remember { mutableStateOf<Long?>(null) }
     var editPrefill by remember { mutableStateOf("") }
+    var menuNumber by remember { mutableStateOf<String?>(null) }
     val calls by CallManager.calls.collectAsState()
     val ver by CallManager.version.collectAsState()
 
     fun openPage(x: String) { drawer = false; pages.add(x) }
-    val openEditor: (Long?, String) -> Unit = { id, pre -> editContactId = id; editPrefill = pre; sheetNumber = null; sheetContact = null; pages.add("editor") }
+    val openEditor: (Long?, String) -> Unit = { id, pre -> editContactId = id; editPrefill = pre; sheetNumber = null; sheetContact = null; menuNumber = null; pages.add("editor") }
 
     BackHandler(enabled = drawer || query.isNotEmpty() || st.tab != "recents") {
         when { drawer -> drawer = false; query.isNotEmpty() -> query = ""; else -> st.tab = "recents" }
@@ -76,11 +76,9 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 Box(Modifier.fillMaxSize().statusBarsPadding()) {
                     when (st.tab) {
                         "recents" -> RecentsScreen(st, act, query, topPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
-                            onFav = { c -> sheetContact = c; sheetNumber = c.number },
-                            onLong = { r -> quickPair = r.number to st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } })
-                        "contacts" -> ContactsScreen(st, act, query, topPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") },
-                            onLong = { c -> quickPair = c.number to c })
-                        else -> DialerScreen(st, act, onAddContact = { openEditor(null, it) })
+                            onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it })
+                        "contacts" -> ContactsScreen(st, act, query, topPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it })
+                        else -> DialerScreen(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it })
                     }
                 }
             }
@@ -101,13 +99,18 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 13.dp) }
                     }
                     val pn = s.profileName.ifBlank { "You" }
-                    Box(Modifier.clickable { openPage("profile") }) { Avatar(pn, s.profilePhoto.takeIf { it.isNotBlank() }?.let { "file://$it" }, 44.dp, 15f) }
+                    Box(Modifier.size(44.dp).shadow(10.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).clip(CircleShape)
+                        .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .9f), p.accent))).border(1.dp, p.stroke, CircleShape)
+                        .clickable { openPage("profile") }, contentAlignment = Alignment.Center) {
+                        if (s.profilePhoto.isNotBlank()) Avatar(pn, s.profilePhoto, 44.dp, 15f, seed = "me")
+                        else LdText(initials(pn), 15f, FontWeight.Bold, Color.White)
+                    }
                 }
             }
             // ===== ongoing call banner =====
             val live = remember(ver, calls) { CallManager.primary() }
             if (live != null && s.banner && CallManager.state(live) != Call.STATE_RINGING) {
-                CallBanner(live, if (st.tab == "dialer") 8.dp else 82.dp)
+                CallBanner(live)
             }
             // ===== bottom nav =====
             Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 14.dp).fillMaxWidth().height(68.dp)
@@ -142,12 +145,13 @@ fun MainScreen(st: AppState, act: MainActivity) {
             val sn = sheetNumber
             if (sn != null) Sheet(onDismiss = { sheetNumber = null; sheetContact = null }) {
                 NumberSheet(sn, sheetContact, st, act, onClose = { sheetNumber = null; sheetContact = null }, onEdit = { id -> openEditor(id, sn) },
+                    onLongNumber = { menuNumber = it },
                     onNotes = { sheetNumber = null; pages.add("notes:" + sn) })
             }
-            // ===== long-press quick options =====
-            val qp = quickPair
-            if (qp != null) Sheet(onDismiss = { quickPair = null }) {
-                QuickNumberSheet(qp.first, qp.second, st, act, onClose = { quickPair = null }, onEdit = { id -> quickPair = null; openEditor(id, qp.first) })
+            // ===== long-press number menu =====
+            val mn = menuNumber
+            if (mn != null) Sheet(onDismiss = { menuNumber = null }) {
+                NumberMenu(mn, st, act, onClose = { menuNumber = null }, onEdit = { id -> openEditor(id, mn) })
             }
             // ===== SIM picker for outgoing =====
             val pc = st.pendingCall
@@ -160,14 +164,14 @@ fun MainScreen(st: AppState, act: MainActivity) {
 }
 
 @Composable
-private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp) {
+private fun CallBanner(call: Call) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val now = nowTicker()
     val audio by CallManager.audio.collectAsState()
     val connect = call.details?.connectTimeMillis ?: 0
     val t = if (CallManager.state(call) == Call.STATE_ACTIVE && connect > 0) fmtDur((now - connect) / 1000) else if (CallManager.state(call) == Call.STATE_HOLDING) "On hold" else "Calling…"
-    Row(Modifier.statusBarsPadding().padding(start = 10.dp, end = 10.dp, top = bannerTopPad).fillMaxWidth().liquid(RoundedCornerShape(22.dp), 22.dp)
+    Row(Modifier.statusBarsPadding().padding(start = 10.dp, end = 10.dp, top = 8.dp).fillMaxWidth().liquid(RoundedCornerShape(22.dp), 22.dp)
         .padding(start = 12.dp, end = 8.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.weight(1f).clickable { ctx.startActivity(Intent(ctx, com.mandu.liquiddialer.CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
@@ -228,7 +232,7 @@ fun typeLabel(type: Int) = when (type) {
 }
 
 @Composable
-private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (Recent) -> Unit) {
+private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     var confirmClear by remember { mutableStateOf(false) }
@@ -245,7 +249,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         out
     }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (favs.isNotEmpty() && query.isBlank()) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -270,11 +274,11 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         }
         if (!hasLog) item { EmptyState(LdIcons.Clock, "Call history ki permission chahiye", "Recents dikhane ke liye Call log permission do", "Permission do") { act.askPermissions() } }
         else if (groups.isEmpty()) item { EmptyState(LdIcons.Clock, if (query.isBlank()) "Abhi koi call nahi" else "Kuch nahi mila", if (query.isBlank()) "Aapki calls yahan dikhengi" else "Doosra naam ya number try karo") }
-        if (hasLog) items(groups, key = { it.first.id }) { (r, count) ->
+        items(groups, key = { it.first.id }) { (r, count) ->
             val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
             val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
             val simLabel = if (st.sims.size > 1) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
-            GlassRow(onClick = { onOpen(r) }, onLongClick = { onLong(r) }) {
+            GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }) {
                 Avatar(name, r.photo, seed = name)
                 Column(Modifier.weight(1f)) {
                     LdText(name + if (count > 1) " ($count)" else "", 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
@@ -321,12 +325,12 @@ fun CallMini(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Contact) -> Unit, onAdd: () -> Unit, onLong: (Contact) -> Unit) {
+private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Contact) -> Unit, onAdd: () -> Unit, onLong: (String) -> Unit) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val list = remember(st.contacts, query) { st.contacts.filter { Repo.matches(it, query) } }
     val hasPerm = act.has(android.Manifest.permission.READ_CONTACTS)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 120.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -339,7 +343,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
         else if (list.isEmpty()) item { EmptyState(LdIcons.Users, if (query.isBlank()) "Koi contact nahi" else "Kuch nahi mila", if (query.isBlank()) "Naya contact add karo" else "Naam, number ya T9 se search karo", if (query.isBlank()) "Contact add karo" else null, onAdd) }
         items(list, key = { it.id }) { c ->
             val display = if (s.lastNameFirst) c.altName else c.name
-            GlassRow(onClick = { onOpen(c) }, onLongClick = { onLong(c) }) {
+            GlassRow(onClick = { onOpen(c) }, onLongClick = { onLong(c.number) }) {
                 Avatar(c.name, c.photo, seed = c.name)
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -362,7 +366,7 @@ fun formatDial(v: String): String {
 }
 
 @Composable
-private fun DialerScreen(st: AppState, act: MainActivity, onAddContact: (String) -> Unit) {
+private fun DialerScreen(st: AppState, act: MainActivity, onAddContact: (String) -> Unit, onLong: (String) -> Unit) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
@@ -377,14 +381,18 @@ private fun DialerScreen(st: AppState, act: MainActivity, onAddContact: (String)
         scope.launch { LdApp.instance.repo.set(K.defaultSim, next) }
     }
     val matches = remember(dial, st.contacts) { if (dial.length < 2) emptyList() else st.contacts.filter { Repo.matches(it, dial) }.take(3) }
-    Column(Modifier.fillMaxSize().padding(start = 22.dp, end = 22.dp, top = 18.dp, bottom = 122.dp).navigationBarsPadding()) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 100.dp).navigationBarsPadding()) {
+    // keypad gets what is left after the number area (~150dp) and the call row (~84dp); never overflows
+    val keyByH = ((maxHeight.value - 150f - 84f) / 4.6f).coerceIn(44f, 68f)
+    Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
             LdText("Long-press 0 for +", 11f, color = p.muted, letter = .3f)
         }
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
-            LdText(formatDial(dial), (if (dial.length > 14) 28f else 36f), FontWeight.SemiBold, letter = 2f, modifier = Modifier.heightIn(min = 46.dp))
+            LdText(formatDial(dial), (if (dial.length > 14) 26f else 32f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
+                modifier = Modifier.heightIn(min = 42.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
             Spacer(Modifier.height(6.dp))
             LdText(when { dial.isEmpty() -> "Enter a number"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f)
             if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3) {
@@ -414,15 +422,15 @@ private fun DialerScreen(st: AppState, act: MainActivity, onAddContact: (String)
                         else st.dial += k
                     }
                 }
-            })
+            }, maxKey = keyByH.dp)
         }
-        Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(26.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(42.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
                 contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace) }
             val ready = dial.isNotEmpty()
             val src = remember { MutableInteractionSource() }
             val sc = pressScale(src, .94f)
-            Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(70.dp).alpha(if (ready) 1f else .55f)
+            Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(64.dp).alpha(if (ready) 1f else .55f)
                 .shadow(16.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
                 .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .88f), p.accent)))
                 .border(1.dp, p.accent.pct(.55f), CircleShape)
@@ -434,6 +442,7 @@ private fun DialerScreen(st: AppState, act: MainActivity, onAddContact: (String)
                 LdText(if (simIdx >= 0) "SIM${simIdx + 1}" else if (sims.size > 1) "ASK" else "SIM1", 9.5f, FontWeight.ExtraBold, letter = .4f)
             }
         }
+    }
     }
 }
 
@@ -447,10 +456,12 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         .systemBarsPadding().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             val name = s.profileName.ifBlank { "You" }
-            Avatar(name, s.profilePhoto.takeIf { it.isNotBlank() }?.let { "file://$it" }, 58.dp, 19f, seed = "me")
+            val ctx = LocalContext.current
+            val own = remember { Repo.ownNumbers(ctx) }
+            Box(Modifier.clip(CircleShape).clickable { onOpen("profile") }) { Avatar(name, s.profilePhoto.ifBlank { null }, 62.dp, 20f, glow = true, seed = "me") }
             Column(Modifier.weight(1f)) {
                 LdText(name, 16f, FontWeight.Bold)
-                LdText(s.profileNumber.ifBlank { "Profile edit karo" }, 12f, color = p.muted)
+                LdText(s.profileNumber.ifBlank { own.firstOrNull()?.substringAfter(": ") ?: "My profile set karo" }, 12f, color = p.muted)
             }
             IconBtn(LdIcons.X, onClick = onClose)
         }
@@ -463,7 +474,8 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         }
         item(LdIcons.Settings, "Settings") { onOpen("settings") }
         item(LdIcons.Palette, "Theme & appearance") { onOpen("appearance") }
-        item(LdIcons.User, "Edit profile") { onOpen("profile") }
+        item(LdIcons.User, "My profile (naam + photo)") { onOpen("profile") }
+        item(LdIcons.Dialpad, "Calling card layout") { onOpen("calllayout") }
         item(LdIcons.Record, "Recordings") { onOpen("recordings") }
         item(LdIcons.Edit, "Call notes") { onOpen("notes") }
         item(LdIcons.Clock, "Call stats") { onOpen("stats") }
