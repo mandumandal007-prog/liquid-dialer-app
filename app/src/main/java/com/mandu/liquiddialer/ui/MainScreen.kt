@@ -312,7 +312,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     var confirmClear by remember { mutableStateOf(false) }
     var filter by remember { mutableIntStateOf(0) }
     val favs = st.contacts.filter { it.starred }
-    val rows = remember(st.recents, query, filter, s.groupByDay) {
+    val rows = remember(st.recents, query, filter, s.groupByDay, s.recentsHideBlocked) {
         val out = mutableListOf<RItem>()
         var lastKey = ""; var lastDay = ""
         st.recents.filter { r ->
@@ -323,7 +323,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 3 -> r.type == CallLog.Calls.INCOMING_TYPE || r.type == CallLog.Calls.VOICEMAIL_TYPE
                 else -> true
             }
-            qok && fok
+            qok && fok && (!s.recentsHideBlocked || r.type != CallLog.Calls.BLOCKED_TYPE)
         }.forEach { r ->
             val day = dayLabel(r.date)
             if (s.groupByDay && day != lastDay) { out += RHead(day); lastDay = day; lastKey = "" }
@@ -338,7 +338,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val contactHits = remember(st.contacts, query) { if (query.isBlank()) emptyList() else st.contacts.filter { Repo.matches(it, query) }.take(8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 190.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -403,19 +403,22 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     val r = it2.r; val count = it2.count
                     val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
                     val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
-                    val simLabel = if (st.sims.size > 1) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
+                    val simLabel = if (st.sims.size > 1 && s.showSimInRecents) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
                     GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }) {
-                        Avatar(name, r.photo, seed = name)
+                        Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 46.dp, fontSize = if (s.recentsCompact) 12f else 15f, seed = name)
                         Column(Modifier.weight(1f)) {
                             LdText(name + if (count > 1) " ($count)" else "", 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
                             Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 LdIcon(typeIcon(r.type), 13.dp, if (missed) p.danger else p.muted)
                                 val timeTxt = if (s.exactTime) SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(r.date))
                                     else DateUtils.getRelativeTimeSpanString(r.date, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
-                                val parts = listOfNotNull(typeLabel(r.type), timeTxt,
-                                    if (r.duration > 0) fmtDur(r.duration) else null, simLabel)
-                                LdText(parts.joinToString("  ·  "), 11.5f, color = if (missed) p.danger else p.muted)
+                                LdText("${typeLabel(r.type)}  ·  $timeTxt", 11.5f, color = if (missed) p.danger else p.muted)
                             }
+                            // duration sirf connect hui calls ki (missed/declined ki duration 0/fake nahi hoti)
+                            val durTxt = if (s.recentsShowDuration && r.duration > 0 &&
+                                (r.type == CallLog.Calls.INCOMING_TYPE || r.type == CallLog.Calls.OUTGOING_TYPE)) fmtDur(r.duration) else null
+                            val meta2 = listOfNotNull(durTxt, simLabel).joinToString("  ·  ")
+                            if (meta2.isNotEmpty()) LdText(meta2, 11f, color = p.muted, modifier = Modifier.padding(top = 1.dp))
                         }
                         CallMini { act.callUi(r.number) }
                     }
