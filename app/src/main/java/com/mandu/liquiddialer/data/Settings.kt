@@ -74,6 +74,17 @@ data class LdSettings(
     val hapticKeys: Boolean = false,         // keypad tap pe haptic
     val recordUnknownOnly: Boolean = false,  // sirf unknown numbers record
     val exactTime: Boolean = true,           // recents me exact samay vs relative
+    // ---- v1.0.68: 10 naye user controls ----
+    val autoSpeaker: Boolean = false,        // opt-in: outgoing connect pe speaker on
+    val confirmBeforeEnd: Boolean = false,   // opt-in: end button pe confirm card
+    val recentsShowDuration: Boolean = true, // recents me call ki duration
+    val showSimInRecents: Boolean = true,    // recents me SIM label
+    val recentsCompact: Boolean = false,     // recents ki choti rows
+    val recentLimit: Int = 300,              // recents me kitni entries (100/300/500)
+    val announceOnlyFav: Boolean = false,    // sirf favourite ka naam bolo
+    val flashOnlyFav: Boolean = false,       // sirf favourite pe flash
+    val autoRedial: Int = 0,                 // 0=off else busy pe kitni baar auto redial (1..3)
+    val recentsHideBlocked: Boolean = false, // blocked calls recents me na dikhao
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
@@ -150,6 +161,16 @@ object K {
     val hapticKeys = booleanPreferencesKey("hapticKeys")
     val recordUnknownOnly = booleanPreferencesKey("recordUnknownOnly")
     val exactTime = booleanPreferencesKey("exactTime")
+    val autoSpeaker = booleanPreferencesKey("autoSpeaker")
+    val confirmBeforeEnd = booleanPreferencesKey("confirmBeforeEnd")
+    val recentsShowDuration = booleanPreferencesKey("recentsShowDuration")
+    val showSimInRecents = booleanPreferencesKey("showSimInRecents")
+    val recentsCompact = booleanPreferencesKey("recentsCompact")
+    val recentLimit = intPreferencesKey("recentLimit")
+    val announceOnlyFav = booleanPreferencesKey("announceOnlyFav")
+    val flashOnlyFav = booleanPreferencesKey("flashOnlyFav")
+    val autoRedial = intPreferencesKey("autoRedial")
+    val recentsHideBlocked = booleanPreferencesKey("recentsHideBlocked")
     val simUse = stringPreferencesKey("simUse")   // "digits=handleId;digits=handleId"
 }
 
@@ -220,6 +241,16 @@ fun Preferences.toSettings(): LdSettings {
         hapticKeys = this[K.hapticKeys] ?: false,
         recordUnknownOnly = this[K.recordUnknownOnly] ?: false,
         exactTime = this[K.exactTime] ?: true,
+        autoSpeaker = this[K.autoSpeaker] ?: false,
+        confirmBeforeEnd = this[K.confirmBeforeEnd] ?: false,
+        recentsShowDuration = this[K.recentsShowDuration] ?: true,
+        showSimInRecents = this[K.showSimInRecents] ?: true,
+        recentsCompact = this[K.recentsCompact] ?: false,
+        recentLimit = (this[K.recentLimit] ?: 300).let { if (it == 100 || it == 300 || it == 500) it else 300 },
+        announceOnlyFav = this[K.announceOnlyFav] ?: false,
+        flashOnlyFav = this[K.flashOnlyFav] ?: false,
+        autoRedial = (this[K.autoRedial] ?: 0).coerceIn(0, 3),
+        recentsHideBlocked = this[K.recentsHideBlocked] ?: false,
         callBgStyle = this[K.callBgStyle] ?: "blobs",
     )
 }
