@@ -107,7 +107,7 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
         .border(1.dp, Color.White.copy(alpha = .24f), CircleShape)
         .drawWithContent { drawContent(); drawCircle(Brush.verticalGradient(0f to Color.White.copy(alpha = .4f), .05f to Color.Transparent), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx())) }
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
-        LdIcon(LdIcons.Phone, size * .4f, Color.White, Modifier.rotate(137f))
+        LdIcon(LdIcons.Phone, size * .42f, Color.White, Modifier.rotate(135f))
     }
 }
 
@@ -156,10 +156,10 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
     val simLabel = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { if (sims.size > 1) "SIM ${it.slot} · ${it.label}" else it.label } ?: "SIM"
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        if (showMin) IconBtn(LdIcons.ChevronDown, onClick = onMinimize) else SimChip(simLabel)
-        if (showMin) SimChip(simLabel)
-        SimChip("HD", LocalLd.current.ok, live = true)
+    Box(Modifier.fillMaxWidth()) {
+        if (showMin) Box(Modifier.align(Alignment.CenterStart)) { IconBtn(LdIcons.ChevronDown, onClick = onMinimize) }
+        Box(Modifier.align(Alignment.Center)) { SimChip(simLabel) }
+        Box(Modifier.align(Alignment.CenterEnd)) { SimChip("HD", LocalLd.current.ok, live = true) }
     }
 }
 
@@ -253,7 +253,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (!keypad) Hero(call, status, p.accent, timer, badges, false)
+            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false) }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
