@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
@@ -23,6 +24,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
@@ -32,6 +35,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mandu.liquiddialer.LdApp
+import kotlinx.coroutines.launch
 
 /** .sheet bottom sheet with scrim */
 @Composable
@@ -41,11 +45,15 @@ fun Sheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
     val y by animateFloatAsState(if (shown) 0f else 1f, tween(320, easing = CubicBezierEasing(.22f, 1f, .36f, 1f)), label = "sheet")
+    val scope = rememberCoroutineScope()
+    val dragY = remember { Animatable(0f) }
+    var sheetH by remember { mutableIntStateOf(1) }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f * (1 - y))).clickable(remember { MutableInteractionSource() }, null) { onDismiss() })
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .graphicsLayer { translationY = size.height * y }
+                .onSizeChanged { sheetH = it.height }
+                .graphicsLayer { translationY = size.height * y + dragY.value }
                 .liquid(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
                 .background(p.bg2.copy(alpha = if (p.isLight) .55f else .72f))
                 .clickable(remember { MutableInteractionSource() }, null) {}
@@ -54,8 +62,24 @@ fun Sheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 22.dp)
         ) {
-            Box(Modifier.align(Alignment.CenterHorizontally).size(40.dp, 5.dp).clip(RoundedCornerShape(99.dp)).background(p.muted.copy(alpha = .4f)))
-            Spacer(Modifier.height(12.dp))
+            Box(Modifier.align(Alignment.CenterHorizontally).fillMaxWidth().height(26.dp).testTag("sheet_handle")
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                if (dragY.value > sheetH * .22f) { dragY.animateTo(sheetH.toFloat(), tween(140)); onDismiss() }
+                                else dragY.animateTo(0f, spring(dampingRatio = .55f, stiffness = 600f))
+                            }
+                        },
+                        onDragCancel = { scope.launch { dragY.animateTo(0f, spring(dampingRatio = .55f, stiffness = 600f)) } },
+                    ) { change, drag ->
+                        change.consume()
+                        scope.launch { dragY.snapTo((dragY.value + drag).coerceAtLeast(0f)) }
+                    }
+                }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(40.dp, 5.dp).clip(RoundedCornerShape(99.dp)).background(p.muted.copy(alpha = .4f)))
+            }
+            Spacer(Modifier.height(8.dp))
             content()
         }
     }
@@ -121,12 +145,12 @@ fun playTone(k: String) {
 fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null) {
     val p = LocalLd.current
     val w = LocalConfiguration.current.screenWidthDp
-    val keySize = (w * (if (small) .15f else .165f)).coerceIn(48f, if (small) 62f else 68f).let { k -> maxKey?.let { minOf(k, it.value) } ?: k }.dp
-    val gap = (keySize.value * .16f).coerceIn(6f, 12f).dp
+    val keySize = (w * (if (small) .15f else .19f)).coerceIn(if (small) 44f else 54f, if (small) 62f else 92f).let { k -> maxKey?.let { minOf(k, it.value) } ?: k }.dp
+    val gap = (keySize.value * .16f).coerceIn(7f, 14f).dp
     val haptic = LocalHapticFeedback.current
-    Column(Modifier.widthIn(max = 330.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
+    Column(Modifier.widthIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(gap)) {
         KEY_DEFS.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(gap * 1.6f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(gap * 2.1f)) {
                 row.forEach { (d, sub) ->
                     var pressed by remember { mutableStateOf(false) }
                     val sc by animateFloatAsState(if (pressed) .93f else 1f, tween(120), label = "k")
@@ -141,8 +165,8 @@ fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: B
                             )
                         }, contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            LdText(d, if (small) 22f else 25f, FontWeight.Medium)
-                            if (sub.isNotEmpty()) LdText(sub, 8.5f, FontWeight.Bold, p.muted, letter = 1.6f)
+                            LdText(d, if (small) 22f else keySize.value * .40f, FontWeight.Medium)
+                            if (sub.isNotEmpty()) LdText(sub, if (small) 8.5f else 9.5f, FontWeight.Bold, p.muted, letter = 1.6f)
                         }
                     }
                 }
