@@ -107,9 +107,10 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
 fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .94f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
-        .shadow(8.dp, CircleShape, ambientColor = Color(0x59000000), spotColor = Color(0x59000000)).clip(CircleShape)
-        .background(Color(0xFFD93025))
+    // wide red pill (OPPO-style hang-up); still one big tap target
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.width(size * 1.5f).height(size * .9f)
+        .shadow(10.dp, RoundedCornerShape(999.dp), ambientColor = Color(0x66D93025), spotColor = Color(0x66D93025)).clip(RoundedCornerShape(999.dp))
+        .background(Brush.verticalGradient(listOf(Color(0xFFEF4A3D), Color(0xFFD93025))))
         .testTag("end_call")
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
         LdIcon(LdIcons.Phone, size * .42f, Color.White, Modifier.rotate(135f))
@@ -302,6 +303,9 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
         }
         val gridL = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
         val bottomL = remember(s.layoutBottom) { parseLayout(s.layoutBottom, BOTTOM_IDS) }
+        // audio-route button shows where the sound goes now, so it is not a second Speaker toggle
+        val routeIcon = if (bt) LdIcons.Bluetooth else if (speaker) LdIcons.Volume else LdIcons.Phone
+        val routeLabel = if (bt) "Bluetooth" else if (speaker) "Speaker" else "Earpiece"
         val audioVisible = gridL.any { it.first == "audio" && it.second }
         val spec: (String) -> BtnSpec? = { id ->
             when (id) {
@@ -314,10 +318,10 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                 "merge" -> when {
                     others.isNotEmpty() && CallManager.canMerge() -> BtnSpec(LdIcons.Merge, "Merge") { CallManager.merge() }
                     others.isNotEmpty() -> BtnSpec(LdIcons.Swap, "Swap") { CallManager.swap() }
-                    !audioVisible -> BtnSpec(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", bt) { openSheet("audio") }
+                    !audioVisible -> BtnSpec(routeIcon, routeLabel, bt) { openSheet("audio") }
                     else -> BtnSpec(LdIcons.Merge, "Merge", enabled = false) {}
                 }
-                "audio" -> BtnSpec(if (bt) LdIcons.Bluetooth else LdIcons.Volume, "Audio", bt) { openSheet("audio") }
+                "audio" -> BtnSpec(routeIcon, routeLabel, bt) { openSheet("audio") }
                 "speaker" -> BtnSpec(LdIcons.SpeakerFill, if (speaker) "Speaker on" else "Speaker", speaker, flat = true) {
                     if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
                 }
