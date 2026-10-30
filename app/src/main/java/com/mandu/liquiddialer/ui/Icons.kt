@@ -62,5 +62,6 @@ object LdIcons {
     val PhoneSlash: ImageVector by lazy { build("phone-slash", Triple("M3 3l18 18", false, 1.8f)) }
     val Record: ImageVector by lazy { build("record", Triple("M3.5,12.0a8.5,8.5 0 1,0 17.0,0a8.5,8.5 0 1,0 -17.0,0z", false, 1.8f), Triple("M8.0,12.0a4.0,4.0 0 1,0 8.0,0a4.0,4.0 0 1,0 -8.0,0z", true, 1.8f)) }
     val Play: ImageVector by lazy { build("play", Triple("M8 5.5v13l10-6.5z", true, 1.8f)) }
+    val Video: ImageVector by lazy { build("video", Triple("M3.5,7.5h9.0a2.0,2.0 0 0 1 2.0,2.0v5.0a2.0,2.0 0 0 1 -2.0,2.0h-9.0a2.0,2.0 0 0 1 -2.0,-2.0v-5.0a2.0,2.0 0 0 1 2.0,-2.0z", false, 1.8f), Triple("M14.5 10.7l6-3.2v9l-6-3.2", false, 1.8f)) }
     val Share: ImageVector by lazy { build("share", Triple("M12 15V3M7.5 7.5L12 3l4.5 4.5", false, 1.8f), Triple("M5 12v7h14v-7", false, 1.8f)) }
 }
