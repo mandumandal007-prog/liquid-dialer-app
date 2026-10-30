@@ -230,10 +230,15 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== contact / number sheet =====
             val sn = sheetNumber
-            if (sn != null) Sheet(onDismiss = { sheetNumber = null; sheetContact = null }) {
-                NumberSheet(sn, sheetContact, st, act, onClose = { sheetNumber = null; sheetContact = null }, onEdit = { id -> openEditor(id, sn) },
-                    onLongNumber = { menuNumber = it },
-                    onNotes = { sheetNumber = null; pages.add("notes:" + sn) })
+            if (sn != null) key(sn) {
+                // number/contact details ab poori screen (sheet ka upar khaali hissa nahi) - back button ke saath
+                CompositionLocalProvider(LocalHaze provides null) {
+                    PageFrame("Number details", onBack = { sheetNumber = null; sheetContact = null }) {
+                        NumberSheet(sn, sheetContact, st, act, onClose = { sheetNumber = null; sheetContact = null }, onEdit = { id -> openEditor(id, sn) },
+                            onLongNumber = { menuNumber = it },
+                            onNotes = { sheetNumber = null; pages.add("notes:" + sn) })
+                    }
+                }
             }
             // ===== long-press number menu =====
             val mn = menuNumber
