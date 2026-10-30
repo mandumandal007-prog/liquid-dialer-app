@@ -14,6 +14,7 @@ import android.os.Looper
 import android.provider.CallLog
 import android.provider.ContactsContract
 import android.provider.Settings
+import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.widget.Toast
@@ -41,7 +42,7 @@ class AppState {
     var sims by mutableStateOf<List<SimInfo>>(emptyList())
     var isDefault by mutableStateOf(true)
     var dial by mutableStateOf("")
-    var pendingCall by mutableStateOf<String?>(null)   // number waiting for SIM choice
+    var pendingCall by mutableStateOf<Pair<String, Boolean>?>(null)   // (number, video?) waiting for SIM choice
     var confirmNumber by mutableStateOf<String?>(null) // number waiting for call confirmation
     var undoInfo by mutableStateOf<Pair<String, android.telecom.PhoneAccountHandle?>?>(null) // number waiting out the undo window
     var permsTick by mutableIntStateOf(0)
@@ -197,7 +198,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Place a real call, picking the SIM per settings. */
-    fun call(number: String, account: PhoneAccountHandle? = null) {
+    fun call(number: String, account: PhoneAccountHandle? = null, video: Boolean = false) {
         var n = number.trim()
         if (n.isEmpty()) return
         if (!has(Manifest.permission.CALL_PHONE)) { askPermission(Manifest.permission.CALL_PHONE); Toast.makeText(this, trNow("Call permission do"), Toast.LENGTH_SHORT).show(); return }
@@ -208,20 +209,39 @@ class MainActivity : ComponentActivity() {
         if (acc == null) {
             val remembered = if (s.simMemory) kotlinx.coroutines.runBlocking { LdApp.instance.repo.simFor(Repo.key(n)) } else null
             acc = CallPrep.chooseSim(null, s.defaultSim, remembered, sims) { it.handle.id }?.handle
-            if (acc == null && CallPrep.needsSimPicker(sims.size)) { state.pendingCall = n; return }
+            if (acc == null && CallPrep.needsSimPicker(sims.size)) { state.pendingCall = n to video; return }
         }
         if (s.simMemory && acc != null) {
             val hid = acc.id
             LdApp.instance.scope.launch { LdApp.instance.repo.rememberSim(Repo.key(n), hid) }
         }
-        if (s.undoCall && n.firstOrNull()?.let { it.isDigit() || it == '+' } == true) {
+        // direct video: pehle is SIM account ka video support check karo. Account saaf mana kare to
+        // koi call nahi lagegi (na voice, na video) - silent fallback nahi. Verify na ho sake to
+        // request bhejo aur connect par sachai dikhao (CallScreen notice).
+        if (video && canVideoCall(acc) == false) {
+            Toast.makeText(this, trNow("Ye SIM/phone video call support nahi karta - koi call nahi lagi"), Toast.LENGTH_LONG).show()
+            return
+        }
+        if (!video && s.undoCall && n.firstOrNull()?.let { it.isDigit() || it == '+' } == true) {
             state.undoInfo = n to acc
-            val token = Runnable { state.undoInfo = null; if (!CallManager.place(this, n, acc)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show() }
+            val token = Runnable { state.undoInfo = null; if (!CallManager.place(this, n, acc, video)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show() }
             undoRunnable = token
             handler.postDelayed(token, 3000)
             return
         }
-        if (!CallManager.place(this, n, acc)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show()
+        if (!CallManager.place(this, n, acc, video)) Toast.makeText(this, if (video) trNow("Video call nahi lag paayi - SIM/phone support check karo") else trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show()
+    }
+
+    /** Seedhi native video call (ViLTE) shuru karo. SIM account saaf mana kare to call nahi lagegi. */
+    fun videoCall(number: String) = call(number, video = true)
+
+    /** true = account video support batata hai; false = saaf mana; null = verify nahi ho saka. */
+    fun canVideoCall(account: PhoneAccountHandle?): Boolean? {
+        return try {
+            val tm = getSystemService(TelecomManager::class.java)
+            val handle = account ?: Repo.sims(this).firstOrNull()?.handle ?: return null
+            tm.getPhoneAccount(handle)?.hasCapabilities(PhoneAccount.CAPABILITY_VIDEO_CALLING)
+        } catch (_: Throwable) { null }
     }
 
     private var undoRunnable: Runnable? = null
