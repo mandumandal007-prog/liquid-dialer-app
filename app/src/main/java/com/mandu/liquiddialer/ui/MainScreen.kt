@@ -139,11 +139,11 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== ongoing call banner =====
             if (showBanner) {
-                CallBanner(live!!, if (st.tab == "dialer") 8.dp else 82.dp, onHeight = { bannerHPx = it })
+                CallBanner(live!!, if (st.tab == "dialer") 8.dp else 94.dp, onHeight = { bannerHPx = it })
             }
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
             val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users))
-            Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = 14.dp).fillMaxWidth().height(66.dp).testTag("bottom_bar")
+            Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 18.dp, end = 18.dp, bottom = 24.dp).fillMaxWidth().height(66.dp).testTag("bottom_bar")
                 .liquid(RoundedCornerShape(999.dp), 22.dp)
                 .pointerInput(Unit) {
                     var dragX = 0f
@@ -182,7 +182,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== round frosted dialer button above the bar (Contacts side) =====
             AnimatedVisibility(visible = st.tab != "dialer" && pages.isEmpty(),
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 102.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 112.dp),
                 enter = fadeIn(tween(220)) + scaleIn(tween(300, easing = CubicBezierEasing(.22f, 1f, .36f, 1f)), initialScale = .7f),
                 exit = fadeOut(tween(160)) + scaleOut(tween(180), targetScale = .7f)) {
                 Box(Modifier.size(80.dp).shadow(18.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).testTag("dialer_fab")
@@ -192,7 +192,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== half-screen frosted dialer sheet =====
             if (st.tab == "dialer") Sheet(onDismiss = { st.tab = lastTab }) {
-                DialerSheet(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it })
+                DialerSheet(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it }, onOpen = { openPage(it) })
             }
             // search-bar voice overlays
             searchVoice.ui.notice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { searchVoice.ui.notice = null } }
@@ -375,7 +375,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val contactHits = remember(st.contacts, query) { if (query.isBlank()) emptyList() else st.contacts.filter { Repo.matches(it, query) }.take(8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 190.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 200.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -514,7 +514,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val s by LdApp.settings.collectAsState()
     val list = remember(st.contacts, query) { st.contacts.filter { Repo.matches(it, query) } }
     val hasPerm = act.has(android.Manifest.permission.READ_CONTACTS)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 150.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 160.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -550,7 +550,7 @@ fun formatDial(v: String): String {
 }
 
 @Composable
-private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) -> Unit, onLong: (String) -> Unit) {
+private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) -> Unit, onLong: (String) -> Unit, onOpen: (String) -> Unit) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
@@ -615,13 +615,14 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                         }
                     }
                 } else LdText(when { dial.isEmpty() -> "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f)
-                if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3) {
+                if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
                     Box(Modifier.padding(top = 3.dp).clip(RoundedCornerShape(12.dp)).clickable { onAddContact(dial) }.padding(horizontal = 10.dp, vertical = 2.dp)) {
                         LdText("+ Contact me add karo", 12f, FontWeight.SemiBold, p.accent)
                     }
                 }
             }
             }
+            DialerCodes.detect(dial)?.let { DialerCodeCard(it, st.isDefault, onRequestRole = { act.requestDefault() }) }
             Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
                 Keypad(onKey = { k -> st.dial = st.dial + k }, onLong = { k ->
                     when (k) {
@@ -676,6 +677,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                     }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Number paste karo", 14f, FontWeight.SemiBold) }
                     Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += "," }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Pause add karo (,)", 14f, FontWeight.SemiBold) }
                     Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += ";" }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Wait add karo (;)", 14f, FontWeight.SemiBold) }
+                    Row(Modifier.fillMaxWidth().clickable { dialMenu = false; onOpen("radio") }.padding(horizontal = 14.dp, vertical = 11.dp).testTag("radio_menu_item")) { LdText("Radio info", 14f, FontWeight.SemiBold) }
                 }
             }
     }
