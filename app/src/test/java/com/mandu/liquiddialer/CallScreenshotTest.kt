@@ -95,6 +95,42 @@ class CallScreenshotTest {
         saveShot(rule, "09-incall-keypad")
     }
 
+    /** Status dot correctness: dialing = dot (status "Calling..."), hold/ended = NO dot. */
+    @Test
+    fun statusDotStates() {
+        // DIALING: timer "00:00" chalta hai -> static dot + "Calling..." (kabhi "Connected" nahi)
+        settle(2000)
+        CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_DIALING))
+        CallManager.bump()
+        settle(2000)
+        rule.onAllNodesWithTag("status_dot").fetchSemanticsNodes().also {
+            org.junit.Assert.assertTrue("dialing pe status dot dikhna chahiye", it.isNotEmpty())
+        }
+        rule.onAllNodesWithText("Connected").fetchSemanticsNodes().also {
+            org.junit.Assert.assertTrue("dialing ko Connected label nahi hona chahiye", it.isEmpty())
+        }
+        saveShot(rule, "24a-dialing-dot")
+
+        // HOLDING: timer null -> koi dot nahi
+        CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_HOLDING,
+            System.currentTimeMillis() - 75_000))
+        CallManager.bump()
+        settle(2000)
+        rule.onAllNodesWithTag("status_dot").fetchSemanticsNodes().also {
+            org.junit.Assert.assertTrue("hold pe status dot nahi hona chahiye", it.isEmpty())
+        }
+        saveShot(rule, "24b-holding-nodot")
+
+        // DISCONNECTED: "Call ended" -> koi dot nahi
+        CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_DISCONNECTED,
+            System.currentTimeMillis() - 75_000))
+        CallManager.bump()
+        settle(1200)
+        val endedDots = rule.onAllNodesWithTag("status_dot").fetchSemanticsNodes()
+        org.junit.Assert.assertTrue("ended call pe status dot nahi hona chahiye", endedDots.isEmpty())
+        saveShot(rule, "24c-ended-nodot")
+    }
+
     @Test
     fun ongoingConferenceManageSheet() {
         seed { this[K.theme] = "midnight" }
