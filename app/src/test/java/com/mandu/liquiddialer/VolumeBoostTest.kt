@@ -72,4 +72,10 @@ class VolumeBoostTest {
         CallManager.calls.value = emptyList()
         CallManager.bump()
     }
+    @Test
+    fun pauseForCallStopsBoostAndKeepsSettingForExplicitResume() {
+        com.mandu.liquiddialer.media.BoostService.running.value = true
+        com.mandu.liquiddialer.media.BoostService.pauseForCall(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        org.junit.Assert.assertFalse(com.mandu.liquiddialer.media.BoostService.running.value)
+    }
 }
