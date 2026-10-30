@@ -221,7 +221,7 @@ private fun VideoSheet(call: Call, onClose: () -> Unit) {
             LdIcon(LdIcons.Video, 18.dp, p.accent)
             Column(Modifier.weight(1f)) {
                 LdText("Meet se is number ko video call", 13f, FontWeight.SemiBold)
-                LdText("Naya Meet app khul kar usi number ka call screen dikhayega - call Meet ke andar confirm hoti hai. Meet na ho to Play Store khulega", 11f, color = p.muted, maxLines = 3)
+                LdText("Experimental: is number ke liye Meet ka video call screen kholta hai. Aage kya hota hai Meet ke version par nirbhar hai - call Meet ke andar hi shuru/confirm hoti hai. Meet na mile to Play Store khulega", 11f, color = p.muted, maxLines = 4)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
