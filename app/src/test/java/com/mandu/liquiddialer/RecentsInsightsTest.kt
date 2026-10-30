@@ -40,14 +40,14 @@ class RecentsInsightsTest {
         val list = listOf(
             r(1, CallLog.Calls.MISSED_TYPE, 60_000),          // naya missed
             r(2, CallLog.Calls.MISSED_TYPE, 3 * 86_400_000L), // purana missed
-            r(3, CallLog.Calls.REJECTED_TYPE, 30_000),        // naya rejected = missed jaisa
+            r(3, CallLog.Calls.REJECTED_TYPE, 30_000),        // user ne reject kiya = missed NAHI
             r(4, CallLog.Calls.OUTGOING_TYPE, 10_000)         // outgoing badge nahi
         )
-        // seenAt 5 min pehle: sirf naye missed+rejected (2)
-        assertEquals(2, Repo.unseenMissed(list, now - 300_000))
+        // seenAt 5 min pehle: sirf naya sacha missed (1); rejected count nahi hota
+        assertEquals(1, Repo.unseenMissed(list, now - 300_000))
         // sab seen: 0
         assertEquals(0, Repo.unseenMissed(list, now))
-        // kabhi nahi dekha: missed+rejected teeno (outgoing nahi)
-        assertEquals(3, Repo.unseenMissed(list, 0L))
+        // kabhi nahi dekha: dono missed (rejected/outgoing nahi)
+        assertEquals(2, Repo.unseenMissed(list, 0L))
     }
 }
