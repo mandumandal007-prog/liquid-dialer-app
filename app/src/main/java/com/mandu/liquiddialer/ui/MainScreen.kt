@@ -243,7 +243,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             // ===== SIM picker for outgoing =====
             val pc = st.pendingCall
             if (pc != null) Sheet(onDismiss = { st.pendingCall = null }) {
-                SimPickSheet { h -> st.pendingCall = null; act.call(pc, h) }
+                SimPickSheet { h -> st.pendingCall = null; act.call(pc.first, h, video = pc.second) }
             }
             if (st.showOnboarding) Onboarding(st, act)
         }
@@ -402,6 +402,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         LdText(c.name, 14.5f, FontWeight.SemiBold)
                         LdText(c.label + "  ·  " + Repo.pretty(c.number), 11.5f, color = p.muted, modifier = Modifier.padding(top = 3.dp))
                     }
+                    VideoMini { act.videoCall(c.number) }
                     CallMini { act.callUi(c.number) }
                 }
             }
@@ -452,6 +453,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                             val meta2 = listOfNotNull(durTxt, simLabel).joinToString("  ·  ")
                             if (meta2.isNotEmpty()) LdText(meta2, 11f, color = p.muted, modifier = Modifier.padding(top = 1.dp))
                         }
+                        VideoMini { act.videoCall(r.number) }
                         CallMini { act.callUi(r.number) }
                     }
                 }
@@ -488,6 +490,17 @@ fun CallMini(onClick: () -> Unit) {
     Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape)
         .background(Brush.linearGradient(listOf(p.accent.pct(.30f), p.accent.pct(.12f)))).border(1.dp, p.accent.pct(.45f), CircleShape)
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 20.dp, p.accent) }
+}
+
+/** .video-mini: seedhi native video call (ViLTE); support na mile to call screen saaf batata hai */
+@Composable
+fun VideoMini(onClick: () -> Unit) {
+    val p = LocalLd.current
+    val src = remember { MutableInteractionSource() }
+    val s = pressScale(src, .9f)
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape)
+        .background(Brush.linearGradient(listOf(p.accent.pct(.14f), p.accent.pct(.06f)))).border(1.dp, p.accent.pct(.25f), CircleShape)
+        .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, 20.dp, p.accent) }
 }
 
 @Composable
