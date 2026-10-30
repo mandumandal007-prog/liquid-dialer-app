@@ -1,7 +1,10 @@
 package com.mandu.liquiddialer.ui
 
+import android.graphics.SurfaceTexture
 import android.os.Build
 import android.telecom.Call
+import android.view.Surface
+import android.view.TextureView
 import android.telecom.VideoProfile
 import android.telecom.CallAudioState
 import androidx.compose.animation.*
@@ -38,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Repo
 import com.mandu.liquiddialer.telecom.CallManager
@@ -271,6 +275,8 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val ctx = LocalContext.current
     val now = nowTicker()
     val st = CallManager.state(call)
+    val videoActive = ((try { call.details?.videoState } catch (_: Throwable) { null }) ?: VideoProfile.STATE_AUDIO_ONLY) != VideoProfile.STATE_AUDIO_ONLY
+    val upgradeReq by CallManager.videoUpgradeFrom.collectAsState()
     var keypad by remember { mutableStateOf(false) }
     var dtmf by remember { mutableStateOf("") }
     val connect = call.details?.connectTimeMillis ?: 0L
@@ -321,7 +327,8 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, manage = if (CallManager.isConference(call)) ({ openSheet("conference") }) else null) }
+            if (videoActive) VideoStage(call)
+            else if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, manage = if (CallManager.isConference(call)) ({ openSheet("conference") }) else null) }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
@@ -632,4 +639,48 @@ private fun ConferenceSheet(call: Call, onClose: () -> Unit) {
         }
     }
     if (anyUnsupported) LdText("Gray option is call par SIM/phone support nahi kar raha.", 11.5f, color = p.muted, maxLines = 3, modifier = Modifier.padding(top = 10.dp))
+}
+
+/** Asli ViLTE video: saamne wale ka video poora area (display surface) + apna chhota preview.
+ *  Surfaces call ke VideoCall ko diye jate hain; capture/modem ka kaam IMS stack karta hai.
+ *  Surface destroy hote hi provider ko null diya jata hai - koi leaked/stale surface nahi. */
+@Composable
+private fun VideoStage(call: Call) {
+    Box(Modifier.fillMaxSize().padding(top = 14.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black)) {
+        AndroidView(factory = { ctx ->
+            TextureView(ctx).apply {
+                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                    private var surf: Surface? = null
+                    override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                        val s = Surface(st); surf = s
+                        try { call.videoCall?.setDisplaySurface(s) } catch (_: Throwable) { }
+                    }
+                    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                        try { call.videoCall?.setDisplaySurface(null) } catch (_: Throwable) { }
+                        surf?.release(); surf = null; return true
+                    }
+                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) { }
+                    override fun onSurfaceTextureUpdated(st: SurfaceTexture) { }
+                }
+            }
+        }, modifier = Modifier.fillMaxSize().testTag("video_display"))
+        AndroidView(factory = { ctx ->
+            TextureView(ctx).apply {
+                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                    private var surf: Surface? = null
+                    override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                        val s = Surface(st); surf = s
+                        try { call.videoCall?.setPreviewSurface(s) } catch (_: Throwable) { }
+                    }
+                    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                        try { call.videoCall?.setPreviewSurface(null) } catch (_: Throwable) { }
+                        surf?.release(); surf = null; return true
+                    }
+                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) { }
+                    override fun onSurfaceTextureUpdated(st: SurfaceTexture) { }
+                }
+            }
+        }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(88.dp, 120.dp)
+            .clip(RoundedCornerShape(12.dp)).background(Color.DarkGray).testTag("video_preview"))
+    }
 }
