@@ -20,8 +20,10 @@ object CallNotifier {
     const val CH_INCOMING = "incoming_calls"
     const val CH_ONGOING = "ongoing_calls"
     const val CH_MISSED = "missed_calls"
+    const val CH_SUMMARY = "call_summary"
     const val ID_CALL = 41
     const val ID_MISSED = 42
+    const val ID_SUMMARY = 43
 
     fun createChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -33,6 +35,27 @@ object CallNotifier {
             setSound(null, null); lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
         })
         nm.createNotificationChannel(NotificationChannel(CH_MISSED, "Missed calls", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CH_SUMMARY, "Call summary", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+        })
+    }
+
+    /** Call khatam hone ka chhota summary (opt-in). Lock screen par naam/number nahi dikhta:
+     *  visibility PRIVATE + generic public version. */
+    fun summary(ctx: Context, name: String, durText: String) {
+        val open = PendingIntent.getActivity(ctx, 401, Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val b = NotificationCompat.Builder(ctx, CH_SUMMARY)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle(name)
+            .setContentText("Call khatam · $durText")
+            .setSubText("Liquid Dialer")
+            .setColor(0xFF5B8CFF.toInt())
+            .setAutoCancel(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(NotificationCompat.Builder(ctx, CH_SUMMARY)
+                .setSmallIcon(R.drawable.ic_stat_call).setContentTitle("Call khatam").build())
+            .setContentIntent(open)
+        try { NotificationManagerCompat.from(ctx).notify(ID_SUMMARY, b.build()) } catch (e: Exception) { }
     }
 
     private fun flags() = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
