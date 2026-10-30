@@ -218,14 +218,10 @@ class MainActivity : ComponentActivity() {
         // direct video: pehle is SIM account ka video support check karo. Account saaf mana kare to
         // koi call nahi lagegi (na voice, na video) - silent fallback nahi. Verify na ho sake to
         // request bhejo aur connect par sachai dikhao (CallScreen notice).
-        val videoOk = if (video) canVideoCall(acc) else null
-        if (video && videoOk == false) {
-            Toast.makeText(this, trNow("Ye SIM/phone video call support nahi karta - koi call nahi lagi"), Toast.LENGTH_LONG).show()
+        // video initiation band hai (surfaces agle update me): saaf wajah batao, KOI call nahi lagegi
+        if (video) {
+            Toast.makeText(this, trNow(CallManager.VIDEO_NOT_READY + ". Abhi koi call nahi lagi."), Toast.LENGTH_LONG).show()
             return
-        }
-        if (video && videoOk == null) {
-            // capability verify nahi ho payi: pehle hi bata do ki request bhej rahe hai, girne par screen batayegi
-            Toast.makeText(this, trNow("Video support pakka nahi - request bheji ja rahi hai; voice me gire to screen bata degi"), Toast.LENGTH_LONG).show()
         }
         if (!video && s.undoCall && n.firstOrNull()?.let { it.isDigit() || it == '+' } == true) {
             state.undoInfo = n to acc
