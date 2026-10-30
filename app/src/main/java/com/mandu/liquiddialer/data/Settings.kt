@@ -63,6 +63,7 @@ data class LdSettings(
     val redialSuggest: Boolean = true,       // busy/fail pe "Dobara call" notification
     val postCallSave: Boolean = true,        // unknown number ke baad Save/Block prompt
     val missedRemind: Boolean = false,       // opt-in: missed call reminder 5 min x3
+    val callSummary: Boolean = false,        // opt-in: call end par naam+duration notification (lock screen private)
     val keypadLetters: Boolean = true,       // keypad pe ABC letters
     val defaultTab: String = "recents",      // "recents" | "dialer"
     val undoCall: Boolean = false,           // opt-in: 3s undo before dialing
@@ -153,6 +154,7 @@ object K {
     val redialSuggest = booleanPreferencesKey("redialSuggest")
     val postCallSave = booleanPreferencesKey("postCallSave")
     val missedRemind = booleanPreferencesKey("missedRemind")
+    val callSummary = booleanPreferencesKey("callSummary")
     val keypadLetters = booleanPreferencesKey("keypadLetters")
     val defaultTab = stringPreferencesKey("defaultTab")
     val undoCall = booleanPreferencesKey("undoCall")
@@ -235,6 +237,7 @@ fun Preferences.toSettings(): LdSettings {
         redialSuggest = this[K.redialSuggest] ?: true,
         postCallSave = this[K.postCallSave] ?: true,
         missedRemind = this[K.missedRemind] ?: false,
+        callSummary = this[K.callSummary] ?: false,
         keypadLetters = this[K.keypadLetters] ?: true,
         defaultTab = this[K.defaultTab] ?: "recents",
         undoCall = this[K.undoCall] ?: false,
