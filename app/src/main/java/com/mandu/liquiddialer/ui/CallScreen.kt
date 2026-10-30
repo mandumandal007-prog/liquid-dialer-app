@@ -32,6 +32,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -275,15 +277,28 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
     // available height ke hisaab se avatar/timer chhota; content fit nahi to bhi timer kabhi clip na ho.
     val avBase = when { sh < 640 -> 76.dp; sh < 740 -> 88.dp; else -> 100.dp }
     val avFit = when { maxH < 300.dp -> 60.dp; maxH < 360.dp -> 76.dp; else -> avBase }
-    val av = (minOf(avBase, avFit) * heroScale).coerceAtMost((maxH * .36f).coerceAtLeast(48.dp))
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+    val av0 = (minOf(avBase, avFit) * heroScale).coerceAtMost((maxH * .36f).coerceAtLeast(48.dp))
+    val nameF = (if (sh < 700) 21f else 23f) * heroScale
+    val timerF = if (maxH < 330.dp) 21f else 26f
+    val showNum = s.callShowNumber && number.isNotBlank() && name != Repo.pretty(number)
+    // fit guarantee: tight height + bada fontScale pe hero content box se bahar nikalta tha aur scroll top se
+    // shuru hone ke kaaran sabse neeche ka TIMER asli render me clip ho jata tha (bounds check nahi pakadta).
+    // isliye poori hero ko ek measured scale factor se sikodo: text sp->dp me fontScale pehle se juda hota hai.
+    val textH0 = with(androidx.compose.ui.platform.LocalDensity.current) {
+        (nameF + (if (showNum) 13f else 0f) + 12.5f + (if (timer != null) timerF else 0f)).sp.toDp() * 1.42f
+    }
+    val estH0 = av0 + 2.dp + 5.dp * (2 + (if (showNum) 1 else 0) + (if (timer != null) 1 else 0)) + textH0
+    val k = if (estH0 > 0.dp && maxH < 50000.dp) ((maxH - 2.dp) / estH0).coerceIn(0.55f, 1f) else 1f
+    val av = av0 * k
+    val sp = 5.dp * k
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(sp)) {
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
         }) { Box(Modifier.testTag("hero_avatar")) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
-        Spacer(Modifier.height(2.dp))
-        LdText(name, (if (sh < 700) 21f else 23f) * heroScale, FontWeight.Bold, letter = -.3f, maxLines = 1)
-        if (s.callShowNumber && number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f, color = p.muted, letter = .3f)
+        Spacer(Modifier.height(2.dp * k))
+        LdText(name, nameF * k, FontWeight.Bold, letter = -.3f, maxLines = 1)
+        if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .3f)
         if (ringing && s.showContactType && number.isNotBlank()) {
             remember(number) { Repo.contactLabel(ctx, number) }?.let { LdText(it, 12f, FontWeight.SemiBold, p.accent) }
         }
@@ -300,10 +315,10 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
             // hold/ended pe timer null hota hai -> koi dot nahi (galat "live" signal nahi)
             if (ringing) Box(Modifier.testTag("status_dot")) { LiveDot(statusColor) }
             else if (timer != null) Box(Modifier.size(6.dp).background(statusColor, CircleShape).testTag("status_dot"))
-            LdText(status, 12.5f, FontWeight.SemiBold, statusColor)
+            LdText(status, 12.5f * k, FontWeight.SemiBold, statusColor)
         }
-        // timer hi active call ka hero hai: bada + bold taaki door se padh jaye (tight height pe thoda chhota, lekin kabhi clip nahi)
-        if (timer != null) LdText(timer, if (maxH < 330.dp) 21f else 26f, FontWeight.Bold, letter = 1f, modifier = Modifier.testTag("call_timer"))
+        // timer hi active call ka hero hai: bada + bold taaki door se padh jaye; k scale se tight height pe bhi poora dikhta hai
+        if (timer != null) LdText(timer, timerF * k, FontWeight.Bold, letter = 1f, modifier = Modifier.testTag("call_timer"))
     }
 }
 
@@ -509,9 +524,20 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             badges.forEachIndexed { i, (t, c) -> if (i > 0) Spacer(Modifier.width(6.dp)); BadgeChip(t, c) }
             if (CallManager.isConference(call)) { if (badges.isNotEmpty()) Spacer(Modifier.width(6.dp)); ManageChip { openSheet("conference") } }
         }
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().testTag("hero_box"), contentAlignment = Alignment.Center) {
             val heroH = maxHeight
-            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, false, maxH = heroH - 8.dp) }
+            // measured fit: estimate kabhi kabhi miss karti hai (LdText line height, controls ki fontScale growth)
+            // aur scroll container ka pixel clip bounds me nahi dikhta - isliye asli content height naap kar
+            // poori hero ko visually shrink karo. fit ho to scale 1 (pixel-identical), warna sab kuch andar.
+            var heroContentH by remember { mutableStateOf(0) }
+            val heroPadTopPx = with(androidx.compose.ui.platform.LocalDensity.current) { 8.dp.toPx() }
+            val fitScale = if (heroContentH > 0) ((constraints.maxHeight.toFloat() - heroPadTopPx) / heroContentH.toFloat()).coerceIn(0.5f, 1f) else 1f
+            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth()
+                    .onGloballyPositioned { heroContentH = it.size.height }
+                    .graphicsLayer { scaleX = fitScale; scaleY = fitScale; transformOrigin = TransformOrigin(0.5f, 0f) },
+                    horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, false, maxH = heroH - 8.dp) }
+            }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
