@@ -97,6 +97,19 @@ fun SwitchRow(title: String, sub: String?, checked: Boolean, last: Boolean = fal
     SRow(title, sub, last = last, trailing = { LdSwitch(checked, onChange) }, onClick = { onChange(!checked) })
 
 @Composable
+fun TimeRow(title: String, mins: Int, last: Boolean = false, onChange: (Int) -> Unit) {
+    val p = LocalLd.current
+    fun step(d: Int) = onChange(((mins + d) % 1440 + 1440) % 1440)
+    SRow(title, com.mandu.liquiddialer.telecom.QuietHours.fmt(mins) + " baje", last = last, trailing = {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(34.dp).clip(CircleShape).background(p.accent.pct(.14f)).clickable { step(-30) }.testTag(title + "_minus"), contentAlignment = Alignment.Center) { LdText("\u2212", 16f, FontWeight.Bold, p.accent) }
+            LdText(com.mandu.liquiddialer.telecom.QuietHours.fmt(mins), 14f, FontWeight.Bold, p.accent, Modifier.testTag(title + "_value"))
+            Box(Modifier.size(34.dp).clip(CircleShape).background(p.accent.pct(.14f)).clickable { step(30) }.testTag(title + "_plus"), contentAlignment = Alignment.Center) { LdText("+", 16f, FontWeight.Bold, p.accent) }
+        }
+    })
+}
+
+@Composable
 fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, editContactId: Long?, editPrefill: String, onOpenNumber: (String) -> Unit) {
     when {
         page == "settings" -> SettingsPage(st, act, onBack, onOpen)
@@ -260,6 +273,16 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Blocked numbers", "${st.blocked.size} blocked", LdIcons.Block) { onOpen("blocked") }
             SwitchRow("Unknown numbers block", "Jo contacts me nahi, unki call kat jayegi", s.blockUnknown) { save(K.blockUnknown, it); if (it) act.requestScreeningRole() }
             SwitchRow("Private / hidden numbers block", null, s.blockPrivate, last = true) { save(K.blockPrivate, it); if (it) act.requestScreeningRole() }
+        }
+
+        SecTitle("Quiet hours")
+        GlassCard {
+            SwitchRow("Quiet hours", "Is time me incoming call silent (Android 10+, call screening role chahiye; call reject nahi hogi, log me rahegi)", s.quietHours, last = !s.quietHours) { save(K.quietHours, it); if (it) act.requestScreeningRole() }
+            if (s.quietHours) {
+                TimeRow("Shuru", s.quietStart) { save(K.quietStart, it) }
+                TimeRow("Khatam", s.quietEnd) { save(K.quietEnd, it) }
+                SwitchRow("Favourites ko bajne do", "Starred contacts quiet hours me bhi ring karenge (contacts permission chahiye; permission nahi to sab bajenge)", s.quietAllowFav, last = true) { save(K.quietAllowFav, it) }
+            }
         }
 
         SecTitle("Recording")
