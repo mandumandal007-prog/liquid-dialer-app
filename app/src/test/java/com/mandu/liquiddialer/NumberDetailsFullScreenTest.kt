@@ -40,6 +40,41 @@ class NumberDetailsFullScreenTest {
     }
 
     @Test
+    fun callReminderPresetsSetAndClear() {
+        settle(2500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        val act = rule.activity
+        act.state.showOnboarding = false
+        act.state.contacts = listOf(Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null))
+        act.state.recents = listOf(Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null))
+        act.state.isDefault = true
+        com.mandu.liquiddialer.data.CallReminders.cancel(ctx, "+91 98765 43210")
+        org.robolectric.Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG, android.Manifest.permission.READ_CONTACTS)
+        settle()
+        rule.onNodeWithText("Rahul Sharma", substring = true, useUnmergedTree = true).performClick()
+        settle()
+        // reminder row dikhe, presets folded
+        rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performScrollTo()
+        settle(300)
+        rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performClick()
+        settle(400)
+        rule.onNodeWithText("30 min baad", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("1 ghante baad", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Shaam 6 baje", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Kal subah 9 baje", substring = true, useUnmergedTree = true).assertExists()
+        saveShot(rule, "38-call-reminder-presets")
+        // preset set -> alarm + row par "Set:" dikhe + hataye option aaye
+        rule.onNodeWithText("1 ghante baad", substring = true, useUnmergedTree = true).performClick()
+        settle(400)
+        val am = org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.app.AlarmManager::class.java))
+        assert(am.nextScheduledAlarm != null) { "preset click par alarm schedule hona chahiye" }
+        rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performScrollTo()
+        settle(300)
+        rule.onNodeWithText("Set:", substring = true, useUnmergedTree = true).assertExists()
+        saveShot(rule, "38b-call-reminder-active")
+    }
+
+    @Test
     fun detailsOpenFullScreenWithBack() {
         settle(2500)
         val act = rule.activity
