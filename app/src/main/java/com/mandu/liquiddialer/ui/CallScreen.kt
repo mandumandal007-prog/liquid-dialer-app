@@ -1,5 +1,10 @@
 package com.mandu.liquiddialer.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import android.os.Build
 import android.telecom.Call
 import android.view.SurfaceView
@@ -176,6 +181,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                         "audio" -> AudioRouteSheet(audio) { CallManager.setRoute(it); sheet = null }
                         "sim" -> SimPickSheet { h -> c.phoneAccountSelected(h, false); sheet = null }
                         "conference" -> ConferenceSheet(c) { sheet = null }
+                        "video" -> VideoSheet(c) { sheet = null }
                     }
                 }
             }
@@ -183,8 +189,45 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     }
 }
 
+/** Video sheet: native ViLTE upgrade (support ho to, camera permission ke saath) + imaandari wajah +
+ *  Google Meet ka alag internet raasta (kuch auto nahi - meeting user khud banata hai). */
 @Composable
-private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
+private fun VideoSheet(call: Call, onClose: () -> Unit) {
+    val p = LocalLd.current
+    val ctx = LocalContext.current
+    val supported = CallManager.supportsVideo(call)
+    val camLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) { CallManager.requestVideo(call); onClose() }
+        else CallManager.videoNotice.value = "Camera permission nahi mili - video preview nahi dikhega"
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LdText("Video call", 16f, FontWeight.Bold)
+        if (supported) {
+            LdText("Ye call SIM video (ViLTE) support bata rahi hai.", 12.5f, color = p.muted, maxLines = 2)
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.accent).clickable {
+                if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                    CallManager.requestVideo(call); onClose()
+                } else camLauncher.launch(Manifest.permission.CAMERA)
+            }.padding(vertical = 12.dp).testTag("video_upgrade_go"), horizontalArrangement = Arrangement.Center) { LdText("SIM video chalu karo", 13f, FontWeight.Bold, Color.White) }
+        } else {
+            LdText(CallManager.videoUnsupportedReason(call), 12.5f, color = p.muted, modifier = Modifier.testTag("video_reason"), maxLines = 3)
+        }
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).glass(p, RoundedCornerShape(16.dp)).clickable { CallManager.openMeet(ctx); onClose() }.padding(12.dp).testTag("meet_launch"),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            LdIcon(LdIcons.Video, 18.dp, p.accent)
+            Column(Modifier.weight(1f)) {
+                LdText("Google Meet kholo", 13f, FontWeight.SemiBold)
+                LdText("Internet wali alag app - is number ko apne aap call nahi lagegi; meeting aap khud shuru karke link bhejte ho", 11f, color = p.muted, maxLines = 3)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            LdText("Band karo", 12.5f, FontWeight.SemiBold, p.muted, Modifier.clip(RoundedCornerShape(999.dp)).clickable(onClick = onClose).padding(horizontal = 14.dp, vertical = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit, onVideo: (() -> Unit)? = null) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     val sims = remember { Repo.sims(ctx) }
@@ -193,11 +236,16 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
         if (showMin) Box(Modifier.align(Alignment.CenterStart)) { IconBtn(LdIcons.ChevronDown, onClick = onMinimize) }
         Box(Modifier.align(Alignment.Center)) { SimChip(simLabel) }
         Row(Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // real ViLTE upgrade: only shown when the live call reports video support; tap sends a session-modify request
-            if (CallManager.supportsVideo(call)) {
-                Box(Modifier.size(34.dp).glass(p, CircleShape, 6.dp).clip(CircleShape).testTag("video_call")
-                    .clickable { CallManager.requestVideo(call) }, contentAlignment = Alignment.Center) {
-                    LdIcon(LdIcons.Video, 18.dp, p.accent)
+            // video entry audio call par hamesha dikhti hai (gayab nahi): tap par video sheet -
+            // support ho to ViLTE upgrade, nahi to imaandari wajah + Meet raasta. chalti video call me chhupti hai.
+            if (onVideo != null) {
+                val vsChip = try { call.details?.videoState } catch (_: Throwable) { null } ?: VideoProfile.STATE_AUDIO_ONLY
+                if (vsChip == VideoProfile.STATE_AUDIO_ONLY) {
+                    val sup = CallManager.supportsVideo(call)
+                    Box(Modifier.size(34.dp).glass(p, CircleShape, 6.dp).clip(CircleShape).testTag("video_call")
+                        .clickable(onClick = onVideo), contentAlignment = Alignment.Center) {
+                        LdIcon(LdIcons.Video, 18.dp, if (sup) p.accent else p.muted)
+                    }
                 }
             }
             SimChip("HD", p.ok, live = true)
@@ -273,7 +321,11 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val ctx = LocalContext.current
     val now = nowTicker()
     val st = CallManager.state(call)
-    val videoActive = ((try { call.details?.videoState } catch (_: Throwable) { null }) ?: VideoProfile.STATE_AUDIO_ONLY) != VideoProfile.STATE_AUDIO_ONLY
+    val vs = (try { call.details?.videoState } catch (_: Throwable) { null }) ?: VideoProfile.STATE_AUDIO_ONLY
+    // black stage ka matlab "frames aa rahe hain" hota - isliye sirf ACTIVE + saamne se video RX par hi dikhao.
+    // dialing/pending par normal audio UI + imaandari status; warna kala screen broken lagti hai.
+    val videoRx = vs == VideoProfile.STATE_BIDIRECTIONAL || vs == VideoProfile.STATE_RX_ENABLED
+    val videoStage = videoRx && st == Call.STATE_ACTIVE
     val upgradeReq by CallManager.videoUpgradeFrom.collectAsState()
     var keypad by remember { mutableStateOf(false) }
     var dtmf by remember { mutableStateOf("") }
@@ -301,6 +353,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val bt = audio?.route == CallAudioState.ROUTE_BLUETOOTH
     val badges = buildList {
         add("HD VOICE" to p.ok)
+        if (vs != VideoProfile.STATE_AUDIO_ONLY && !videoStage) add("VIDEO" to p.accent)
         if (rec != null) add("REC ${fmtDur((now - rec.started) / 1000)}" to p.danger)
         if (muted) add("MUTED" to p.muted)
         if (st == Call.STATE_HOLDING) add("ON HOLD" to p.muted)
@@ -346,16 +399,31 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
         if (CallManager.videoUpgradeFrom.value === uc) { CallManager.videoUpgradeFrom.value = null; CallManager.bump() }
     }
 
-    if (videoActive && !keypad) {
+    if (videoStage && !keypad) {
         // ===== full-screen video calling card: saamne wala video poori screen, saare controls overlay =====
         // video ke upar sab text pada ja sake: is card par palette ke text/muted white
         CompositionLocalProvider(LocalLd provides p.copy(text = Color.White, muted = Color.White.copy(alpha = .72f))) {
+        // video controls ~4 sec me chhup jate hain, stage par tap se wapas aate hain.
+        // prompt/doosri call par kabhi nahi chhupte (consent/info pehle); end call ek tap door.
+        var videoUi by remember { mutableStateOf(true) }
+        LaunchedEffect(st, upgradeReq, others.isNotEmpty()) {
+            if (st != Call.STATE_ACTIVE || upgradeReq != null || others.isNotEmpty()) videoUi = true
+        }
+        LaunchedEffect(videoUi, st, upgradeReq, others.isNotEmpty()) {
+            if (!videoUi || st != Call.STATE_ACTIVE || upgradeReq != null || others.isNotEmpty()) return@LaunchedEffect
+            delay(4000)
+            videoUi = false
+        }
         Box(Modifier.fillMaxSize()) {
-            VideoStage(call, fullBleed = true)
+            Box(Modifier.fillMaxSize().testTag("video_tap")
+                .clickable(remember { MutableInteractionSource() }, indication = null) { videoUi = !videoUi }) {
+                VideoStage(call, fullBleed = true)
+            }
+            if (videoUi) {
             Column(Modifier.align(Alignment.TopCenter).fillMaxWidth()
                 .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .55f), Color.Transparent)))
                 .statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 26.dp)) {
-                TopChips(call, true, onMinimize)
+                TopChips(call, true, onMinimize, onVideo = { openSheet("video") })
                 Spacer(Modifier.height(10.dp))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LiveDot(if (st == Call.STATE_ACTIVE) p.ok else p.accent)
@@ -389,11 +457,12 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                 .navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 30.dp, bottom = 10.dp)) {
                 CallControlsLayout(gridL, bottomL, s.gridScale, s.bottomScale, spec, onEnd = { onEndRequest(call) })
             }
+            }
         }
         }
     } else {
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 18.dp)) {
-        TopChips(call, true, onMinimize)
+        TopChips(call, true, onMinimize, onVideo = { openSheet("video") })
         // saamne wale ka video upgrade request: user hi decide kare (kabhi auto-accept nahi)
         if (upgradeReq == call) {
             Row(Modifier.padding(top = 10.dp).fillMaxWidth().glass(p, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 9.dp),
@@ -446,7 +515,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     val sims = remember { Repo.sims(ctx) }
     val sim = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { "SIM ${it.slot}" } ?: "SIM"
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
-        TopChips(call, false) {}
+        TopChips(call, false, onMinimize = {})
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, p.accent, null, emptyList(), true)
         }
@@ -458,7 +527,15 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
                 Spacer(Modifier.height(18.dp))
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SwipeCallBtn(danger = false, label = if (incomingVideo) "Video answer" else "Answer", swipe = swipe) { CallManager.answer(call) }
+                // incoming video answer: camera permission ke bina video answer nahi - deny par sirf audio + imaandari notice
+            val camAnswer = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                if (granted) CallManager.answer(call)
+                else { CallManager.answerAudioOnly(call); CallManager.videoNotice.value = "Camera permission nahi mili - sirf audio me liya" }
+            }
+            SwipeCallBtn(danger = false, label = if (incomingVideo) "Video answer" else "Answer", swipe = swipe) {
+                if (incomingVideo && ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) camAnswer.launch(Manifest.permission.CAMERA)
+                else CallManager.answer(call)
+            }
                 // camera consent: video call ko sirf audio me lene ka saaf option (camera share nahi hoti)
                 if (incomingVideo) {
                     Box(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable { CallManager.answerAudioOnly(call) }.padding(horizontal = 12.dp, vertical = 6.dp).testTag("answer_audio")) {
