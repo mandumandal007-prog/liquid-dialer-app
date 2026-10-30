@@ -179,31 +179,29 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { (application as LdApp).repo.set(K.onboarded, true) }
     }
 
+    // Cada reload ganha uma geracao: um reload ANTIGO (observers/onResume em sequencia)
+    // nunca sobrescreve o estado publicado pelo mais novo.
+    private var reloadGen = 0
+
     fun reload() {
+        val gen = ++reloadGen
         lifecycleScope.launch {
             val s = LdApp.settings.value
-            // Saare queries parallel IO pe; recents ka result AATE HI turant dikhao -
-            // pehle recents contacts ki lambi query ke peeche atke rehte the (startup delay).
-            coroutineScope {
-                val dContacts = async(Dispatchers.IO) {
-                    if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList()
-                }
-                val dRecents = async(Dispatchers.IO) {
-                    if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit) else emptyList()
-                }
-                val dBlocked = async(Dispatchers.IO) {
-                    if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList()
-                }
-                val dSims = async(Dispatchers.IO) {
-                    if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList()
-                }
-                state.recents = dRecents.await()
-                state.contacts = dContacts.await()
-                state.blocked = dBlocked.await()
-                state.sims = dSims.await()
-            }
+            loadStartupSources(
+                contacts = { if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList() },
+                recents = { if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit) else emptyList() },
+                blocked = { if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList() },
+                sims = { if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList() },
+                publishRecents = { r -> if (gen == reloadGen) state.recents = r },
+                publishRest = { c, b, sims ->
+                    if (gen == reloadGen) {
+                        state.contacts = c; state.blocked = b; state.sims = sims
+                    }
+                },
+            )
         }
     }
+
 
     private fun handleIntent(i: Intent?) {
         i ?: return
