@@ -314,6 +314,15 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
 
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 18.dp)) {
         TopChips(call, true, onMinimize)
+        // saamne wale ka video upgrade request: user hi decide kare (kabhi auto-accept nahi)
+        if (upgradeReq == call) {
+            Row(Modifier.padding(top = 10.dp).fillMaxWidth().glass(p, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                LdText("Saamne wala video chalu karna chahta hai", 12.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).background(p.ok).clickable { CallManager.respondVideoUpgrade(call, true) }.padding(horizontal = 12.dp, vertical = 7.dp).testTag("video_accept")) { LdText("Chalu karo", 11.5f, FontWeight.Bold, Color.White) }
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable { CallManager.respondVideoUpgrade(call, false) }.padding(horizontal = 12.dp, vertical = 7.dp).testTag("video_decline")) { LdText("Nahi", 11.5f, FontWeight.Bold, p.muted) }
+            }
+        }
         if (others.isNotEmpty()) {
             val o = others.first()
             Row(Modifier.padding(top = 12.dp).fillMaxWidth().glass(p, RoundedCornerShape(20.dp)).clickable { CallManager.swap() }.padding(12.dp),
