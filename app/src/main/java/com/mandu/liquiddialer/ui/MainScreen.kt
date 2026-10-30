@@ -616,8 +616,13 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                     }
                 } else LdText(when { dial.isEmpty() -> "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
-                    Box(Modifier.padding(top = 3.dp).clip(RoundedCornerShape(12.dp)).clickable { onAddContact(dial) }.padding(horizontal = 10.dp, vertical = 2.dp)) {
-                        LdText("+ Contact me add karo", 12f, FontWeight.SemiBold, p.accent)
+                    Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onAddContact(dial) }.padding(horizontal = 10.dp, vertical = 2.dp)) {
+                            LdText("+ Contact me add karo", 12f, FontWeight.SemiBold, p.accent)
+                        }
+                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").padding(horizontal = 10.dp, vertical = 2.dp)) {
+                            LdText("+ Pause (,)", 12f, FontWeight.SemiBold, p.accent)
+                        }
                     }
                 }
             }
