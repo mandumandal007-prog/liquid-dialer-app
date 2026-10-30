@@ -78,6 +78,62 @@ class VideoStageScreenshotTest {
     }
 
     @Test
+    fun dialingWithVideoShowsAudioUiNotBlackStage() {
+        settle(2500)
+        CallManager.audio.value = CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
+            CallAudioState.ROUTE_EARPIECE or CallAudioState.ROUTE_SPEAKER)
+        // Jio/Realme dialing ke dauran bhi videoState BIDIRECTIONAL report kar sakta hai - black stage tab nahi
+        CallManager.calls.value = listOf(FakeCall.make("139", "Railways", Call.STATE_DIALING, 0L,
+            videoState = android.telecom.VideoProfile.STATE_BIDIRECTIONAL))
+        CallManager.bump()
+        settle()
+        rule.onNodeWithTag("video_display", useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithText("VIDEO", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Calling", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("end_call", useUnmergedTree = true).assertExists()
+        saveShot(rule, "09d-video-dialing-audio-ui")
+    }
+
+    @Test
+    fun videoControlsAutoHideAndTapReveals() {
+        settle(2500)
+        videoCall()
+        settle(1000)
+        rule.onNodeWithTag("end_call", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_tap", useUnmergedTree = true).assertExists()
+        // 4+ sec be-interaction: controls chhup jate hain, video stage rehta hai
+        rule.mainClock.advanceTimeBy(4500)
+        rule.waitForIdle()
+        rule.onNodeWithTag("end_call", useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithTag("video_display", useUnmergedTree = true).assertExists()
+        saveShot(rule, "09e-video-controls-hidden")
+        // stage par tap: controls (aur end-call) wapas
+        rule.onNodeWithTag("video_tap", useUnmergedTree = true).performClick()
+        // paused clock: recompose ke liye ek chhota frame tick chahiye (hide timer 4s se bahut kam)
+        rule.mainClock.advanceTimeBy(200)
+        rule.waitForIdle()
+        rule.onNodeWithTag("end_call", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun voiceCardVideoEntryShowsHonestReasonAndMeetOption() {
+        settle(2500)
+        CallManager.audio.value = CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
+            CallAudioState.ROUTE_EARPIECE or CallAudioState.ROUTE_SPEAKER)
+        // audio call, koi video capability nahi (caps=0): entry phir bhi dikhti hai, tap par wajah + Meet raasta
+        CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_ACTIVE,
+            System.currentTimeMillis() - 20_000, videoState = android.telecom.VideoProfile.STATE_AUDIO_ONLY))
+        CallManager.bump()
+        settle()
+        rule.onNodeWithTag("video_call", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_call", useUnmergedTree = true).performClick()
+        settle()
+        rule.onNodeWithTag("video_reason", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("meet_launch", useUnmergedTree = true).assertExists()
+        saveShot(rule, "09f-video-sheet-reason")
+    }
+
+    @Test
     fun videoCallCardIsFullScreen() {
         settle(2500)
         videoCall()
