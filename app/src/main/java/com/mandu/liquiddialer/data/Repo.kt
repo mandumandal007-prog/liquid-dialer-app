@@ -16,6 +16,9 @@ import android.telephony.TelephonyManager
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class Contact(
     val id: Long,
@@ -365,4 +368,18 @@ object Repo {
     // ---------------- recordings ----------------
     fun recordingsDir(ctx: Context): File = File(ctx.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC) ?: ctx.filesDir, "LiquidDialer").apply { mkdirs() }
     fun recordings(ctx: Context): List<File> = recordingsDir(ctx).listFiles()?.filter { it.isFile && it.length() > 0 }?.sortedByDescending { it.lastModified() } ?: emptyList()
+
+// ---- recents insights (naye features): aaj ke stats + unseen missed badge ----
+data class DayStats(val calls: Int, val talkSecs: Long, val missed: Int)
+
+fun dayStats(recents: List<Recent>, nowMs: Long): DayStats {
+    val dayFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+    val today = recents.filter { dayFmt.format(Date(it.date)) == dayFmt.format(Date(nowMs)) }
+    val missed = today.count { it.type == CallLog.Calls.MISSED_TYPE || it.type == CallLog.Calls.REJECTED_TYPE || it.type == CallLog.Calls.BLOCKED_TYPE }
+    val talk = today.filter { it.type == CallLog.Calls.INCOMING_TYPE || it.type == CallLog.Calls.OUTGOING_TYPE }.sumOf { it.duration }
+    return DayStats(today.size, talk, missed)
+}
+
+fun unseenMissed(recents: List<Recent>, seenAt: Long): Int =
+    recents.count { it.date > seenAt && (it.type == CallLog.Calls.MISSED_TYPE || it.type == CallLog.Calls.REJECTED_TYPE || it.type == CallLog.Calls.BLOCKED_TYPE) }
 }
