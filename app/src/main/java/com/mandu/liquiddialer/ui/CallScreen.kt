@@ -102,7 +102,7 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
             flat -> base.clip(CircleShape).background(p.text.copy(alpha = .10f))
             on -> base.shadow(14.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
                 .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
-            else -> base.glass(p, CircleShape, 12.dp, .32f)
+            else -> base.glass(p, CircleShape, 12.dp, .5f)  // off-state bhi glass disc jaisa padhe, flat white nahi
         }
         Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
             LdIcon(icon, size * .38f, if (on) Color.White else p.text)
@@ -290,10 +290,11 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 6.dp)) {
-            if (ringing) LiveDot()
+            if (ringing || timer != null) LiveDot(statusColor)  // active call pe bhi live feel (timer chal raha = call live)
             LdText(status, 12.5f, FontWeight.SemiBold, statusColor)
         }
-        if (timer != null) LdText(timer, 20f, FontWeight.SemiBold, letter = 2f)
+        // timer hi active call ka hero hai: bada + bold taaki door se padh jaye
+        if (timer != null) LdText(timer, 26f, FontWeight.Bold, letter = 1f)
         Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.heightIn(min = 22.dp).padding(top = 8.dp)) {
             badges.forEach { (t, c) ->
                 Row(Modifier.glass(p, RoundedCornerShape(999.dp), 0.dp).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
