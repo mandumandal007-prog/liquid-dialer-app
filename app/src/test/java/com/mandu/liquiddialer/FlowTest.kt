@@ -292,4 +292,19 @@ class FlowTest {
         println("BAR bounds=$bar (${bar.top / d}dp..${bar.bottom / d}dp)")
         assertTrue("bar present", bar.height > 0)
     }
+
+    @Test
+    fun pauseChipAppendsDtmfPause() {
+        load()
+        rule.onNodeWithTag("dialer_fab").performClick(); settle(2500)
+        "1800".forEach { tapKey(it.toString()) }; settle(800)
+        rule.onNodeWithTag("dial_pause", useUnmergedTree = true).assertExists()
+        saveShot(rule, "17-pause-chip")
+        rule.onNodeWithTag("dial_pause", useUnmergedTree = true).performClick(); settle(600)
+        "123".forEach { tapKey(it.toString()) }; settle(800)
+        assertTrue("dial should keep comma pause", rule.activity.state.dial == "1800,123")
+        // chip remains available for multiple pauses (IVR menus)
+        rule.onNodeWithTag("dial_pause", useUnmergedTree = true).assertExists()
+        noCallStarted()
+    }
 }
