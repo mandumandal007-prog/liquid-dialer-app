@@ -16,6 +16,7 @@ import android.telecom.CallAudioState
 import android.telecom.DisconnectCause
 import android.telecom.InCallService
 import android.telecom.TelecomManager
+import android.telecom.VideoProfile
 import com.mandu.liquiddialer.CallActivity
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Repo
@@ -32,7 +33,7 @@ class LdInCallService : InCallService() {
 
     private val cb = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) { onCallChanged(call, state) }
-        override fun onDetailsChanged(call: Call, details: Call.Details) { CallManager.bump(); CallNotifier.update(this@LdInCallService) }
+        override fun onDetailsChanged(call: Call, details: Call.Details) { watchVideo(call); CallManager.bump(); CallNotifier.update(this@LdInCallService) }
         override fun onConferenceableCallsChanged(call: Call, c: MutableList<Call>) { CallManager.bump() }
         override fun onChildrenChanged(call: Call, children: MutableList<Call>) { CallManager.bump() }
         override fun onParentChanged(call: Call, parent: Call?) { CallManager.bump() }
@@ -45,10 +46,33 @@ class LdInCallService : InCallService() {
         super.onDestroy()
     }
 
+    private val videoWatched = HashSet<Call>()
+    private fun watchVideo(call: Call) {
+        if (!videoWatched.add(call)) return
+        try {
+            call.videoCall?.registerCallback(object : InCallService.VideoCall.Callback() {
+                override fun onSessionModifyRequestReceived(profile: VideoProfile?) { }
+                override fun onSessionModifyResponseReceived(status: Int, requested: VideoProfile?, response: VideoProfile?) {
+                    // SessionModifyResponse.STATUS_SUCCESS == 1 (the constants class is not public SDK)
+                    if (status != 1) {
+                        CallManager.videoNotice.value = "Video call is SIM/phone par uplabdh nahi"
+                        CallManager.bump()
+                    }
+                }
+                override fun onCallSessionEvent(event: Int) { }
+                override fun onPeerDimensionsChanged(width: Int, height: Int) { }
+                override fun onVideoQualityChanged(quality: Int) { }
+                override fun onCallDataUsageChanged(dataUsage: Long) { }
+                override fun onCameraCapabilitiesChanged(caps: VideoProfile.CameraCapabilities?) { }
+            })
+        } catch (_: Throwable) { }
+    }
+
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         CallManager.service = this
         call.registerCallback(cb)
+        watchVideo(call)
         CallManager.calls.value = CallManager.calls.value + call
         val s = LdApp.settings.value
         val st = CallManager.state(call)
@@ -95,7 +119,7 @@ class LdInCallService : InCallService() {
             if (n.isNotBlank() && canRead && !CallManager.isKnown(this, call)) CallNotifier.savePrompt(this, n)
         }
         if (answered.contains(call) && s.vibrateEnd) vibrate(60)
-        wasRinging -= call; wasOutgoing -= call; answered -= call
+        wasRinging -= call; wasOutgoing -= call; answered -= call; videoWatched -= call
         if (CallManager.calls.value.isEmpty()) {
             CallRecorder.stop()
             CallNotifier.cancelAll(this)
