@@ -14,6 +14,11 @@ object CallReminders {
 
     data class Reminder(val number: String, val name: String, val atMs: Long)
 
+    /** UI ke liye change signal: set/cancel/remove par badhta hai, taaki strips turant refresh hon. */
+    private val _tick = kotlinx.coroutines.flow.MutableStateFlow(0)
+    val tick: kotlinx.coroutines.flow.StateFlow<Int> = _tick
+    private fun bump() { _tick.value += 1 }
+
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("call_reminders", Context.MODE_PRIVATE)
 
     fun all(ctx: Context): List<Reminder> {
@@ -50,17 +55,19 @@ object CallReminders {
 
     fun set(ctx: Context, number: String, name: String, atMs: Long) {
         prefs(ctx).edit().putString(Repo.key(number), "$number|$name|$atMs").apply()
+        bump()
         val am = ctx.getSystemService(AlarmManager::class.java)
         try { am.set(AlarmManager.RTC_WAKEUP, atMs, pi(ctx, number, name)) } catch (e: Exception) { }
     }
 
     fun cancel(ctx: Context, number: String) {
         prefs(ctx).edit().remove(Repo.key(number)).apply()
+        bump()
         val am = ctx.getSystemService(AlarmManager::class.java)
         try { am.cancel(pi(ctx, number, "")) } catch (e: Exception) { }
     }
 
-    fun remove(ctx: Context, number: String) { prefs(ctx).edit().remove(Repo.key(number)).apply() }
+    fun remove(ctx: Context, number: String) { prefs(ctx).edit().remove(Repo.key(number)).apply(); bump() }
 
     private fun pi(ctx: Context, number: String, name: String): PendingIntent {
         val i = Intent(ctx, CallActionReceiver::class.java).setAction(CallActionReceiver.CALL_REMIND)
