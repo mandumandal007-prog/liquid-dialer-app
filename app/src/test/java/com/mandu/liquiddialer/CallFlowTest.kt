@@ -60,7 +60,8 @@ class CallFlowTest {
         settle(2500)
         // no cosmetic fake button: without real video support nothing is shown
         rule.onNodeWithTag("video_call", useUnmergedTree = true).assertDoesNotExist()
-        rule.onNodeWithTag("manage_contact", useUnmergedTree = true).assertExists()
+        // normal call: conference-manage chip bhi nahi dikhta
+        rule.onNodeWithTag("manage_conf", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
@@ -85,15 +86,43 @@ class CallFlowTest {
         assertTrue("unexpected activity start: $i", i == null || i.action != Intent.ACTION_CALL)
     }
 
+    private fun conferenceCall(childCaps: Int) {
+        CallManager.audio.value = CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
+            CallAudioState.ROUTE_EARPIECE or CallAudioState.ROUTE_SPEAKER)
+        val parent = FakeCall.make("+91 90000 00000", "Conference", Call.STATE_ACTIVE,
+            System.currentTimeMillis() - 120_000, props = Call.Details.PROPERTY_CONFERENCE)
+        val c1 = FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_ACTIVE, System.currentTimeMillis() - 100_000, caps = childCaps)
+        val c2 = FakeCall.make("+91 91234 56789", "Papa", Call.STATE_ACTIVE, System.currentTimeMillis() - 90_000)
+        FakeCall.setChildren(parent, listOf(c1, c2))
+        CallManager.calls.value = listOf(parent, c1, c2)
+        CallManager.bump()
+    }
+
     @Test
-    fun manageContactChipOpensEditorRouteWithoutTouchingContacts() {
+    fun manageChipShownOnlyOnConference() {
         settle(2500)
         activeCall()
         settle(2500)
-        rule.onNodeWithTag("manage_contact", useUnmergedTree = true).performClick(); settle()
-        val i = shadowOf(rule.activity.application).nextStartedActivity
-        assertNotNull("manage chip must route to MainActivity", i)
-        assertEquals(MainActivity::class.java.name, i!!.component?.className)
-        assertEquals("+91 98765 43210", i.getStringExtra("editContact"))
+        rule.onNodeWithTag("manage_conf", useUnmergedTree = true).assertDoesNotExist()
+        conferenceCall(0)
+        settle(2500)
+        rule.onNodeWithTag("manage_conf", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun conferenceManageListsChildrenWithCapabilityGatedControls() {
+        settle(2500)
+        conferenceCall(Call.Details.CAPABILITY_DISCONNECT_FROM_CONFERENCE)
+        settle(2500)
+        rule.onNodeWithTag("manage_conf", useUnmergedTree = true).performClick(); settle()
+        // dono participants dikhte hain
+        rule.onNodeWithText("Rahul Sharma", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Papa", useUnmergedTree = true).assertExists()
+        // capable child: cut enabled; tap sirf us child ko disconnect karta hai, poori conference nahi
+        rule.onNodeWithTag("conf_cut_0", useUnmergedTree = true).assertExists().performClick(); settle()
+        assertEquals(Call.STATE_ACTIVE, CallManager.state(CallManager.calls.value.first()))
+        // incapable child: honest disabled control + hint, koi fake action nahi
+        rule.onNodeWithTag("conf_cut_1", useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Gray option is call par SIM/phone support nahi kar raha.", substring = true, useUnmergedTree = true).assertExists()
     }
 }
