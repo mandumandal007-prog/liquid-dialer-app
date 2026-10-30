@@ -63,7 +63,7 @@ fun PageFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScop
         Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.16f), .6f to Color.Transparent, center = Offset(540f, 0f), radius = 1500f)))
         Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 30.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                IconBtn(LdIcons.ArrowLeft, onClick = onBack)
+                Box(Modifier.testTag("page_back")) { IconBtn(LdIcons.ArrowLeft, onClick = onBack) }
                 LdText(title, 22f, FontWeight.ExtraBold, modifier = Modifier.weight(1f), letter = -.3f)
                 Spacer(Modifier.width(42.dp))
             }
