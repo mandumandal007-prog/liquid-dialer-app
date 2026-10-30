@@ -79,6 +79,10 @@ fun MainScreen(st: AppState, act: MainActivity) {
 
     fun openPage(x: String) { drawer = false; pages.add(x) }
     val openEditor: (Long?, String) -> Unit = { id, pre -> editContactId = id; editPrefill = pre; sheetNumber = null; sheetContact = null; menuNumber = null; pages.add("editor") }
+    val editReq = st.editContactRequest
+    LaunchedEffect(editReq) {
+        if (editReq != null) { st.editContactRequest = null; openEditor(editReq.first, editReq.second) }
+    }
 
     BackHandler(enabled = drawer || query.isNotEmpty() || st.tab != "recents") {
         when { drawer -> drawer = false; query.isNotEmpty() -> query = ""; st.tab == "dialer" -> st.tab = lastTab; else -> st.tab = "recents" }
@@ -561,18 +565,14 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         val m = matchVoiceCommand(said, st.contacts)
         if (m != null) voiceConfirmHolder = m else voiceNoticeHolder = "Contact nahi mila: $said"
     }
-    val scrH = LocalConfiguration.current.screenHeightDp
-    // digit keys keep their original size; sheet height wraps content (top row 28 + number 68 + keypad + call row 70 + slack) so no dead gaps
+    // digit keys keep their width-based size; dialerScale only shrinks the dialer, it never stretches the sheet into dead gaps
     val scrW = LocalConfiguration.current.screenWidthDp
-    val natKey = minOf((scrW * .19f).coerceIn(54f, 92f), (scrW - 52f) / 3.55f)
-    val dialerNaturalH = 28f + 68f + 4f * natKey + 3f * 5f + 70f + 8f
-    // ~half the screen including sheet chrome; dialerScale grows the whole sheet so round keys never clip
-    BoxWithConstraints(Modifier.fillMaxWidth().height((dialerNaturalH * s.dialerScale.coerceIn(0.8f, 1.3f)).coerceIn(380f, 860f).dp)) {
-        // keypad gets what is left after the number area (~76dp), top row (~24dp), call row (~78dp) and slack; width caps the keys too
-        val keyByH = ((maxHeight.value - 174f) / 4.15f).coerceIn(40f, 96f)
+    val natKey = minOf((scrW * .19f).coerceIn(54f, 92f), (scrW - 52f) / 3.55f) * s.dialerScale.coerceIn(0.8f, 1f)
+    // sheet wraps its content: small fixed gaps only, so no empty space above or below the keypad
+    BoxWithConstraints(Modifier.fillMaxWidth().wrapContentHeight()) {
         val keyByW = (maxWidth.value - 16f) / 3.55f
         var dialMenu by remember { mutableStateOf(false) }
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(bottom = 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
                 Row(Modifier, horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -582,16 +582,16 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 Box(Modifier.size(32.dp).clip(CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
             }
             }
-            Box(Modifier.fillMaxWidth().height(68.dp)) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
             Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
                 LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
                     modifier = Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
                 Spacer(Modifier.height(3.dp))
                 if (suggest.isNotEmpty() && nameMatch == null) {
-                    LazyRow(Modifier.padding(top = 2.dp).testTag("dial_suggest"), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LazyRow(Modifier.fillMaxWidth().padding(top = 4.dp).testTag("dial_suggest"), horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(horizontal = 4.dp)) {
                         items(suggest, key = { it.second }) { (nm, num) ->
-                            Box(Modifier.clip(RoundedCornerShape(999.dp)).background(p.accent.pct(.14f)).clickable { st.dial = num.filter { c -> c.isDigit() || c in "+*#" } }.padding(horizontal = 10.dp, vertical = 4.dp)) {
+                            Box(Modifier.widthIn(max = 240.dp).clip(RoundedCornerShape(999.dp)).background(p.accent.pct(.14f)).clickable { st.dial = num.filter { c -> c.isDigit() || c in "+*#" } }.padding(horizontal = 10.dp, vertical = 4.dp)) {
                                 LdText(if (nm == Repo.pretty(num)) nm else nm.split(" ").first() + " · " + Repo.pretty(num), 11.5f, FontWeight.SemiBold, p.accent, maxLines = 1)
                             }
                         }
@@ -604,7 +604,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 }
             }
             }
-            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
                 Keypad(onKey = { k -> st.dial = st.dial + k }, onLong = { k ->
                     when (k) {
                         "0" -> st.dial = st.dial + "+"
@@ -616,9 +616,9 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             else st.dial += k
                         }
                     }
-                }, maxKey = minOf(keyByH, keyByW).dp, letters = s.keypadLetters, rowGap = 5.dp)
+                }, maxKey = minOf(natKey, keyByW).dp, letters = s.keypadLetters, rowGap = 5.dp, tag = "dial_keypad")
             }
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 0.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
                     contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace, 27.dp) }
                 val ready = dial.isNotEmpty()
