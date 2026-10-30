@@ -66,6 +66,14 @@ val RUNTIME_PERMS: List<Pair<String, String>> = buildList {
 }
 
 class MainActivity : ComponentActivity() {
+    // direct video se pehle camera permission; deny par KOI call nahi lagegi (na voice, na video)
+    private var pendingVideoCall: Pair<String, PhoneAccountHandle?>? = null
+    private val cameraForVideo = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val p = pendingVideoCall; pendingVideoCall = null
+        if (granted && p != null) call(p.first, p.second, video = true)
+        else if (p != null) Toast.makeText(this, trNow("Camera permission nahi mili - video call nahi lagi"), Toast.LENGTH_LONG).show()
+    }
+
     val state = AppState()
     private val handler = Handler(Looper.getMainLooper())
     private var pendingIntentAfterPerms: Intent? = null
@@ -220,6 +228,11 @@ class MainActivity : ComponentActivity() {
         // request bhejo aur connect par sachai dikhao (CallScreen notice).
         // direct video (ViLTE): pehle is SIM account ka video support check karo. Saaf mana kare ya
         // verify na ho sake to KOI call nahi lagegi (na voice, na video) - silent fallback nahi.
+        if (video && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            pendingVideoCall = n to acc
+            cameraForVideo.launch(Manifest.permission.CAMERA)
+            return
+        }
         if (video) {
             when (canVideoCall(acc)) {
                 true -> if (!CallManager.place(this, n, acc, true))
