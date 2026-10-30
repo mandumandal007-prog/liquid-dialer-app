@@ -273,4 +273,23 @@ class FlowTest {
         println("INSET fab=$fab last=$last")
         assertTrue("last row overlaps FAB: $last vs $fab", last.bottom <= fab.top + 1f)
     }
+
+    @Test
+    fun barFloatsOverScrolledContent() {
+        load()
+        val act = rule.activity
+        act.state.recents = (1..12).map { Recent(it.toLong(), "+91 90000 0000$it", "Zed $it", 1, System.currentTimeMillis() - it * 86_400_000L, 30, null, null) }
+        rule.runOnUiThread {
+            val insets = WindowInsetsCompat.Builder().setInsets(WindowInsetsCompat.Type.navigationBars(), Insets.of(0, 0, 0, 144)).build()
+            ViewCompat.dispatchApplyWindowInsets(act.window.decorView, insets)
+        }
+        settle()
+        // mid-scroll: rows sit directly behind the floating bar region
+        repeat(2) { rule.onRoot().performTouchInput { swipeUp(startY = height * 0.7f, endY = height * 0.45f) }; settle(400) }
+        saveShot(rule, "13-bar-over-content")
+        val bar = rule.onNodeWithTag("bottom_bar", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val d = rule.activity.resources.displayMetrics.density
+        println("BAR bounds=$bar (${bar.top / d}dp..${bar.bottom / d}dp)")
+        assertTrue("bar present", bar.height > 0)
+    }
 }
