@@ -2,6 +2,7 @@ package com.mandu.liquiddialer.telecom
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -154,6 +155,27 @@ object CallManager {
         } catch (_: Throwable) { }
         if (videoUpgradeFrom.value == call) videoUpgradeFrom.value = null
         bump()
+    }
+
+    /** Video na chale to imaandari wajah: local (is SIM/phone) ya remote (saamne wala) support missing. */
+    fun videoUnsupportedReason(call: Call?): String {
+        val d = try { call?.details } catch (_: Throwable) { null } ?: return "Call ki jaankari abhi nahi hai"
+        if (!d.can(Call.Details.CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL))
+            return "Is SIM/network ne video call (ViLTE) support nahi bataaya"
+        if (!d.can(Call.Details.CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL))
+            return "Saamne wale ka phone/network video call support nahi bata raha"
+        return "Video abhi is call par uplabdh nahi"
+    }
+
+    /** Google Meet ka alag internet raasta: app ho to kholo, nahi to Play Store page.
+     *  Koi meeting/invite auto nahi banta - user khud Meet me shuru karta hai. */
+    fun openMeet(ctx: Context) {
+        val meet = "com.google.android.apps.meetings"
+        try {
+            val launch = ctx.packageManager.getLaunchIntentForPackage(meet)
+            if (launch != null) { ctx.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return }
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$meet")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (_: Exception) { videoNotice.value = "Google Meet nahi khul paaya" }
     }
 
     /** Mid-call video upgrade (audio -> ViLTE): asli session-modify request bhejo. Provider na ho
