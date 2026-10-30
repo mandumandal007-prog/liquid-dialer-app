@@ -63,6 +63,10 @@ data class LdSettings(
     val redialSuggest: Boolean = true,       // busy/fail pe "Dobara call" notification
     val postCallSave: Boolean = true,        // unknown number ke baad Save/Block prompt
     val missedRemind: Boolean = false,       // opt-in: missed call reminder 5 min x3
+    val quietHours: Boolean = false,         // opt-in: quiet hours me incoming call silent (sirf silence, reject nahi)
+    val quietStart: Int = 1320,              // quiet hours shuru (minute of day, default 22:00)
+    val quietEnd: Int = 420,                 // quiet hours khatam (minute of day, default 07:00)
+    val quietAllowFav: Boolean = true,       // favourite contacts quiet hours me bhi bajenge
     val callSummary: Boolean = false,        // opt-in: call end par naam+duration notification (lock screen private)
     val keypadLetters: Boolean = true,       // keypad pe ABC letters
     val defaultTab: String = "recents",      // "recents" | "dialer"
@@ -154,6 +158,10 @@ object K {
     val redialSuggest = booleanPreferencesKey("redialSuggest")
     val postCallSave = booleanPreferencesKey("postCallSave")
     val missedRemind = booleanPreferencesKey("missedRemind")
+    val quietHours = booleanPreferencesKey("quietHours")
+    val quietStart = intPreferencesKey("quietStart")
+    val quietEnd = intPreferencesKey("quietEnd")
+    val quietAllowFav = booleanPreferencesKey("quietAllowFav")
     val callSummary = booleanPreferencesKey("callSummary")
     val keypadLetters = booleanPreferencesKey("keypadLetters")
     val defaultTab = stringPreferencesKey("defaultTab")
@@ -237,6 +245,10 @@ fun Preferences.toSettings(): LdSettings {
         redialSuggest = this[K.redialSuggest] ?: true,
         postCallSave = this[K.postCallSave] ?: true,
         missedRemind = this[K.missedRemind] ?: false,
+        quietHours = this[K.quietHours] ?: false,
+        quietStart = this[K.quietStart] ?: 1320,
+        quietEnd = this[K.quietEnd] ?: 420,
+        quietAllowFav = this[K.quietAllowFav] ?: true,
         callSummary = this[K.callSummary] ?: false,
         keypadLetters = this[K.keypadLetters] ?: true,
         defaultTab = this[K.defaultTab] ?: "recents",
