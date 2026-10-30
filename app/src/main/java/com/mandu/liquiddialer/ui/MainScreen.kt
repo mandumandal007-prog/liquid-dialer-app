@@ -442,21 +442,27 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
                     val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
                     val simLabel = if (st.sims.size > 1 && s.showSimInRecents) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
-                    GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }) {
-                        Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 46.dp, fontSize = if (s.recentsCompact) 12f else 15f, seed = name)
+                    GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact) {
+                        Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 42.dp, fontSize = if (s.recentsCompact) 12f else 14f, seed = name)
                         Column(Modifier.weight(1f)) {
-                            LdText(name + if (count > 1) " ($count)" else "", 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
-                            Row(Modifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                LdIcon(typeIcon(r.type), 13.dp, if (missed) p.danger else p.muted)
-                                val timeTxt = if (s.exactTime) SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(r.date))
-                                    else DateUtils.getRelativeTimeSpanString(r.date, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
-                                LdText("${typeLabel(r.type)}  ·  $timeTxt", 11.5f, color = if (missed) p.danger else p.muted)
+                            LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
+                            Row(Modifier.padding(top = if (s.recentsCompact) 1.dp else 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                // icon hata diya: text label ("Outgoing"/"Missed") already batata hai, aur
+                                // jagah bachti hai taaki time + duration bina truncate dikhe
+                                val timeTxt = if (s.exactTime) {
+                                    // aaj ki call: sirf samay ("11:04 AM"); purani: sirf tareekh ("28 Oct") - line chhoti, truncation nahi
+                                    val d = Date(r.date); val nowD = Date()
+                                    val dayFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                                    if (dayFmt.format(d) == dayFmt.format(nowD)) SimpleDateFormat("h:mm a", Locale.getDefault()).format(d)
+                                    else SimpleDateFormat("d MMM", Locale.getDefault()).format(d)
+                                } else DateUtils.getRelativeTimeSpanString(r.date, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+                                // duration sirf connect hui calls ki (missed/declined ki duration 0/fake nahi hoti);
+                                // duration + SIM ab isi line me: card 3-line se 2-line, ek screen pe zyada calls
+                                val durTxt = if (s.recentsShowDuration && r.duration > 0 &&
+                                    (r.type == CallLog.Calls.INCOMING_TYPE || r.type == CallLog.Calls.OUTGOING_TYPE)) fmtDur(r.duration).removePrefix("0") else null
+                                val meta = listOfNotNull(typeLabel(r.type), timeTxt, durTxt, simLabel).joinToString(" · ")
+                                LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = 1)
                             }
-                            // duration sirf connect hui calls ki (missed/declined ki duration 0/fake nahi hoti)
-                            val durTxt = if (s.recentsShowDuration && r.duration > 0 &&
-                                (r.type == CallLog.Calls.INCOMING_TYPE || r.type == CallLog.Calls.OUTGOING_TYPE)) fmtDur(r.duration) else null
-                            val meta2 = listOfNotNull(durTxt, simLabel).joinToString("  ·  ")
-                            if (meta2.isNotEmpty()) LdText(meta2, 11f, color = p.muted, modifier = Modifier.padding(top = 1.dp))
                         }
                         VideoMini { act.videoCall(r.number) }
                         CallMini { act.callUi(r.number) }
@@ -477,12 +483,13 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
 
 /** .row glass list item */
 @Composable
-fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, content: @Composable RowScope.() -> Unit) {
+fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Boolean = false, content: @Composable RowScope.() -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .985f)
     Row(Modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.glass(p, RoundedCornerShape(20.dp), 8.dp, .20f)
-        .combinedClickable(src, null, onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+        .combinedClickable(src, null, onLongClick = onLongClick, onClick = onClick)
+        .padding(horizontal = 12.dp, vertical = if (dense) 4.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
 }
 
