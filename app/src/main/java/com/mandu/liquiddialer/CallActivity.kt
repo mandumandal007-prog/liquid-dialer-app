@@ -50,6 +50,9 @@ class CallActivity : ComponentActivity() {
                     onMinimize = {
                         startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     },
+                    onManageContact = { num ->
+                        startActivity(Intent(this, MainActivity::class.java).putExtra("editContact", num).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    },
                 )
             }
         }
