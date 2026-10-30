@@ -71,6 +71,7 @@ class LdInCallService : InCallService() {
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
         CallManager.service = this
+        com.mandu.liquiddialer.media.BoostService.pauseForCall(this)
         call.registerCallback(cb)
         watchVideo(call)
         CallManager.calls.value = CallManager.calls.value + call
