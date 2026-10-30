@@ -67,6 +67,7 @@ data class LdSettings(
     val quietStart: Int = 1320,              // quiet hours shuru (minute of day, default 22:00)
     val quietEnd: Int = 420,                 // quiet hours khatam (minute of day, default 07:00)
     val quietAllowFav: Boolean = true,       // favourite contacts quiet hours me bhi bajenge
+    val blockedPrefixes: List<String> = emptyList(), // spam series block: user-added prefixes, default khali = off
     val callSummary: Boolean = false,        // opt-in: call end par naam+duration notification (lock screen private)
     val keypadLetters: Boolean = true,       // keypad pe ABC letters
     val defaultTab: String = "recents",      // "recents" | "dialer"
@@ -162,6 +163,7 @@ object K {
     val quietStart = intPreferencesKey("quietStart")
     val quietEnd = intPreferencesKey("quietEnd")
     val quietAllowFav = booleanPreferencesKey("quietAllowFav")
+    val blockedPrefixes = stringPreferencesKey("blockedPrefixes")
     val callSummary = booleanPreferencesKey("callSummary")
     val keypadLetters = booleanPreferencesKey("keypadLetters")
     val defaultTab = stringPreferencesKey("defaultTab")
@@ -249,6 +251,7 @@ fun Preferences.toSettings(): LdSettings {
         quietStart = this[K.quietStart] ?: 1320,
         quietEnd = this[K.quietEnd] ?: 420,
         quietAllowFav = this[K.quietAllowFav] ?: true,
+        blockedPrefixes = this[K.blockedPrefixes]?.split(";")?.filter { it.isNotBlank() } ?: emptyList(),
         callSummary = this[K.callSummary] ?: false,
         keypadLetters = this[K.keypadLetters] ?: true,
         defaultTab = this[K.defaultTab] ?: "recents",
@@ -282,6 +285,7 @@ class SettingsRepo(private val ctx: Context) {
     suspend fun <T> set(key: Preferences.Key<T>, value: T) { ctx.ldStore.edit { it[key] = value } }
     suspend fun resetCallLayout() { ctx.ldStore.edit { it.remove(K.layoutGrid); it.remove(K.layoutBottom); it.remove(K.gridScale); it.remove(K.bottomScale); it.remove(K.callCardScale); it.remove(K.dialerScale); it.remove(K.callAvatarShape); it.remove(K.callShowNumber); it.remove(K.callBgStyle) } }
     suspend fun setReplies(list: List<String>) = set(K.quickReplies, list.joinToString("\n"))
+    suspend fun setBlockedPrefixes(list: List<String>) = set(K.blockedPrefixes, list.joinToString(";"))
     suspend fun setSpeedDial(map: Map<Int, String>) = set(K.speedDial, map.entries.joinToString(";") { "${it.key}=${it.value}" })
 
     suspend fun simFor(digits: String): String? {
