@@ -118,6 +118,29 @@ class ScreenshotTest {
         saveShot(rule, "03c-dialer-pause")
     }
 
+    /** Contacts tab pixel coverage: GlassRow padding change ke baad bhi rows sahi dikhte hain. */
+    @Test
+    fun contactsScreen() {
+        settle(2500)
+        val act = rule.activity
+        act.state.showOnboarding = false
+        act.state.isDefault = true
+        org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>())
+            .grantPermissions(android.Manifest.permission.READ_CONTACTS)
+        act.state.contacts = listOf(
+            Contact(11, "lk1", "Rahul Sharma", "Sharma Rahul", "+91 98765 43210", "MOBILE", true, null),
+            Contact(12, "lk2", "Papa", "Papa", "+91 91234 56789", "MOBILE", false, null),
+            Contact(13, "lk3", "Riya Singh Chauhan Verylongname", "Riya", "+91 98765 11111", "WORK", false, null),
+            Contact(14, "lk4", "Rohan Kumar", "Rohan", "+91 98765 22222", "MOBILE", false, null),
+            Contact(15, "lk5", "Amma", "Amma", "+91 99887 76655", "HOME", true, null),
+            Contact(16, "lk6", "Dada ji", "Dada ji", "+91 88776 65544", "MOBILE", false, null),
+        )
+        settle()
+        rule.onAllNodesWithText("Contacts").onFirst().performClick()
+        settle(1500)
+        saveShot(rule, "05-contacts")
+    }
+
     @Test
     fun volumePageAndNumberMenu() {
         settle(2500)
