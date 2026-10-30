@@ -1,6 +1,8 @@
 package com.mandu.liquiddialer.ui
 
+import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
@@ -29,6 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -38,12 +41,15 @@ import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.MainActivity
 import com.mandu.liquiddialer.RUNTIME_PERMS
 import com.mandu.liquiddialer.data.*
+import com.mandu.liquiddialer.media.BoostService
+import com.mandu.liquiddialer.media.VolumeBoost
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.roundToInt
 
 private fun <T> save(key: Preferences.Key<T>, v: T) { LdApp.instance.scope.launch { LdApp.instance.repo.set(key, v) } }
 
@@ -95,6 +101,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     when {
         page == "settings" -> SettingsPage(st, act, onBack, onOpen)
         page == "appearance" -> AppearancePage(onBack)
+        page == "volume" -> VolumePage(onBack)
         page == "profile" -> ProfilePage(onBack)
         page == "calllayout" -> CallLayoutPage(onBack)
         page == "editor" -> ContactEditor(editContactId, editPrefill, act, onBack)
@@ -234,6 +241,11 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             Segmented(listOf("Off", "1 min", "5 min", "10 min"), when (s.minuteBeep) { 1 -> 1; 5 -> 2; 10 -> 3; else -> 0 }) { save(K.minuteBeep, listOf(0, 1, 5, 10)[it]) }
             SwitchRow("Flash blink on ring", "Call aane pe flashlight chamkegi", s.flashOnRing) { save(K.flashOnRing, it) }
             SwitchRow("Sirf favourite pe flash", "Flash sirf starred contacts pe", s.flashOnlyFav, last = true) { save(K.flashOnlyFav, it) }
+        }
+
+        SecTitle("Volume")
+        GlassCard {
+            SRow("Volume & boost", "Ring, media, call volume ek jagah + media loudness boost", LdIcons.Volume, last = true) { onOpen("volume") }
         }
 
         SecTitle("Caller pehchan")
@@ -803,5 +815,90 @@ fun Onboarding(st: AppState, act: MainActivity) {
             Spacer(Modifier.height(8.dp))
             GhostButton("Baad me") { act.finishOnboarding(); act.askPermissions() }
         }
+    }
+}
+
+
+/** Ek stream ka seedha system volume slider (real setStreamVolume, koi fake control nahi). */
+@Composable
+private fun StreamVolRow(am: AudioManager, title: String, stream: Int, last: Boolean = false) {
+    val p = LocalLd.current
+    val max = remember { try { am.getStreamMaxVolume(stream) } catch (_: Throwable) { 0 } }
+    var v by remember { mutableIntStateOf(try { am.getStreamVolume(stream) } catch (_: Throwable) { 0 }) }
+    Column {
+        Column(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LdText(title, 14f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                LdText("$v/$max", 12f, color = p.muted)
+            }
+            Slider(v.toFloat().coerceIn(0f, max.toFloat().coerceAtLeast(1f)), { nv ->
+                v = nv.roundToInt().coerceIn(0, max)
+                try { am.setStreamVolume(stream, v, AudioManager.FLAG_SHOW_UI) } catch (_: Throwable) {}
+            }, valueRange = 0f..max.toFloat().coerceAtLeast(1f),
+                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = p.accent, inactiveTrackColor = p.accent.pct(.2f)))
+        }
+        if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(if (p.isLight) Color(0x120F172A) else Color.White.copy(alpha = .07f)))
+    }
+}
+
+/** Volume page: saare stream sliders + media loudness boost (honest scope: media only, SIM call kabhi nahi). */
+@Composable
+private fun VolumePage(onBack: () -> Unit) {
+    val p = LocalLd.current
+    val ctx = LocalContext.current
+    val s by LdApp.settings.collectAsState()
+    val boostRunning by BoostService.running.collectAsState()
+    val am = remember { ctx.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    var showAck by remember { mutableStateOf(false) }
+    fun enableBoost() {
+        val cur = LdApp.settings.value
+        save(K.volBoost, true)
+        BoostService.applyNow(ctx, cur.volBoostGain)
+    }
+    PageFrame("Volume", onBack) {
+        GlassCard {
+            StreamVolRow(am, "Ringtone volume", AudioManager.STREAM_RING)
+            StreamVolRow(am, "Media volume", AudioManager.STREAM_MUSIC)
+            StreamVolRow(am, "Call volume (sunne ki)", AudioManager.STREAM_VOICE_CALL)
+            StreamVolRow(am, "Notification volume", AudioManager.STREAM_NOTIFICATION)
+            StreamVolRow(am, "Alarm volume", AudioManager.STREAM_ALARM, last = true)
+        }
+        SecTitle("Media boost")
+        GlassCard {
+            SwitchRow("Media volume boost", "Music, video aur apps ki awaaz system max se bhi upar. SIM call ki awaaz isse NAHI badhti.", s.volBoost) { on ->
+                if (on) { if (LdApp.settings.value.boostAck) enableBoost() else showAck = true }
+                else { save(K.volBoost, false); BoostService.stop(ctx) }
+            }
+            if (s.volBoost) {
+                var gain by remember(s.volBoostGain) { mutableIntStateOf(s.volBoostGain) }
+                LdText("Boost: $gain% · ≈${VolumeBoost.dbLabel(gain)}", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 10.dp, bottom = 2.dp))
+                Slider(gain.toFloat(), { gain = it.roundToInt() }, valueRange = 0f..100f,
+                    onValueChangeFinished = { save(K.volBoostGain, gain); BoostService.applyNow(ctx, gain) },
+                    colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = p.accent, inactiveTrackColor = p.accent.pct(.2f)),
+                    modifier = Modifier.padding(horizontal = 8.dp).testTag("boost_gain"))
+                // koi auto-restart nahi: process marne ke baad boost khud wapas nahi chalta
+                if (!boostRunning) SRow("Boost dobara chalu karo", "App/process band hone par boost ruk gaya tha; ye khud wapas nahi chalta", LdIcons.Volume) { BoostService.applyNow(ctx, s.volBoostGain) }
+            }
+            LdText("Dhyan: boost sirf media (music/video/apps) ki awaaz ke liye hai - phone/SIM call ki awaaz koi app nahi badha sakta. Zyada boost se awaaz phat sakti hai aur speaker ya kaan ko nuksan ho sakta hai; hamesha kam se shuru karo. Boost chalne par chhota notification dikhega, wahan se bhi band kar sakte ho.", 11.5f,
+                color = p.danger, maxLines = 8, modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 12.dp))
+        }
+    }
+    // pehli baar chalu karne par seedha risk acknowledgement
+    if (showAck) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showAck = false },
+            title = { androidx.compose.material3.Text("Boost chalu karein?") },
+            text = { androidx.compose.material3.Text("Ye sirf media (music/video/apps) ki awaaz badhata hai, SIM call ki nahi. Bahut zyada boost se awaaz phat sakti hai aur speaker ya kaan ko nuksan ho sakta hai. Kam se shuru karo; awaaz phate to turant kam ya band karo.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { showAck = false; save(K.boostAck, true); enableBoost() }) {
+                    androidx.compose.material3.Text("Samajh gaya, chalu karo")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showAck = false }) {
+                    androidx.compose.material3.Text("Rehne do")
+                }
+            },
+        )
     }
 }
