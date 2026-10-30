@@ -7,6 +7,7 @@ import android.content.Context
 import android.app.AlarmManager
 import android.content.Intent
 import android.net.Uri
+import android.widget.RemoteViews
 import android.os.Build
 import android.telecom.Call
 import androidx.core.app.NotificationCompat
@@ -127,11 +128,38 @@ object CallNotifier {
             b.setContentText(text)
             b.setLargeIcon(avatarBitmap(name, 0xFF5B8CFF.toInt()))
             if (st == Call.STATE_ACTIVE && connect > 0) b.setWhen(connect).setUsesChronometer(true).setShowWhen(true)
-            // CallStyle needs a foreground service or fullScreenIntent on Android 12+, so the ongoing card uses plain actions.
-            b.addAction(0, "Call kaato", receiverPi(ctx, CallActionReceiver.HANGUP, 3))
+            // Icon bar: standard action buttons render as text chips only, and with
+            // DecoratedCustomViewStyle any addAction would ALSO draw as duplicate text below,
+            // so the bar is our own RemoteViews row (mute/speaker/red hangup icons) and no
+            // addAction calls here. Accessible names via contentDescription; same receiver
+            // PendingIntents as before, so taps behave exactly like the old text buttons.
             val muted = CallManager.audio.value?.isMuted == true
-            b.addAction(0, if (muted) "Unmute" else "Mute", receiverPi(ctx, CallActionReceiver.MUTE, 4))
-            b.addAction(0, if (CallManager.isSpeaker()) "Speaker off" else "Speaker", receiverPi(ctx, CallActionReceiver.SPEAKER, 5))
+            val spk = CallManager.isSpeaker()
+            val showTimer = st == Call.STATE_ACTIVE && connect > 0
+            fun bar(): RemoteViews {
+                val rv = RemoteViews(ctx.packageName, R.layout.notif_call_ongoing)
+                rv.setTextViewText(R.id.notif_call_name, name)
+                rv.setTextViewText(R.id.notif_call_status, text)
+                rv.setViewVisibility(R.id.notif_call_status, if (showTimer) android.view.View.GONE else android.view.View.VISIBLE)
+                rv.setViewVisibility(R.id.notif_call_timer, if (showTimer) android.view.View.VISIBLE else android.view.View.GONE)
+                if (showTimer) {
+                    // Details.connectTimeMillis is wall-clock; Chronometer needs elapsedRealtime.
+                    val base = android.os.SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connect)
+                    rv.setLong(R.id.notif_call_timer, "setBase", if (base > 0) base else android.os.SystemClock.elapsedRealtime())
+                }
+                rv.setInt(R.id.notif_btn_mute, "setBackgroundResource", if (muted) R.drawable.notif_btn_circle_active else R.drawable.notif_btn_circle)
+                rv.setContentDescription(R.id.notif_btn_mute, if (muted) "Unmute" else "Mute")
+                rv.setOnClickPendingIntent(R.id.notif_btn_mute, receiverPi(ctx, CallActionReceiver.MUTE, 4))
+                rv.setInt(R.id.notif_btn_speaker, "setBackgroundResource", if (spk) R.drawable.notif_btn_circle_active else R.drawable.notif_btn_circle)
+                rv.setContentDescription(R.id.notif_btn_speaker, if (spk) "Speaker off" else "Speaker")
+                rv.setOnClickPendingIntent(R.id.notif_btn_speaker, receiverPi(ctx, CallActionReceiver.SPEAKER, 5))
+                rv.setContentDescription(R.id.notif_btn_end, "Call kaato")
+                rv.setOnClickPendingIntent(R.id.notif_btn_end, receiverPi(ctx, CallActionReceiver.HANGUP, 3))
+                return rv
+            }
+            b.setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            b.setCustomContentView(bar())
+            b.setCustomBigContentView(bar())
         }
         try { nm.notify(ID_CALL, b.build()) } catch (e: Exception) { }
     }
