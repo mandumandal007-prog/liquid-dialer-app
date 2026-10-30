@@ -35,6 +35,9 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     var starred by remember { mutableStateOf(contact?.starred == true) }
     var blocked by remember { mutableStateOf(Repo.isBlocked(ctx, number)) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var remindOpen by remember { mutableStateOf(false) }
+    var reminderTick by remember { mutableStateOf(0) }
+    val reminder = remember(reminderTick) { com.mandu.liquiddialer.data.CallReminders.forNumber(ctx, number) }
     val name = contact?.name ?: if (number.isBlank()) "Private number" else Repo.pretty(number)
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     val notes = remember(number) { Repo.notesFor(ctx, number) }
@@ -75,6 +78,24 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "$name: $number"), "Share"))
         }
         SheetRow(LdIcons.Edit, "Notes (${notes.size})") { onNotes() }
+        SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
+        if (remindOpen) {
+            listOf("30min" to "30 min baad", "1h" to "1 ghante baad", "evening" to "Shaam 6 baje", "morning" to "Kal subah 9 baje").forEach { (preset, label) ->
+                SheetRow(LdIcons.Chevron, label) {
+                    val at = com.mandu.liquiddialer.data.CallReminders.presetAt(preset, System.currentTimeMillis())
+                    com.mandu.liquiddialer.data.CallReminders.set(ctx, number, name, at)
+                    reminderTick++; remindOpen = false
+                    Toast.makeText(ctx, trNow("Reminder set") + ": " + df.format(Date(at)), Toast.LENGTH_SHORT).show()
+                }
+            }
+            reminder?.let {
+                SheetRow(LdIcons.Block, "Reminder hataye", danger = true) {
+                    com.mandu.liquiddialer.data.CallReminders.cancel(ctx, number)
+                    reminderTick++; remindOpen = false
+                    Toast.makeText(ctx, trNow("Reminder hataya"), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
         SheetRow(LdIcons.Block, if (blocked) "Unblock karo" else "Number block karo", if (!st.isDefault) "Default phone app hone par kaam karega" else null, danger = !blocked) {
             if (!Repo.canBlock(ctx)) { act.requestDefault(); return@SheetRow }
             blocked = if (blocked) !Repo.unblock(ctx, number) else Repo.block(ctx, number)
