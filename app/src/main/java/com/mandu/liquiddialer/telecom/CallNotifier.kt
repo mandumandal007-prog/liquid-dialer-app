@@ -222,24 +222,29 @@ object CallNotifier {
         try { NotificationManagerCompat.from(ctx).notify(43, n) } catch (e: Exception) { }
     }
 
-    /** Manual call reminder due: user ne khud set kiya tha. Tap = app khule us number ke saath,
-     *  "Call karo" action seedha dialer me call confirm flow. Koi auto-call nahi. */
+    /** Manual call reminder due: user ne khud set kiya tha.
+     *  Body tap = dialer khulta hai number bhara hua (koi call nahi).
+     *  Sirf "Call karo" action seedha call lagata hai. Koi auto-call nahi. */
     fun callReminder(ctx: Context, number: String, name: String) {
         if (number.isBlank()) return
         val display = if (name.isNotBlank()) name else number
-        val callBack = PendingIntent.getActivity(ctx, 700 + (com.mandu.liquiddialer.data.Repo.key(number).hashCode() and 0xFF),
+        val req = 700 + (com.mandu.liquiddialer.data.Repo.key(number).hashCode() and 0xFF)
+        val open = PendingIntent.getActivity(ctx, req,
+            Intent(ctx, MainActivity::class.java).setAction(Intent.ACTION_DIAL)
+                .setData(android.net.Uri.parse("tel:$number")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val callNow = PendingIntent.getActivity(ctx, req + 256,
             Intent(ctx, MainActivity::class.java).setAction("com.mandu.liquiddialer.CALLBACK")
                 .putExtra("number", number).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
         val n = NotificationCompat.Builder(ctx, CH_MISSED)
             .setSmallIcon(R.drawable.ic_stat_call)
-            .setContentTitle("Call reminder")
-            .setContentText("$display ko call karna tha")
+            .setContentTitle("Call reminder: $display")
+            .setContentText("Call karna tha. 'Call karo' dabate hi call lag jayega.")
             .setAutoCancel(true)
             .setColor(0xFF3DDC84.toInt())
-            .setContentIntent(callBack)
-            .addAction(0, "Call karo", callBack)
+            .setContentIntent(open)
+            .addAction(0, "Call karo", callNow)
             .build()
-        try { NotificationManagerCompat.from(ctx).notify(700 + (com.mandu.liquiddialer.data.Repo.key(number).hashCode() and 0xFF), n) } catch (e: Exception) { }
+        try { NotificationManagerCompat.from(ctx).notify(req, n) } catch (e: Exception) { }
     }
 
     /** After a call with an unsaved number: offer save / block. */
