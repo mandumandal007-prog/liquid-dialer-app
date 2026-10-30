@@ -52,7 +52,11 @@ object CallManager {
             ?: list.firstOrNull { it.parent == null }
     }
     fun ringing(): Call? = calls.value.firstOrNull { state(it) == Call.STATE_RINGING }
-    fun others(): List<Call> { val p = primary(); return calls.value.filter { it != p && it.parent == null && state(it) != Call.STATE_DISCONNECTED } }
+    fun others(): List<Call> {
+        val p = primary()
+        val children = calls.value.flatMap { conferenceChildren(it) }.toSet()
+        return calls.value.filter { it != p && it !in children && it.parent == null && state(it) != Call.STATE_DISCONNECTED }
+    }
 
     fun answer(call: Call? = ringing()) { call?.answer(VideoProfile.STATE_AUDIO_ONLY) }
     fun reject(call: Call? = ringing(), msg: String? = null) {
@@ -105,8 +109,23 @@ object CallManager {
         held.unhold()
     }
 
+    // ---- conference participants: per-child controls, only when the call itself reports support ----
+    fun conferenceChildren(call: Call?): List<Call> = try { call?.children ?: emptyList() } catch (_: Throwable) { emptyList() }
+    fun isConference(call: Call?): Boolean {
+        call ?: return false
+        return try { call.details?.hasProperty(Call.Details.PROPERTY_CONFERENCE) == true || conferenceChildren(call).isNotEmpty() } catch (_: Throwable) { false }
+    }
+    fun canDisconnectChild(c: Call): Boolean = try { c.details?.can(Call.Details.CAPABILITY_DISCONNECT_FROM_CONFERENCE) == true } catch (_: Throwable) { false }
+    fun canSeparateChild(c: Call): Boolean = try { c.details?.can(Call.Details.CAPABILITY_SEPARATE_FROM_CONFERENCE) == true } catch (_: Throwable) { false }
+    fun disconnectChild(c: Call) { try { c.disconnect() } catch (_: Throwable) {} }
+    fun separateChild(c: Call) { try { c.splitFromConference() } catch (_: Throwable) {} }
+
     // ---- native video calling (ViLTE): only when the live call itself reports support ----
     val videoNotice = MutableStateFlow<String?>(null)
+
+    /** Set when WE placed a direct video call; consumed when the call connects so the screen can
+     *  honestly say if the network fell back to voice (videoState stayed AUDIO_ONLY). */
+    var pendingVideoRequest = false
 
     /** True only while the call is audio-only AND both sides report bidirectional video (ViLTE) support. */
     fun supportsVideo(call: Call?): Boolean {
@@ -131,10 +150,14 @@ object CallManager {
     }
 
     @SuppressLint("MissingPermission")
-    fun place(ctx: Context, number: String, account: PhoneAccountHandle?): Boolean {
+    fun place(ctx: Context, number: String, account: PhoneAccountHandle?, video: Boolean = false): Boolean {
         val uri = Uri.fromParts("tel", number, null)
         val extras = Bundle()
         if (account != null) extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, account)
+        // direct native video call (ViLTE): asks Telecom to START the call as bidirectional video.
+        // Sach me video banegi ya nahi ye SIM/carrier/phone aur saamne wale par depend karta hai;
+        // support na ho to system normal voice call bana sakta hai ya mana kar sakta hai.
+        if (video) { extras.putInt(TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE, VideoProfile.STATE_BIDIRECTIONAL); pendingVideoRequest = true }
         return try { ctx.getSystemService(TelecomManager::class.java).placeCall(uri, extras); true } catch (e: Exception) { false }
     }
 }
