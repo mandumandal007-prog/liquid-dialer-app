@@ -60,6 +60,9 @@ object CallManager {
 
     fun answer(call: Call? = ringing()) { call?.answer(answerVideoState(call)) }
 
+    /** Camera consent: incoming video call ko sirf audio me lo (user ka saaf choice). */
+    fun answerAudioOnly(call: Call? = ringing()) { call?.answer(VideoProfile.STATE_AUDIO_ONLY) }
+
     /** Incoming video call ko video ke saath hi answer karo (warna ViLTE kho jati hai). */
     fun answerVideoState(call: Call?): Int =
         try { call?.details?.videoState ?: VideoProfile.STATE_AUDIO_ONLY } catch (_: Throwable) { VideoProfile.STATE_AUDIO_ONLY }
