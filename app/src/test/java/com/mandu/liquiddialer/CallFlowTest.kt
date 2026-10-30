@@ -54,23 +54,31 @@ class CallFlowTest {
     }
 
     @Test
-    fun videoButtonHiddenWhenCallHasNoVideoSupport() {
+    fun videoEntryShownWithHonestReasonWhenNoVideoSupport() {
         settle(2500)
         activeCall()
         settle(2500)
-        // no cosmetic fake button: without real video support nothing is shown
-        rule.onNodeWithTag("video_call", useUnmergedTree = true).assertDoesNotExist()
-        // normal call: conference-manage chip bhi nahi dikhta
+        // entry gayab nahi hoti: tap par sheet me imaandari wajah + Meet raasta (koi cosmetic fake button nahi)
+        rule.onNodeWithTag("video_call", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_call", useUnmergedTree = true).performClick(); settle()
+        rule.onNodeWithText("Is SIM/network ne video call (ViLTE) support nahi bataaya", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_upgrade_go", useUnmergedTree = true).assertDoesNotExist()
+        rule.onNodeWithTag("meet_launch", useUnmergedTree = true).assertExists()
+        // normal call: conference-manage chip nahi dikhta
         rule.onNodeWithTag("manage_conf", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
-    fun videoButtonHiddenWhenOnlyLocalSideSupportsVideo() {
+    fun videoEntryShowsRemoteReasonWhenOnlyLocalSideSupportsVideo() {
         settle(2500)
         activeCall(Call.Details.CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL)
         settle(2500)
-        // local support alone must not promise a video upgrade the remote side cannot accept
-        rule.onNodeWithTag("video_call", useUnmergedTree = true).assertDoesNotExist()
+        // local support alone must not promise a video upgrade the remote side cannot accept:
+        // sheet khulti hai par reason saaf REMOTE side ko naam deta hai, upgrade button nahi
+        rule.onNodeWithTag("video_call", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_call", useUnmergedTree = true).performClick(); settle()
+        rule.onNodeWithText("Saamne wale ka phone/network video call support nahi bata raha", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_upgrade_go", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
@@ -80,6 +88,11 @@ class CallFlowTest {
         settle(2500)
         rule.onNodeWithTag("video_call", useUnmergedTree = true).assertExists()
         rule.onNodeWithTag("video_call", useUnmergedTree = true).performClick(); settle()
+        // sheet pehle: support batati hai, user khud upgrade dabata hai
+        rule.onNodeWithText("Ye call SIM video (ViLTE) support bata rahi hai", substring = true, useUnmergedTree = true).assertExists()
+        // camera permission granted maan kar upgrade dabao (Robolectric default me denied hoti hai)
+        shadowOf(rule.activity.application).grantPermissions(android.Manifest.permission.CAMERA)
+        rule.onNodeWithTag("video_upgrade_go", useUnmergedTree = true).assertExists().performClick(); settle()
         // fake call has no video provider -> honest notice, no crash, and no call placed
         assertNotNull("user must be told video is unavailable", CallManager.videoNotice.value)
         val i = shadowOf(rule.activity.application).nextStartedActivity
@@ -183,13 +196,14 @@ class CallFlowTest {
     }
 
     @Test
-    fun appDoesNotNeedCameraPermissionForVilte() {
-        // ViLTE managed-connection path: capture IMS/telephony stack karta hai, app ko CAMERA
-        // permission nahi chahiye - isliye denial ka sawal hi nahi (deny karne ko kuch nahi).
+    fun cameraPermissionDeclaredForVideoPreview() {
+        // AOSP Dialer ka manifest CAMERA declare karta hai (android.googlesource.com/packages/apps/Dialer
+        // AndroidManifest.xml se verify kiya gaya): video preview surface ke liye dialer ke paas permission
+        // honi chahiye. runtime par video sheet se maanga jata hai.
         val pm = ApplicationProvider.getApplicationContext<LdApp>().packageManager
         val info = pm.getPackageInfo(ApplicationProvider.getApplicationContext<LdApp>().packageName,
             android.content.pm.PackageManager.GET_PERMISSIONS)
-        org.junit.Assert.assertFalse("CAMERA permission must NOT be requested for the ViLTE path",
+        org.junit.Assert.assertTrue("CAMERA must be declared like AOSP Dialer for the video preview",
             info.requestedPermissions?.contains(android.Manifest.permission.CAMERA) == true)
     }
 
