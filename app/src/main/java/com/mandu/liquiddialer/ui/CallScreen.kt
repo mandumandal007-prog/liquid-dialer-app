@@ -131,7 +131,7 @@ fun androidx.compose.foundation.layout.BoxScope.EndConfirmCard(align: Alignment,
 }
 
 @Composable
-fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit, onMinimize: () -> Unit) {
+fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit, onMinimize: () -> Unit, onManageContact: (String) -> Unit = {}) {
     val ver by CallManager.version.collectAsState()
     val calls by CallManager.calls.collectAsState()
     val audio by CallManager.audio.collectAsState()
@@ -156,12 +156,15 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                 CallEndedScreen(lastEnded)
             } else {
                 val st = CallManager.state(call)
-                if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" })
+                if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" }, onManageContact = { onManageContact(CallManager.number(call)) })
                 else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { sheet = it },
-                    onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) })
+                    onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) },
+                    onManageContact = { onManageContact(CallManager.number(call)) })
                 if (st == Call.STATE_SELECT_PHONE_ACCOUNT && sheet == null) sheet = "sim"
             }
             val c = call
+            val vNotice by CallManager.videoNotice.collectAsState()
+            vNotice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 64.dp) { CallManager.videoNotice.value = null } }
             if (confirmEnd && c != null) EndConfirmCard(align = Alignment.BottomCenter, onOk = { confirmEnd = false; CallManager.end(c) }, onCancel = { confirmEnd = false })
             if (sheet != null && c != null) {
                 Sheet(onDismiss = { sheet = null }) {
@@ -180,17 +183,27 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
 @Composable
 private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
     val ctx = LocalContext.current
+    val p = LocalLd.current
     val sims = remember { Repo.sims(ctx) }
     val simLabel = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { if (sims.size > 1) "SIM ${it.slot} · ${it.label}" else it.label } ?: "SIM"
     Box(Modifier.fillMaxWidth()) {
         if (showMin) Box(Modifier.align(Alignment.CenterStart)) { IconBtn(LdIcons.ChevronDown, onClick = onMinimize) }
         Box(Modifier.align(Alignment.Center)) { SimChip(simLabel) }
-        Box(Modifier.align(Alignment.CenterEnd)) { SimChip("HD", LocalLd.current.ok, live = true) }
+        Row(Modifier.align(Alignment.CenterEnd), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // real ViLTE upgrade: only shown when the live call reports video support; tap sends a session-modify request
+            if (CallManager.supportsVideo(call)) {
+                Box(Modifier.size(34.dp).glass(p, CircleShape, 6.dp).clip(CircleShape).testTag("video_call")
+                    .clickable { CallManager.requestVideo(call) }, contentAlignment = Alignment.Center) {
+                    LdIcon(LdIcons.Video, 18.dp, p.accent)
+                }
+            }
+            SimChip("HD", p.ok, live = true)
+        }
     }
 }
 
 @Composable
-private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean) {
+private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean, onManageContact: () -> Unit = {}) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
@@ -238,13 +251,21 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
                     LdText(t, 10f, FontWeight.Bold, c, letter = .6f)
                 }
             }
+            // manage the caller's contact (opens the contact editor; never changes anything by itself)
+            if (number.isNotBlank()) {
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable(onClick = onManageContact).padding(horizontal = 10.dp, vertical = 5.dp).testTag("manage_contact"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    LdIcon(LdIcons.User, 11.dp, p.accent)
+                    LdText("Manage", 10f, FontWeight.Bold, p.accent, letter = .6f)
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.RecInfo?, onRecord: () -> Unit, onAddCall: () -> Unit,
-                           onMinimize: () -> Unit, openSheet: (String) -> Unit, onEndRequest: (Call) -> Unit) {
+                           onMinimize: () -> Unit, openSheet: (String) -> Unit, onEndRequest: (Call) -> Unit, onManageContact: () -> Unit = {}) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val now = nowTicker()
@@ -290,7 +311,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false) }
+            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, onManageContact) }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
@@ -341,7 +362,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
 }
 
 @Composable
-private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
+private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, onManageContact: () -> Unit = {}) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
@@ -349,7 +370,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, false) {}
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true)
+            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true, onManageContact)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
