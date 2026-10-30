@@ -16,7 +16,7 @@ object FakeCall {
     private fun setf(obj: Any, cls: Class<*>, field: String, v: Any?) {
         try { val f = cls.getDeclaredField(field); f.isAccessible = true; f.set(obj, v) } catch (_: Throwable) { }
     }
-    fun make(number: String, name: String, state: Int, connectMillis: Long = 0L): Call {
+    fun make(number: String, name: String, state: Int, connectMillis: Long = 0L, caps: Int = 0): Call {
         val call = allocate(Call::class.java)
         val details = allocate(Call.Details::class.java)
         setf(details, Call.Details::class.java, "mHandle", Uri.parse("tel:$number"))
@@ -26,7 +26,7 @@ object FakeCall {
         setf(details, Call.Details::class.java, "mConnectTimeMillis", connectMillis)
         setf(details, Call.Details::class.java, "mConnectTimeMillisElapsed", connectMillis)
         setf(details, Call.Details::class.java, "mDisconnectCause", android.telecom.DisconnectCause(android.telecom.DisconnectCause.UNKNOWN))
-        setf(details, Call.Details::class.java, "mCallCapabilities", 0)
+        setf(details, Call.Details::class.java, "mCallCapabilities", caps)
         setf(details, Call.Details::class.java, "mCallProperties", 0)
         setf(call, Call::class.java, "mDetails", details)
         setf(call, Call::class.java, "mState", state)
