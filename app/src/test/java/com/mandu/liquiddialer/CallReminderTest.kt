@@ -101,9 +101,12 @@ class CallReminderTest {
             .putExtra("number", "9812345678").putExtra("name", "Rahul")
         CallActionReceiver().onReceive(ctx, intent)
         val nm = Shadows.shadowOf(ctx.getSystemService(NotificationManager::class.java))
-        val n = nm.allNotifications.lastOrNull { it.extras.getCharSequence("android.title").toString() == "Call reminder" }
+        val n = nm.allNotifications.lastOrNull { it.extras.getCharSequence("android.title").toString().contains("Call reminder") }
         assertNotNull("reminder notification post honi chahiye", n)
-        assertTrue(n!!.extras.getCharSequence("android.text").toString().contains("Rahul"))
+        assertTrue(n!!.extras.getCharSequence("android.title").toString().contains("Rahul"))
+        // body tap = sirf app/dialer khulta hai (contentIntent), direct call sirf "Call karo" action se
+        assertNotNull("body tap intent hona chahiye", n.contentIntent)
+        assertTrue("'Call karo' action hona chahiye", n.actions.any { it.title.toString() == "Call karo" })
         assertNull("fire ke baad store saaf", CallReminders.forNumber(ctx, "9812345678"))
         // number blank -> kuch nahi hota
         val before = nm.allNotifications.size
