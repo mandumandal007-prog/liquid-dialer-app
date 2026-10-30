@@ -61,6 +61,11 @@ class NumberDetailsFullScreenTest {
         rule.onNodeWithText("Notes (", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("WhatsApp", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "04-number-details-full")
+        // last row (Contact delete karo) fold ke neeche: scroll karke dikhna chahiye
+        rule.onAllNodes(androidx.compose.ui.test.hasScrollAction(), useUnmergedTree = true).onLast()
+            .performScrollToNode(hasText("Contact delete karo", substring = true))
+        rule.onNodeWithText("Contact delete karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule, "04b-number-details-scrolled")
         // back se wapas recents (bottom bar dobara dikhe, page band)
         rule.onNodeWithTag("page_back", useUnmergedTree = true).performClick()
         settle()
