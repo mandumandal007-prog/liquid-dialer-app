@@ -33,6 +33,14 @@
     <queries>
         <intent><action android:name="android.speech.RecognitionService" /></intent>
         <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
+        <!-- Android 11+ package visibility: inke bina getLaunchIntentForPackage/resolveActivity
+             Meet installed hone par bhi null de sakta hai (naya Meet = purana Duo wala tachyon) -->
+        <package android:name="com.google.android.apps.tachyon" />
+        <package android:name="com.google.android.apps.meetings" />
+        <intent>
+            <action android:name="com.google.android.apps.tachyon.action.CALL" />
+            <data android:scheme="tel" />
+        </intent>
     </queries>
 
     <application
