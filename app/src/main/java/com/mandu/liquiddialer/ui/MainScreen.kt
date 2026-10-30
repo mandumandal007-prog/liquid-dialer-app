@@ -537,13 +537,14 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
         items(list, key = { it.id }) { c ->
             val display = if (s.lastNameFirst) c.altName else c.name
             GlassRow(onClick = { onOpen(c) }, onLongClick = { onLong(c.number) }) {
-                Avatar(c.name, c.photo, seed = c.name)
+                // recents ke saath same density (42dp avatar) - app-wide rows ek jaisi
+                Avatar(c.name, c.photo, size = 42.dp, fontSize = 14f, seed = c.name)
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         LdText(display, 14.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f, false))
                         if (c.starred) LdIcon(LdIcons.StarFill, 13.dp, Color(0xFFF5C542))
                     }
-                    Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         LdText(c.label, 11.5f, color = p.muted); LdText("·", 11.5f, color = p.muted.copy(alpha = .5f)); LdText(Repo.pretty(c.number), 11.5f, color = p.muted)
                     }
                 }
