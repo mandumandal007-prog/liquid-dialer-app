@@ -146,6 +146,20 @@ class CallFlowTest {
     }
 
     @Test
+    fun incomingVideoUpgradePromptNeedsUserChoice() {
+        settle(2500)
+        activeCall()
+        settle(2500)
+        val c = CallManager.primary()!!
+        CallManager.videoUpgradeFrom.value = c
+        CallManager.bump(); settle()
+        rule.onNodeWithTag("video_accept", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_decline", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_decline", useUnmergedTree = true).performClick(); settle()
+        org.junit.Assert.assertNull(CallManager.videoUpgradeFrom.value)
+    }
+
+    @Test
     fun answerKeepsIncomingVideoState() {
         val vc = FakeCall.make("+91 98765 43210", "Rahul", Call.STATE_RINGING, videoState = android.telecom.VideoProfile.STATE_BIDIRECTIONAL)
         org.junit.Assert.assertEquals(android.telecom.VideoProfile.STATE_BIDIRECTIONAL, CallManager.answerVideoState(vc))
