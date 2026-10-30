@@ -290,7 +290,11 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 6.dp)) {
-            if (ringing || timer != null) LiveDot(statusColor)  // active call pe bhi live feel (timer chal raha = call live)
+            // dot sirf jab call sach me zinda ho: ringing = animated ping (attention), active/dialing = STATIC dot
+            // (infinite animation nahi - ghanton chalne wali call pe CPU churn nahi chahiye, Realme 4GB)
+            // hold/ended pe timer null hota hai -> koi dot nahi (galat "live" signal nahi)
+            if (ringing) Box(Modifier.testTag("status_dot")) { LiveDot(statusColor) }
+            else if (timer != null) Box(Modifier.size(6.dp).background(statusColor, CircleShape).testTag("status_dot"))
             LdText(status, 12.5f, FontWeight.SemiBold, statusColor)
         }
         // timer hi active call ka hero hai: bada + bold taaki door se padh jaye
