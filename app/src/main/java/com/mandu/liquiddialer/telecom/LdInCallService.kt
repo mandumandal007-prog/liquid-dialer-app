@@ -51,7 +51,13 @@ class LdInCallService : InCallService() {
         if (!videoWatched.add(call)) return
         try {
             call.videoCall?.registerCallback(object : InCallService.VideoCall.Callback() {
-                override fun onSessionModifyRequestReceived(profile: VideoProfile?) { }
+                override fun onSessionModifyRequestReceived(profile: VideoProfile?) {
+                    // saamne wala video on karna chahta hai - user se poochho, kabhi auto-accept nahi
+                    if ((profile?.videoState ?: VideoProfile.STATE_AUDIO_ONLY) != VideoProfile.STATE_AUDIO_ONLY) {
+                        CallManager.videoUpgradeFrom.value = call
+                        CallManager.bump()
+                    }
+                }
                 override fun onSessionModifyResponseReceived(status: Int, requested: VideoProfile?, response: VideoProfile?) {
                     // SessionModifyResponse.STATUS_SUCCESS == 1 (the constants class is not public SDK)
                     if (status != 1) {
