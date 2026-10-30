@@ -58,7 +58,11 @@ object CallManager {
         return calls.value.filter { it != p && it !in children && it.parent == null && state(it) != Call.STATE_DISCONNECTED }
     }
 
-    fun answer(call: Call? = ringing()) { call?.answer(VideoProfile.STATE_AUDIO_ONLY) }
+    fun answer(call: Call? = ringing()) { call?.answer(answerVideoState(call)) }
+
+    /** Incoming video call ko video ke saath hi answer karo (warna ViLTE kho jati hai). */
+    fun answerVideoState(call: Call?): Int =
+        try { call?.details?.videoState ?: VideoProfile.STATE_AUDIO_ONLY } catch (_: Throwable) { VideoProfile.STATE_AUDIO_ONLY }
     fun reject(call: Call? = ringing(), msg: String? = null) {
         if (call == null) return
         if (msg != null) call.reject(true, msg) else call.reject(false, null)
@@ -127,7 +131,7 @@ object CallManager {
      *  honestly say if the network fell back to voice (videoState stayed AUDIO_ONLY). */
     var pendingVideoRequest = false
 
-    const val VIDEO_NOT_READY = "Video calling abhi is app me ready nahi hai - video dikhane ka hissa agle update me aayega"
+    const val VIDEO_UNSUPPORTED = "Ye SIM/phone video call support nahi kar raha"
 
     /** True only while the call is audio-only AND both sides report bidirectional video (ViLTE) support. */
     fun supportsVideo(call: Call?): Boolean {
@@ -137,21 +141,44 @@ object CallManager {
             d.can(Call.Details.CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL)
     }
 
-    /** Video upgrade abhi band hai: app ke paas video dikhane/bhejne ka surface path nahi hai,
-     *  isliye unusable video call kabhi mat banao - saaf wajah batao, kuch mat karo. */
+    /** Saamne wale ne video upgrade manga hai (accept/decline user karega - kabhi auto nahi). */
+    val videoUpgradeFrom = MutableStateFlow<Call?>(null)
+
+    fun respondVideoUpgrade(call: Call, accept: Boolean) {
+        try {
+            call.videoCall?.sendSessionModifyResponse(
+                VideoProfile(if (accept) VideoProfile.STATE_BIDIRECTIONAL else VideoProfile.STATE_AUDIO_ONLY))
+        } catch (_: Throwable) { }
+        if (videoUpgradeFrom.value == call) videoUpgradeFrom.value = null
+        bump()
+    }
+
+    /** Mid-call video upgrade (audio -> ViLTE): asli session-modify request bhejo. Provider na ho
+     *  to saaf wajah batao, kuch mat karo. */
     fun requestVideo(call: Call? = primary()): Boolean {
-        videoNotice.value = VIDEO_NOT_READY
-        return false
+        call ?: return false
+        val vc = try { call.videoCall } catch (_: Throwable) { null }
+        if (vc == null) { videoNotice.value = "Video is call par is phone/SIM se uplabdh nahi"; return false }
+        return try {
+            vc.sendSessionModifyRequest(VideoProfile(VideoProfile.STATE_BIDIRECTIONAL)); true
+        } catch (_: Throwable) { videoNotice.value = "Video request nahi bhej paayi"; false }
+    }
+
+    /** Direct video call ke liye start-with-video-state extra; voice call par kuch nahi. */
+    fun buildPlaceExtras(account: PhoneAccountHandle?, video: Boolean): Bundle {
+        val extras = Bundle()
+        if (account != null) extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, account)
+        if (video) extras.putInt(TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE, VideoProfile.STATE_BIDIRECTIONAL)
+        return extras
     }
 
     @SuppressLint("MissingPermission")
     fun place(ctx: Context, number: String, account: PhoneAccountHandle?, video: Boolean = false): Boolean {
         val uri = Uri.fromParts("tel", number, null)
-        val extras = Bundle()
-        if (account != null) extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, account)
-        // video initiation DISABLED: is app me video surfaces nahi hai, isliye video request yahin
-        // rok do (koi call nahi lagegi) - kabhi unusable video call mat lagao.
-        if (video) { videoNotice.value = VIDEO_NOT_READY; return false }
-        return try { ctx.getSystemService(TelecomManager::class.java).placeCall(uri, extras); true } catch (e: Exception) { false }
+        val extras = buildPlaceExtras(account, video)
+        if (video) pendingVideoRequest = true
+        return try {
+            ctx.getSystemService(TelecomManager::class.java).placeCall(uri, extras); true
+        } catch (e: Exception) { if (video) pendingVideoRequest = false; false }
     }
 }
