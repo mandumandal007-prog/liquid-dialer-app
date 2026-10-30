@@ -32,6 +32,16 @@ object CallReminders {
         return raw.sortedBy { it.atMs }
     }
 
+    /** Boot path ke liye: bina prune kiye saare stored reminders (past bhi), time-sorted.
+     *  UI hamesha all() use kare - ye sirf BootReceiver ka kaam hai. */
+    fun allRaw(ctx: Context): List<Reminder> {
+        return prefs(ctx).all.mapNotNull { (_, v) ->
+            val parts = (v as? String)?.split("|", limit = 3) ?: return@mapNotNull null
+            val at = parts.getOrNull(2)?.toLongOrNull() ?: return@mapNotNull null
+            Reminder(parts[0], parts[1], at)
+        }.sortedBy { it.atMs }
+    }
+
     fun forNumber(ctx: Context, number: String): Reminder? =
         all(ctx).firstOrNull { Repo.key(it.number) == Repo.key(number) }
 
