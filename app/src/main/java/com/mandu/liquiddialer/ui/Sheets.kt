@@ -88,6 +88,17 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
                     Toast.makeText(ctx, trNow("Reminder set") + ": " + df.format(Date(at)), Toast.LENGTH_SHORT).show()
                 }
             }
+            LdText("Samay lagbhag hoga - battery saver thoda der kar sakta hai", 11.5f, color = p.muted,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp))
+            if (!androidx.core.app.NotificationManagerCompat.from(ctx).areNotificationsEnabled()) {
+                SheetRow(LdIcons.Block, "Notifications band hain - reminder nahi dikhega", "Khulne par settings khulengi", danger = true) {
+                    try {
+                        ctx.startActivity(Intent("android.settings.APP_NOTIFICATION_SETTINGS")
+                            .putExtra("android.provider.extra.APP_PACKAGE", ctx.packageName)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    } catch (_: Exception) { }
+                }
+            }
             reminder?.let {
                 SheetRow(LdIcons.Block, "Reminder hataye", danger = true) {
                     com.mandu.liquiddialer.data.CallReminders.cancel(ctx, number)
