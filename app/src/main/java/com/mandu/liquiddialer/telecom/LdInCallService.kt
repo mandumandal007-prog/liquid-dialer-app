@@ -153,6 +153,12 @@ class LdInCallService : InCallService() {
             if (n.isNotBlank() && canRead && !CallManager.isKnown(this, call)) CallNotifier.savePrompt(this, n)
         }
         if (answered.contains(call) && s.vibrateEnd) vibrate(60)
+        // opt-in: call summary notification (sirf answered calls; service ke alive rehte hi fire hota hai)
+        if (answered.contains(call) && s.callSummary) {
+            val connect = try { call.details?.connectTimeMillis ?: 0L } catch (_: Throwable) { 0L }
+            if (connect > 0) CallNotifier.summary(this, CallManager.nameFor(this, call),
+                com.mandu.liquiddialer.ui.fmtDur((System.currentTimeMillis() - connect) / 1000))
+        }
         wasRinging -= call; wasOutgoing -= call; answered -= call; videoWatched -= call
         if (CallManager.videoUpgradeFrom.value === call) CallManager.videoUpgradeFrom.value = null
         if (CallManager.calls.value.isEmpty()) {
