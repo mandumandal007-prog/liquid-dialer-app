@@ -144,6 +144,11 @@ class MainActivity : ComponentActivity() {
         askPermissions()
     }
 
+    fun screeningRoleHeld(): Boolean {
+        if (Build.VERSION.SDK_INT < 29) return false
+        return try { getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_CALL_SCREENING) } catch (_: Exception) { false }
+    }
+
     fun requestScreeningRole() {
         if (Build.VERSION.SDK_INT >= 29) try {
             val rm = getSystemService(RoleManager::class.java)
