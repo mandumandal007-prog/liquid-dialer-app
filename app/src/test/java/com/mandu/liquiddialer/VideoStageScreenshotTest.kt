@@ -76,4 +76,16 @@ class VideoStageScreenshotTest {
         rule.onNodeWithText("Video on karna chahta hai", useUnmergedTree = true).assertExists()
         saveShot(rule, "09b-video-upgrade-prompt")
     }
+
+    @Test
+    fun videoCallCardIsFullScreen() {
+        settle(2500)
+        videoCall()
+        settle(2500)
+        rule.onNodeWithTag("video_display", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("video_preview", useUnmergedTree = true).assertExists()
+        // overlay: naam + controls dono video ke upar dikhte hain
+        rule.onNodeWithText("Rahul Sharma", substring = true, useUnmergedTree = true).assertExists()
+        saveShot(rule, "09c-video-call-card")
+    }
 }
