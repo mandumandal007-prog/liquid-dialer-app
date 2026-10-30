@@ -159,7 +159,7 @@ fun NumberMenu(number: String, st: AppState, act: MainActivity, onClose: () -> U
         }
     }
     SheetRow(LdIcons.Phone, "Call") { onClose(); act.call(number) }
-    SheetRow(LdIcons.Video, "Video call", "Abhi ready nahi hai - agle update me aayega") { onClose(); act.videoCall(number) }
+    SheetRow(LdIcons.Video, "Video call", "ViLTE - SIM/phone support chahiye") { onClose(); act.videoCall(number) }
     SheetRow(LdIcons.Message, "Message (SMS)") { onClose(); go(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
     SheetRow(LdIcons.Message, "WhatsApp") {
         val digits = number.filter { it.isDigit() }.let { if (it.length == 10) "91$it" else it.removePrefix("00") }
