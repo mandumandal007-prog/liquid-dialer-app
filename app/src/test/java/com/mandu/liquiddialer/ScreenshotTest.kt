@@ -3,6 +3,7 @@ package com.mandu.liquiddialer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import kotlinx.coroutines.flow.first
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import com.mandu.liquiddialer.data.Contact
@@ -119,6 +120,43 @@ class ScreenshotTest {
     }
 
     /** Contacts tab pixel coverage: GlassRow padding change ke baad bhi rows sahi dikhte hain. */
+    /** Naye features: aaj-stats strip + missed-call tab badge (arrive while on Contacts, clear on Recents). */
+    @Test
+    fun recentsInsightsUi() {
+        settle(2500)
+        val act = rule.activity
+        act.state.showOnboarding = false
+        act.state.contacts = listOf(Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null))
+        org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
+        // aaj: 2 connected (245s + 60s) - strip "Aaj: 2 calls · 5 min baat" dikhe
+        act.state.recents = listOf(
+            Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null),
+            Recent(2, "+91 91234 56789", "Papa", 2, System.currentTimeMillis() - 5 * 3600_000, 60, null, null),
+        )
+        settle()
+        org.junit.Assert.assertTrue("aaj-stats strip dikhe",
+            rule.onAllNodesWithTag("today_stats").fetchSemanticsNodes().isNotEmpty())
+        saveShot(rule, "36-recents-today-stats")
+
+        // contacts tab pe hain aur tab nayi missed call aayi -> Recents tab pe red badge
+        rule.onNodeWithText("Contacts").performClick()
+        settle()
+        act.state.recents = act.state.recents + Recent(3, "+91 88776 65544", "Dada ji", 3, System.currentTimeMillis(), 0, null, null)
+        settle()
+        val dbgSeen = kotlinx.coroutines.runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.data.first()[K.recentsSeenAt] ?: -1L }
+        val dbgMissed = act.state.recents.last().date
+        // badge clickable tab Column ke andar hai -> merged tree me tag chhupta hai, unmerged chahiye
+        org.junit.Assert.assertTrue("nayi missed call pe tab badge dikhe (seenAt=" + dbgSeen + " missed=" + dbgMissed + ")",
+            rule.onAllNodesWithTag("missed_badge", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty())
+        saveShot(rule, "35-missed-badge")
+
+        // recents kholo -> seen mark -> badge gayab
+        rule.onNodeWithText("Recents").performClick()
+        settle(2000)
+        org.junit.Assert.assertTrue("recents kholne par badge clear hona chahiye",
+            rule.onAllNodesWithTag("missed_badge").fetchSemanticsNodes().isEmpty())
+    }
+
     @Test
     fun contactsScreen() {
         settle(2500)
