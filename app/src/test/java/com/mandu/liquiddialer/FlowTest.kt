@@ -266,7 +266,7 @@ class FlowTest {
             ViewCompat.dispatchApplyWindowInsets(act.window.decorView, insets)
         }
         settle()
-        repeat(5) { rule.onRoot().performTouchInput { swipeUp(startY = height * 0.8f, endY = height * 0.2f) }; settle(400) }
+        repeat(5) { rule.onRoot().performTouchInput { swipeUp(startY = height * 0.7f, endY = height * 0.15f) }; settle(400) }
         saveShot(rule, "10-inset-recents-end")
         val fab = rule.onNodeWithTag("dialer_fab").fetchSemanticsNode().boundsInRoot
         val last = rule.onNodeWithText("Zed 9").fetchSemanticsNode().boundsInRoot
