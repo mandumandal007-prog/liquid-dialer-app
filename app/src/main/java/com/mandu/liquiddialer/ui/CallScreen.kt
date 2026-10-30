@@ -212,12 +212,16 @@ private fun VideoSheet(call: Call, onClose: () -> Unit) {
         } else {
             LdText(CallManager.videoUnsupportedReason(call), 12.5f, color = p.muted, modifier = Modifier.testTag("video_reason"), maxLines = 3)
         }
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).glass(p, RoundedCornerShape(16.dp)).clickable { CallManager.openMeet(ctx); onClose() }.padding(12.dp).testTag("meet_launch"),
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).glass(p, RoundedCornerShape(16.dp)).clickable {
+            val num = try { call.details?.handle?.schemeSpecificPart } catch (_: Throwable) { null }
+            if (num == null || !CallManager.meetCallNumber(ctx, num)) CallManager.openMeet(ctx)
+            onClose()
+        }.padding(12.dp).testTag("meet_launch"),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             LdIcon(LdIcons.Video, 18.dp, p.accent)
             Column(Modifier.weight(1f)) {
-                LdText("Google Meet kholo", 13f, FontWeight.SemiBold)
-                LdText("Internet wali alag app - is number ko apne aap call nahi lagegi; meeting aap khud shuru karke link bhejte ho", 11f, color = p.muted, maxLines = 3)
+                LdText("Meet se is number ko video call", 13f, FontWeight.SemiBold)
+                LdText("Naya Meet app khul kar usi number ka call screen dikhayega - call Meet ke andar confirm hoti hai. Meet na ho to Play Store khulega", 11f, color = p.muted, maxLines = 3)
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
