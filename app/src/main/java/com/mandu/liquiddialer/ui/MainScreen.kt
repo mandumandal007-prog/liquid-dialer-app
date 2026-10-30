@@ -461,7 +461,9 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 val durTxt = if (s.recentsShowDuration && r.duration > 0 &&
                                     (r.type == CallLog.Calls.INCOMING_TYPE || r.type == CallLog.Calls.OUTGOING_TYPE)) fmtDur(r.duration).removePrefix("0") else null
                                 val meta = listOfNotNull(typeLabel(r.type), timeTxt, durTxt, simLabel).joinToString(" · ")
-                                LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = 1)
+                                // maxLines=2: bade font-scale/dual-SIM pe duration+SIM truncate hone ke bajay
+                                // doosri line pe wrap ho — info loss nahi, card tabhi 3-line jitna bada hota hai
+                                LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = 2)
                             }
                         }
                         VideoMini { act.videoCall(r.number) }
