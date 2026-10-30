@@ -142,14 +142,14 @@ fun playTone(k: String) {
 
 /** .keypad grid of .key glass circles */
 @Composable
-fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null, keyDp: Dp? = null, letters: Boolean = true, rowGap: Dp? = null) {
+fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null, keyDp: Dp? = null, letters: Boolean = true, rowGap: Dp? = null, tag: String? = null) {
     val p = LocalLd.current
     val w = LocalConfiguration.current.screenWidthDp
     val keySize = (keyDp?.value ?: (w * (if (small) .15f else .19f)).coerceIn(if (small) 44f else 54f, if (small) 62f else 92f)).let { k -> maxKey?.let { minOf(k, it.value) } ?: k }.dp
     val gap = (keySize.value * .16f).coerceIn(7f, 14f).dp
     val haptic = LocalHapticFeedback.current
     val tapHaptic = com.mandu.liquiddialer.LdApp.settings.collectAsState().value.hapticKeys
-    Column(Modifier.widthIn(max = 400.dp), verticalArrangement = Arrangement.spacedBy(rowGap ?: gap)) {
+    Column(Modifier.widthIn(max = 400.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier), verticalArrangement = Arrangement.spacedBy(rowGap ?: gap)) {
         KEY_DEFS.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(gap * 2.1f)) {
                 row.forEach { (d, sub) ->
