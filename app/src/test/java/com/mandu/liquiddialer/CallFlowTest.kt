@@ -126,18 +126,30 @@ class CallFlowTest {
         rule.onNodeWithText("Gray option is call par SIM/phone support nahi kar raha.", substring = true, useUnmergedTree = true).assertExists()
     }
     @Test
-    fun videoInitiationNeverPlacesCallAndExplains() {
-        CallManager.videoNotice.value = null
-        val ok = CallManager.place(ApplicationProvider.getApplicationContext<LdApp>(), "+91 98765 43210", null, video = true)
-        org.junit.Assert.assertFalse("video initiation must never place any call", ok)
-        org.junit.Assert.assertEquals(CallManager.VIDEO_NOT_READY, CallManager.videoNotice.value)
+    fun videoExtrasCarryBidirectionalStateOnlyForVideo() {
+        val v = CallManager.buildPlaceExtras(null, true)
+        org.junit.Assert.assertEquals(android.telecom.VideoProfile.STATE_BIDIRECTIONAL,
+            v.getInt(android.telecom.TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE, -1))
+        val a = CallManager.buildPlaceExtras(null, false)
+        org.junit.Assert.assertFalse(a.containsKey(android.telecom.TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE))
     }
 
     @Test
-    fun videoUpgradeRequestIsRefusedWithHonestNotice() {
+    fun videoUpgradeWithoutProviderIsHonest() {
+        settle(2500)
+        activeCall(Call.Details.CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL or Call.Details.CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL)
+        settle(2500)
         CallManager.videoNotice.value = null
-        val ok = CallManager.requestVideo(null)
-        org.junit.Assert.assertFalse(ok)
-        org.junit.Assert.assertEquals(CallManager.VIDEO_NOT_READY, CallManager.videoNotice.value)
+        val ok = CallManager.requestVideo(CallManager.primary())
+        org.junit.Assert.assertFalse("fake call has no video provider -> request must fail honestly", ok)
+        org.junit.Assert.assertNotNull(CallManager.videoNotice.value)
+    }
+
+    @Test
+    fun answerKeepsIncomingVideoState() {
+        val vc = FakeCall.make("+91 98765 43210", "Rahul", Call.STATE_RINGING, videoState = android.telecom.VideoProfile.STATE_BIDIRECTIONAL)
+        org.junit.Assert.assertEquals(android.telecom.VideoProfile.STATE_BIDIRECTIONAL, CallManager.answerVideoState(vc))
+        val ac = FakeCall.make("+91 98765 43210", "Rahul", Call.STATE_RINGING)
+        org.junit.Assert.assertEquals(android.telecom.VideoProfile.STATE_AUDIO_ONLY, CallManager.answerVideoState(ac))
     }
 }
