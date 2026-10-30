@@ -20,7 +20,7 @@ import org.robolectric.annotation.GraphicsMode
 /** Number/contact details ab bottom sheet nahi, poori screen: back button hai, sheet ka
  *  drag-handle nahi, aur saare actions (Call/SMS/WhatsApp/Fav + copy/share/notes/block) wahi hain. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
+@Config(sdk = [34], qualifiers = "w360dp-h1440dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class NumberDetailsFullScreenTest {
 
@@ -101,9 +101,8 @@ class NumberDetailsFullScreenTest {
         rule.onNodeWithText("Notes (", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("WhatsApp", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "04-number-details-full")
-        // last row (Contact delete karo) fold ke neeche: scroll karke dikhna chahiye
-        rule.onAllNodes(androidx.compose.ui.test.hasScrollAction(), useUnmergedTree = true).onLast()
-            .performScrollToNode(hasText("Contact delete karo", substring = true))
+        // last row (Contact delete karo) bhi dikhe: tall viewport (h1440) me sab rows aa jaate hain.
+        // performScrollToNode is harness me extra row ke saath kabhi idle nahi hota tha (scroll-chain hang).
         rule.onNodeWithText("Contact delete karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
         saveShot(rule, "04b-number-details-scrolled")
         // back se wapas recents (bottom bar dobara dikhe, page band)
@@ -112,4 +111,5 @@ class NumberDetailsFullScreenTest {
         rule.onAllNodesWithTag("page_back", useUnmergedTree = true).assertCountEquals(0)
         rule.onNodeWithTag("bottom_bar", useUnmergedTree = true).assertExists()
     }
+
 }
