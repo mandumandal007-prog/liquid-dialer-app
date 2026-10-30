@@ -555,7 +555,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
         }
         if (!hasPerm) item { EmptyState(LdIcons.Users, "Contacts ki permission chahiye", "Contacts dikhane ke liye permission do", "Permission do") { act.askPermissions() } }
         else if (list.isEmpty()) item { EmptyState(LdIcons.Users, if (query.isBlank()) "Koi contact nahi" else "Kuch nahi mila", if (query.isBlank()) "Naya contact add karo" else "Naam, number ya T9 se search karo", if (query.isBlank()) "Contact add karo" else null, onAdd) }
-        items(list, key = { it.id }) { c ->
+        if (hasPerm) items(list, key = { it.id }) { c ->
             val display = if (s.lastNameFirst) c.altName else c.name
             GlassRow(onClick = { onOpen(c) }, onLongClick = { onLong(c.number) }) {
                 // recents ke saath same density (42dp avatar) - app-wide rows ek jaisi
