@@ -70,6 +70,11 @@ class LdInCallService : InCallService() {
 
     private fun watchVideo(call: Call) {
         bindVideoProvider(call)
+        // video chalu ho gayi ya request settle ho gayi: atka hua upgrade prompt saaf karo
+        if (CallManager.videoUpgradeFrom.value === call) {
+            val vs = try { call.details?.videoState } catch (_: Throwable) { null }
+            if (vs != null && vs != VideoProfile.STATE_AUDIO_ONLY) CallManager.videoUpgradeFrom.value = null
+        }
         if (!videoWatched.add(call)) return
         try {
             call.videoCall?.registerCallback(object : InCallService.VideoCall.Callback() {
@@ -149,6 +154,7 @@ class LdInCallService : InCallService() {
         }
         if (answered.contains(call) && s.vibrateEnd) vibrate(60)
         wasRinging -= call; wasOutgoing -= call; answered -= call; videoWatched -= call
+        if (CallManager.videoUpgradeFrom.value === call) CallManager.videoUpgradeFrom.value = null
         if (CallManager.calls.value.isEmpty()) {
             VideoLink.unbind()
             cameraChosen = false
