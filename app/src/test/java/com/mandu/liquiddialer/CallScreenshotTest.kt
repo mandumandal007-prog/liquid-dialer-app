@@ -74,6 +74,18 @@ class CallScreenshotTest {
     }
 
     @Test
+    fun ongoingCallVideoCapable() {
+        seed { this[K.theme] = "midnight" }
+        settle(2000)
+        CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_ACTIVE,
+            System.currentTimeMillis() - 75_000,
+            caps = Call.Details.CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL or Call.Details.CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL))
+        CallManager.bump()
+        settle(2500)
+        saveShot(rule, "08b-ongoing-video-dark")
+    }
+
+    @Test
     fun inCallKeypad() {
         settle(2000)
         activeCall()
