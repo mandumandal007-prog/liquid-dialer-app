@@ -105,6 +105,31 @@ object CallManager {
         held.unhold()
     }
 
+    // ---- native video calling (ViLTE): only when the live call itself reports support ----
+    val videoNotice = MutableStateFlow<String?>(null)
+
+    /** True only while the call is audio-only AND both sides report bidirectional video (ViLTE) support. */
+    fun supportsVideo(call: Call?): Boolean {
+        val d = call?.details ?: return false
+        if (d.videoState != VideoProfile.STATE_AUDIO_ONLY) return false
+        return d.can(Call.Details.CAPABILITY_SUPPORTS_VT_LOCAL_BIDIRECTIONAL) &&
+            d.can(Call.Details.CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL)
+    }
+
+    /** Ask the telephony stack to upgrade this call to bidirectional video. False when the call has no video provider. */
+    fun requestVideo(call: Call? = primary()): Boolean {
+        call ?: return false
+        val vc = try { call.videoCall } catch (_: Throwable) { null }
+        if (vc == null) { videoNotice.value = "Video call is SIM/phone par uplabdh nahi"; return false }
+        return try {
+            vc.sendSessionModifyRequest(VideoProfile(VideoProfile.STATE_BIDIRECTIONAL, VideoProfile.STATE_AUDIO_ONLY))
+            true
+        } catch (_: Throwable) {
+            videoNotice.value = "Video call is SIM/phone par uplabdh nahi"
+            false
+        }
+    }
+
     @SuppressLint("MissingPermission")
     fun place(ctx: Context, number: String, account: PhoneAccountHandle?): Boolean {
         val uri = Uri.fromParts("tel", number, null)
