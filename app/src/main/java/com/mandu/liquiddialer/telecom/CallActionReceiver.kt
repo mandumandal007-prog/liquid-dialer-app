@@ -27,6 +27,14 @@ class CallActionReceiver : BroadcastReceiver() {
                 val lm = CallNotifier.lastMissed
                 if (lm != null) CallNotifier.missed(ctx, lm.first, lm.second, remind = false)
             }
+            CALL_REMIND -> {
+                val number = intent.getStringExtra("number") ?: ""
+                val name = intent.getStringExtra("name") ?: number
+                if (number.isNotBlank()) {
+                    com.mandu.liquiddialer.data.CallReminders.remove(ctx, number)
+                    CallNotifier.callReminder(ctx, number, name)
+                }
+            }
         }
         CallNotifier.update(ctx)
     }
@@ -39,5 +47,6 @@ class CallActionReceiver : BroadcastReceiver() {
         const val MISSED_OPEN = "com.mandu.liquiddialer.MISSED_OPEN"
         const val MISSED_DISMISS = "com.mandu.liquiddialer.MISSED_DISMISS"
         const val MISSED_REMIND = "com.mandu.liquiddialer.MISSED_REMIND"
+        const val CALL_REMIND = "com.mandu.liquiddialer.CALL_REMIND"
     }
 }
