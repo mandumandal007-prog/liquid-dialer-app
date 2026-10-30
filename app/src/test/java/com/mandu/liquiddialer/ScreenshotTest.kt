@@ -129,9 +129,14 @@ class ScreenshotTest {
         act.state.contacts = listOf(Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null))
         org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
         // aaj: 2 connected (245s + 60s) - strip "Aaj: 2 calls · 5 min baat" dikhe
+        // noon-anchor: now-offset se raat 12 baje ke baad rows "Kal" me slip karke duplicate day-group crash karte the
+        val noon = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 12); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
         act.state.recents = listOf(
-            Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null),
-            Recent(2, "+91 91234 56789", "Papa", 2, System.currentTimeMillis() - 5 * 3600_000, 60, null, null),
+            Recent(1, "+91 98765 43210", "Rahul Sharma", 1, noon - 42 * 60_000, 245, null, null),
+            Recent(2, "+91 91234 56789", "Papa", 2, noon - 5 * 3600_000, 60, null, null),
         )
         settle()
         org.junit.Assert.assertTrue("aaj-stats strip dikhe",
