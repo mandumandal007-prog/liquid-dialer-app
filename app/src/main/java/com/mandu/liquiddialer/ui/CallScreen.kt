@@ -13,6 +13,7 @@ import android.telecom.CallAudioState
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -258,7 +259,7 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit, onVid
 }
 
 @Composable
-private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean, manage: (() -> Unit)? = null) {
+private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, ringing: Boolean, maxH: Dp = 100000.dp) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
@@ -270,13 +271,17 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
     val fy by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(if (ringing) 2000 else 2750, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "fy")
     val pr by inf.animateFloat(1f, 1.035f, infiniteRepeatable(tween(1200), RepeatMode.Reverse), label = "pr")
     val sh = LocalConfiguration.current.screenHeightDp
-    val av = (when { sh < 640 -> 76.dp; sh < 740 -> 88.dp; else -> 100.dp }) * heroScale
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    // responsive: asli device pe fontScale bada + insets -> hero overflow karke avatar/timer clip hota tha.
+    // available height ke hisaab se avatar/timer chhota; content fit nahi to bhi timer kabhi clip na ho.
+    val avBase = when { sh < 640 -> 76.dp; sh < 740 -> 88.dp; else -> 100.dp }
+    val avFit = when { maxH < 300.dp -> 60.dp; maxH < 360.dp -> 76.dp; else -> avBase }
+    val av = (minOf(avBase, avFit) * heroScale).coerceAtMost((maxH * .36f).coerceAtLeast(48.dp))
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) }
-        Spacer(Modifier.height(4.dp))
+        }) { Box(Modifier.testTag("hero_avatar")) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
+        Spacer(Modifier.height(2.dp))
         LdText(name, (if (sh < 700) 21f else 23f) * heroScale, FontWeight.Bold, letter = -.3f, maxLines = 1)
         if (s.callShowNumber && number.isNotBlank() && name != Repo.pretty(number)) LdText(Repo.pretty(number), 13f, color = p.muted, letter = .3f)
         if (ringing && s.showContactType && number.isNotBlank()) {
@@ -289,7 +294,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
                 LdText("Pichli call: $kind · $when0", 11.5f, color = p.muted)
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(top = 2.dp)) {
             // dot sirf jab call sach me zinda ho: ringing = animated ping (attention), active/dialing = STATIC dot
             // (infinite animation nahi - ghanton chalne wali call pe CPU churn nahi chahiye, Realme 4GB)
             // hold/ended pe timer null hota hai -> koi dot nahi (galat "live" signal nahi)
@@ -297,29 +302,34 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
             else if (timer != null) Box(Modifier.size(6.dp).background(statusColor, CircleShape).testTag("status_dot"))
             LdText(status, 12.5f, FontWeight.SemiBold, statusColor)
         }
-        // timer hi active call ka hero hai: bada + bold taaki door se padh jaye
-        if (timer != null) LdText(timer, 26f, FontWeight.Bold, letter = 1f)
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.heightIn(min = 22.dp).padding(top = 8.dp)) {
-            badges.forEach { (t, c) ->
-                Row(Modifier.glass(p, RoundedCornerShape(999.dp), 0.dp).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    if (t.startsWith("REC")) {
-                        val inf2 = rememberInfiniteTransition(label = "blink")
-                        val a by inf2.animateFloat(1f, .25f, infiniteRepeatable(tween(600), RepeatMode.Reverse), label = "a")
-                        Box(Modifier.size(6.dp).alpha(a).background(p.danger, CircleShape))
-                    }
-                    LdText(t, 10f, FontWeight.Bold, c, letter = .6f)
-                }
-            }
-            // conference manage: kisi ek participant ko cut/private karo (chip sirf tab jab call sach me conference ho)
-            if (manage != null) {
-                Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable(onClick = manage).padding(horizontal = 10.dp, vertical = 5.dp).testTag("manage_conf"),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    LdIcon(LdIcons.Users, 11.dp, p.accent)
-                    LdText("Manage", 10f, FontWeight.Bold, p.accent, letter = .6f)
-                }
-            }
+        // timer hi active call ka hero hai: bada + bold taaki door se padh jaye (tight height pe thoda chhota, lekin kabhi clip nahi)
+        if (timer != null) LdText(timer, if (maxH < 330.dp) 21f else 26f, FontWeight.Bold, letter = 1f, modifier = Modifier.testTag("call_timer"))
+    }
+}
+
+// status badges (HD VOICE / VIDEO / REC / MUTED / ON HOLD / SPEAKER / BLUETOOTH) + conference Manage
+// UPAR top chips ke neeche: user ka explicit request + hero se hatane se timer/avatar kabhi clip nahi hote
+@Composable
+private fun BadgeChip(t: String, c: Color) {
+    val p = LocalLd.current
+    Row(Modifier.glass(p, RoundedCornerShape(999.dp), 0.dp).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        if (t.startsWith("REC")) {
+            val inf2 = rememberInfiniteTransition(label = "blink")
+            val a by inf2.animateFloat(1f, .25f, infiniteRepeatable(tween(600), RepeatMode.Reverse), label = "a")
+            Box(Modifier.size(6.dp).alpha(a).background(p.danger, CircleShape))
         }
+        LdText(t, 10f, FontWeight.Bold, c, letter = .6f)
+    }
+}
+
+@Composable
+private fun ManageChip(onClick: () -> Unit) {
+    val p = LocalLd.current
+    Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 5.dp).testTag("manage_conf"),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        LdIcon(LdIcons.Users, 11.dp, p.accent)
+        LdText("Manage", 10f, FontWeight.Bold, p.accent, letter = .6f)
     }
 }
 
@@ -493,8 +503,15 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                 LdIcon(LdIcons.Swap, 20.dp, p.accent)
             }
         }
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, manage = if (CallManager.isConference(call)) ({ openSheet("conference") }) else null) }
+        // badges upar (user request) - hero ka weight space ab sirf avatar/naam/status/timer ke liye
+        if (!keypad) Row(Modifier.fillMaxWidth().padding(top = 8.dp).horizontalScroll(rememberScrollState()).testTag("badge_strip"),
+            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            badges.forEachIndexed { i, (t, c) -> if (i > 0) Spacer(Modifier.width(6.dp)); BadgeChip(t, c) }
+            if (CallManager.isConference(call)) { if (badges.isNotEmpty()) Spacer(Modifier.width(6.dp)); ManageChip { openSheet("conference") } }
+        }
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val heroH = maxHeight
+            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, false, maxH = heroH - 8.dp) }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
@@ -527,7 +544,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
         TopChips(call, false, onMinimize = {})
         // hero upar ki third me (jaise asli dialers) - beech ka dead space kam, actions ko saans
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = androidx.compose.ui.BiasAlignment(0f, -0.32f)) {
-            Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, p.accent, null, emptyList(), true)
+            Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, p.accent, null, true)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
