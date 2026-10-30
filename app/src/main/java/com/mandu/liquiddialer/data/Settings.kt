@@ -35,6 +35,7 @@ data class LdSettings(
     val voicemail: String = "",
     val quickReplies: List<String> = DEFAULT_REPLIES,
     val speedDial: Map<Int, String> = emptyMap(),
+    val recentsSeenAt: Long = 0L,
     val onboarded: Boolean = false,
     val incomingFull: Boolean = true,
     val swipeAnswer: Boolean = true,
@@ -132,6 +133,7 @@ object K {
     val voicemail = stringPreferencesKey("voicemail")
     val quickReplies = stringPreferencesKey("quickReplies")
     val speedDial = stringPreferencesKey("speedDial")
+    val recentsSeenAt = longPreferencesKey("recentsSeenAt")
     val onboarded = booleanPreferencesKey("onboarded")
     val incomingFull = booleanPreferencesKey("incomingFull")
     val swipeAnswer = booleanPreferencesKey("swipeAnswer")
@@ -221,6 +223,7 @@ fun Preferences.toSettings(): LdSettings {
         speedDial = this[K.speedDial]?.split(";")?.mapNotNull { s ->
             val p = s.split("=", limit = 2); p.getOrNull(0)?.toIntOrNull()?.let { k -> p.getOrNull(1)?.takeIf { it.isNotBlank() }?.let { k to it } }
         }?.toMap() ?: emptyMap(),
+        recentsSeenAt = this[K.recentsSeenAt] ?: 0L,
         onboarded = this[K.onboarded] ?: false,
         incomingFull = this[K.incomingFull] ?: true,
         swipeAnswer = this[K.swipeAnswer] ?: true,
@@ -287,6 +290,7 @@ class SettingsRepo(private val ctx: Context) {
     suspend fun setReplies(list: List<String>) = set(K.quickReplies, list.joinToString("\n"))
     suspend fun setBlockedPrefixes(list: List<String>) = set(K.blockedPrefixes, list.joinToString(";"))
     suspend fun setSpeedDial(map: Map<Int, String>) = set(K.speedDial, map.entries.joinToString(";") { "${it.key}=${it.value}" })
+    suspend fun setRecentsSeen(v: Long) = set(K.recentsSeenAt, v)
 
     suspend fun simFor(digits: String): String? {
         if (digits.isBlank()) return null
