@@ -41,6 +41,8 @@ class ScreenshotTest {
             p[K.theme] = "daylight"
             p[K.dialerScale] = 1f
         }
+        com.mandu.liquiddialer.telecom.CallManager.calls.value = emptyList()
+        com.mandu.liquiddialer.telecom.CallManager.bump()
         Unit
     }
 
@@ -77,6 +79,32 @@ class ScreenshotTest {
         act.state.dial = "9876"
         settle()
         saveShot(rule, "03d-chips")
+        // user runs max dialer scale: same tight layout, no dead gaps
+        runBlocking {
+            ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p -> p[K.dialerScale] = 1.3f }
+        }
+        settle(2500)
+        saveShot(rule, "03e-dialer-maxscale")
+        runBlocking {
+            ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p -> p[K.dialerScale] = 1f }
+        }
+        settle(1000)
+        // dark theme + several live suggestions at once (user's phone look)
+        act.state.contacts = act.state.contacts + listOf(
+            Contact(13, "lk3", "Riya Singh", "", "+91 98765 11111", "MOBILE", false, null),
+            Contact(14, "lk4", "Rohan Kumar", "", "+91 98765 22222", "MOBILE", false, null),
+        )
+        runBlocking {
+            ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p -> p[K.theme] = "midnight" }
+        }
+        settle(2000)
+        act.state.dial = "98765"
+        settle()
+        saveShot(rule, "03f-dialer-dark-multi")
+        runBlocking {
+            ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p -> p[K.theme] = "daylight" }
+        }
+        settle(1000)
         act.state.dial = "9876543210"
         settle()
         // open the three-dot menu (Paste / Pause / Wait)
