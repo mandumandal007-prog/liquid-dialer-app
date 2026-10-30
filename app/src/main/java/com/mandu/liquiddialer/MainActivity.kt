@@ -218,9 +218,15 @@ class MainActivity : ComponentActivity() {
         // direct video: pehle is SIM account ka video support check karo. Account saaf mana kare to
         // koi call nahi lagegi (na voice, na video) - silent fallback nahi. Verify na ho sake to
         // request bhejo aur connect par sachai dikhao (CallScreen notice).
-        // video initiation band hai (surfaces agle update me): saaf wajah batao, KOI call nahi lagegi
+        // direct video (ViLTE): pehle is SIM account ka video support check karo. Saaf mana kare ya
+        // verify na ho sake to KOI call nahi lagegi (na voice, na video) - silent fallback nahi.
         if (video) {
-            Toast.makeText(this, trNow(CallManager.VIDEO_NOT_READY + ". Abhi koi call nahi lagi."), Toast.LENGTH_LONG).show()
+            when (canVideoCall(acc)) {
+                true -> if (!CallManager.place(this, n, acc, true))
+                    Toast.makeText(this, trNow("Video call nahi lag paayi - SIM/phone support check karo"), Toast.LENGTH_SHORT).show()
+                false -> Toast.makeText(this, trNow(CallManager.VIDEO_UNSUPPORTED + ". Abhi koi call nahi lagi."), Toast.LENGTH_LONG).show()
+                null -> Toast.makeText(this, trNow("Video support verify nahi ho paaya - isliye abhi koi call nahi lagi."), Toast.LENGTH_LONG).show()
+            }
             return
         }
         if (!video && s.undoCall && n.firstOrNull()?.let { it.isDigit() || it == '+' } == true) {
@@ -230,7 +236,7 @@ class MainActivity : ComponentActivity() {
             handler.postDelayed(token, 3000)
             return
         }
-        if (!CallManager.place(this, n, acc, video)) Toast.makeText(this, if (video) trNow("Video call nahi lag paayi - SIM/phone support check karo") else trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show()
+        if (!CallManager.place(this, n, acc, video)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show()
     }
 
     /** Seedhi native video call (ViLTE) shuru karo. SIM account saaf mana kare to call nahi lagegi. */
