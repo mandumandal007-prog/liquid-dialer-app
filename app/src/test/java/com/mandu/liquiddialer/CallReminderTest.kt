@@ -71,6 +71,27 @@ class CallReminderTest {
     }
 
     @Test
+    fun bootReceiverReschedulesStoredReminders() {
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        CallReminders.cancel(ctx, "9812345678")
+        val at = System.currentTimeMillis() + 3600_000L
+        CallReminders.set(ctx, "9812345678", "Rahul", at)
+        val am = Shadows.shadowOf(ctx.getSystemService(AlarmManager::class.java))
+        assertNotNull(am.nextScheduledAlarm)
+        am.scheduledAlarms.clear() // reboot ke baad alarms gayab
+        assertNull(am.nextScheduledAlarm)
+        com.mandu.liquiddialer.telecom.BootReceiver().onReceive(ctx, android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED))
+        val a = am.nextScheduledAlarm
+        assertNotNull("boot ke baad reminder dobara schedule hona chahiye", a)
+        assertEquals(at, a!!.triggerAtTime)
+        // galat action par kuch nahi hota
+        am.scheduledAlarms.clear()
+        com.mandu.liquiddialer.telecom.BootReceiver().onReceive(ctx, android.content.Intent("com.example.OTHER"))
+        assertNull(am.nextScheduledAlarm)
+        CallReminders.cancel(ctx, "9812345678")
+    }
+
+    @Test
     fun receiverPostsNotificationAndClears() {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
         CallNotifier.createChannels(ctx)
