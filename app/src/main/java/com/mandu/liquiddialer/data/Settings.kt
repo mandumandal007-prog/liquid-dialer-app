@@ -84,6 +84,10 @@ data class LdSettings(
     val announceOnlyFav: Boolean = false,    // sirf favourite ka naam bolo
     val flashOnlyFav: Boolean = false,       // sirf favourite pe flash
     val recentsHideBlocked: Boolean = false, // blocked calls recents me na dikhao
+    // ---- v1.0.113: volume section ----
+    val volBoost: Boolean = false,           // opt-in: media loudness boost (session 0, GOODEV-style); call audio ko kabhi nahi chhoota
+    val volBoostGain: Int = 25,              // boost 0..100% -> LoudnessEnhancer gain; shuruaat jaan-boojh kar LOW
+    val boostAck: Boolean = false,           // user ne distortion/hearing/speaker risk acknowledge kiya
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
@@ -169,6 +173,9 @@ object K {
     val announceOnlyFav = booleanPreferencesKey("announceOnlyFav")
     val flashOnlyFav = booleanPreferencesKey("flashOnlyFav")
     val recentsHideBlocked = booleanPreferencesKey("recentsHideBlocked")
+    val volBoost = booleanPreferencesKey("volBoost")
+    val volBoostGain = intPreferencesKey("volBoostGain")
+    val boostAck = booleanPreferencesKey("boostAck")
     val simUse = stringPreferencesKey("simUse")   // "digits=handleId;digits=handleId"
 }
 
@@ -248,6 +255,9 @@ fun Preferences.toSettings(): LdSettings {
         announceOnlyFav = this[K.announceOnlyFav] ?: false,
         flashOnlyFav = this[K.flashOnlyFav] ?: false,
         recentsHideBlocked = this[K.recentsHideBlocked] ?: false,
+        volBoost = this[K.volBoost] ?: false,
+        volBoostGain = (this[K.volBoostGain] ?: 25).coerceIn(0, 100),
+        boostAck = this[K.boostAck] ?: false,
         callBgStyle = this[K.callBgStyle] ?: "blobs",
     )
 }
