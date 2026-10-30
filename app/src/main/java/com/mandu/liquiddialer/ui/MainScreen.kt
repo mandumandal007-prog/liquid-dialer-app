@@ -100,6 +100,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 val tabKeys = listOf("recents", "contacts")
                 val pager = rememberPagerState(initialPage = tabKeys.indexOf(st.tab).coerceAtLeast(0)) { tabKeys.size }
                 LaunchedEffect(pager.settledPage) { val t = tabKeys[pager.settledPage]; lastTab = t; if (st.tab != t && st.tab != "dialer") st.tab = t }
+                // recents dikhte hi missed-seen mark karo (tab badge isi se clear hota hai)
+                LaunchedEffect(st.tab, st.recents) { if (st.tab == "recents") { val nowMs = System.currentTimeMillis(); if (s.recentsSeenAt < nowMs) LdApp.instance.scope.launch { LdApp.instance.repo.setRecentsSeen(nowMs) } } }
                 LaunchedEffect(st.tab) { if (st.tab in tabKeys) { val i = tabKeys.indexOf(st.tab); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) } }
                 HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding(), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
@@ -172,7 +174,15 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(999.dp))
                                 .clickable(remember { MutableInteractionSource() }, null) { goTab(k) },
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                LdIcon(ic, 22.dp, if (on) p.text else p.muted)
+                                Box {
+                                    LdIcon(ic, 22.dp, if (on) p.text else p.muted)
+                                    // NAYA: nayi missed call ka red badge (recents kholte hi seen mark -> badge clear)
+                                    if (k == "recents") {
+                                        val unseen = Repo.unseenMissed(st.recents, s.recentsSeenAt)
+                                        if (unseen > 0) Box(Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-3).dp).size(15.dp).background(p.danger, CircleShape).testTag("missed_badge"),
+                                            contentAlignment = Alignment.Center) { LdText(if (unseen > 9) "9+" else unseen.toString(), 8f, FontWeight.Bold, Color.White) }
+                                    }
+                                }
                                 Spacer(Modifier.height(3.dp))
                                 LdText(label, 10.5f, FontWeight.SemiBold, if (on) p.text else p.muted, letter = .2f)
                             }
@@ -416,6 +426,17 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             SectionHead("Recent calls") {
                 if (st.recents.isNotEmpty()) Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { confirmClear = true }.padding(horizontal = 8.dp, vertical = 6.dp)) {
                     LdText("Clear", 12.5f, FontWeight.SemiBold, p.accent)
+                }
+            }
+        }
+        // NAYA: aaj ke call stats ka chhota strip (passive info, koi auto-action nahi)
+        if (hasLog) item(key = "today-stats") {
+            val stats = remember(st.recents) { Repo.dayStats(st.recents, System.currentTimeMillis()) }
+            if (stats.calls > 0) {
+                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    LdIcon(LdIcons.Clock, 13.dp, p.accent)
+                    LdText("Aaj: ${stats.calls} calls · ${stats.talkSecs / 60} min baat" + (if (stats.missed > 0) " · ${stats.missed} missed" else ""), 11.5f, FontWeight.SemiBold, p.muted, Modifier.testTag("today_stats"))
                 }
             }
         }
