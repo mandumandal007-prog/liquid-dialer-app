@@ -117,4 +117,74 @@ class ScreenshotTest {
         settle()
         saveShot(rule, "03c-dialer-pause")
     }
+
+    @Test
+    fun volumePageAndNumberMenu() {
+        settle(2500)
+        val act = rule.activity
+        act.state.showOnboarding = false
+        act.state.contacts = listOf(
+            Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null),
+        )
+        act.state.recents = listOf(
+            Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null),
+        )
+        act.state.isDefault = true
+        org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
+        settle()
+        // recents row: direct video button beside voice call button
+        rule.onAllNodes(androidx.compose.ui.test.hasTestTag("video_mini"), useUnmergedTree = true).onFirst().assertExists()
+        saveShot(rule, "02d-recents-row-video")
+        // long-press recents row: number menu with direct Video call option
+        rule.onNodeWithText("Rahul Sharma", useUnmergedTree = true).performTouchInput { longClick(center) }
+        settle()
+        saveShot(rule, "02c-number-menu-video")
+        rule.onNodeWithText("Video call", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Number copy karo", substring = true, useUnmergedTree = true).performClick()
+        settle()
+
+        // Volume page (light, boost off)
+        rule.onNodeWithTag("drawer_open").performClick(); settle()
+        rule.onNodeWithText("Settings", useUnmergedTree = true).performClick(); settle(1800)
+        var volOpened = false
+        repeat(15) {
+            if (rule.onAllNodesWithText("Volume & boost", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
+                try {
+                    rule.onNodeWithText("Volume & boost", substring = true, useUnmergedTree = true).assertIsDisplayed()
+                    rule.onNodeWithText("Volume & boost", substring = true, useUnmergedTree = true).performClick()
+                    volOpened = true; return@repeat
+                } catch (e: AssertionError) { }
+            }
+            val sc = rule.onAllNodes(androidx.compose.ui.test.hasScrollAction(), useUnmergedTree = true).fetchSemanticsNodes().lastOrNull()
+            sc?.config?.getOrElseNullable(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { null }?.action?.invoke(0f, 1400f)
+            rule.waitForIdle(); settle(300)
+        }
+        settle(1500)
+        if (!volOpened) {
+            val texts = mutableListOf<String>()
+            fun walk(n: androidx.compose.ui.semantics.SemanticsNode) {
+                n.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }?.let { texts += it.joinToString(" ") }
+                n.children.forEach(::walk)
+            }
+            walk(rule.onRoot(useUnmergedTree = true).fetchSemanticsNode())
+            error("Volume row not visible; on-screen texts=" + texts.take(50).joinToString(" || "))
+        }
+        rule.onAllNodesWithText("Media volume boost", substring = true, useUnmergedTree = true).onFirst().assertExists()
+        saveShot(rule, "06a-volume-page")
+
+        // dark + boost on with gain slider
+        runBlocking {
+            ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p ->
+                p[K.theme] = "midnight"; p[K.volBoost] = true; p[K.volBoostGain] = 55
+            }
+        }
+        settle(2000)
+        saveShot(rule, "06b-volume-boost-dark")
+        runBlocking {
+            ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p ->
+                p[K.theme] = "daylight"; p.remove(K.volBoost); p.remove(K.volBoostGain)
+            }
+        }
+        settle(800)
+    }
 }
