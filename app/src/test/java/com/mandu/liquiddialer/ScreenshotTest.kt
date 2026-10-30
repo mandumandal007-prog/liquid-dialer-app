@@ -181,11 +181,22 @@ class ScreenshotTest {
         rule.onNodeWithText("CALL REMINDERS", substring = true, useUnmergedTree = true).assertExists()
         org.junit.Assert.assertEquals(2, rule.onAllNodesWithTag("reminder_row", useUnmergedTree = true).fetchSemanticsNodes().size)
         saveShot(rule, "40-reminders-strip")
+        // 4 reminders -> 3 rows + "+1 aur dikho" expander; tap = saare 4 dikhe
+        cr.set(ctx, "+91 88776 65544", "Dada ji", System.currentTimeMillis() + 3 * 3600_000L)
+        cr.set(ctx, "+91 99887 76655", "Nisha", System.currentTimeMillis() + 4 * 3600_000L)
+        settle() // CallReminders.tick flow se strip khud refresh hoti hai
+        org.junit.Assert.assertEquals(3, rule.onAllNodesWithTag("reminder_row", useUnmergedTree = true).fetchSemanticsNodes().size)
+        rule.onNodeWithTag("reminders_expand", useUnmergedTree = true).assertExists().performClick()
+        settle(400)
+        org.junit.Assert.assertEquals(4, rule.onAllNodesWithTag("reminder_row", useUnmergedTree = true).fetchSemanticsNodes().size)
+        rule.onNodeWithText("Kam dikho", substring = true, useUnmergedTree = true).assertExists()
+        saveShot(rule, "41-reminders-expanded")
         // row tap -> us number ki details khule
         rule.onAllNodesWithTag("reminder_row", useUnmergedTree = true).onFirst().performClick()
         settle()
         rule.onNodeWithTag("page_back", useUnmergedTree = true).assertExists()
         cr.cancel(ctx, "+91 98765 43210"); cr.cancel(ctx, "+91 91234 56789")
+        cr.cancel(ctx, "+91 88776 65544"); cr.cancel(ctx, "+91 99887 76655")
     }
 
     @Test
