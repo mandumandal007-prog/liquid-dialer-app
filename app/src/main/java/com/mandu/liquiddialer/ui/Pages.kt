@@ -111,6 +111,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "stats" -> StatsPage(st, onBack)
         page == "blocked" -> BlockedPage(st, act, onBack)
         page == "speeddial" -> SpeedDialPage(st, onBack)
+        page == "radio" -> RadioInfoPage(onBack)
         page == "replies" -> RepliesPage(onBack)
         page == "permissions" -> PermissionsPage(st, act, onBack)
         else -> PageFrame(page, onBack) {}
