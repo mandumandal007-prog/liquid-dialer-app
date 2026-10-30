@@ -62,6 +62,18 @@ class CallReminderTest {
     }
 
     @Test
+    fun allReturnsSortedByTime() {
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        CallReminders.cancel(ctx, "111"); CallReminders.cancel(ctx, "222")
+        val now = System.currentTimeMillis()
+        CallReminders.set(ctx, "222", "Baad Wala", now + 7200_000L)
+        CallReminders.set(ctx, "111", "Pehle Wala", now + 3600_000L)
+        val names = CallReminders.all(ctx).map { it.name }
+        assertTrue(names.indexOf("Pehle Wala") < names.indexOf("Baad Wala"))
+        CallReminders.cancel(ctx, "111"); CallReminders.cancel(ctx, "222")
+    }
+
+    @Test
     fun pastRemindersAutoCleaned() {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
         CallReminders.cancel(ctx, "5550001")
