@@ -222,6 +222,26 @@ object CallNotifier {
         try { NotificationManagerCompat.from(ctx).notify(43, n) } catch (e: Exception) { }
     }
 
+    /** Manual call reminder due: user ne khud set kiya tha. Tap = app khule us number ke saath,
+     *  "Call karo" action seedha dialer me call confirm flow. Koi auto-call nahi. */
+    fun callReminder(ctx: Context, number: String, name: String) {
+        if (number.isBlank()) return
+        val display = if (name.isNotBlank()) name else number
+        val callBack = PendingIntent.getActivity(ctx, 700 + (com.mandu.liquiddialer.data.Repo.key(number).hashCode() and 0xFF),
+            Intent(ctx, MainActivity::class.java).setAction("com.mandu.liquiddialer.CALLBACK")
+                .putExtra("number", number).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val n = NotificationCompat.Builder(ctx, CH_MISSED)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle("Call reminder")
+            .setContentText("$display ko call karna tha")
+            .setAutoCancel(true)
+            .setColor(0xFF3DDC84.toInt())
+            .setContentIntent(callBack)
+            .addAction(0, "Call karo", callBack)
+            .build()
+        try { NotificationManagerCompat.from(ctx).notify(700 + (com.mandu.liquiddialer.data.Repo.key(number).hashCode() and 0xFF), n) } catch (e: Exception) { }
+    }
+
     /** After a call with an unsaved number: offer save / block. */
     fun savePrompt(ctx: Context, number: String) {
         val save = PendingIntent.getActivity(ctx, 321, Intent(Intent.ACTION_INSERT).setType(android.provider.ContactsContract.Contacts.CONTENT_TYPE)
