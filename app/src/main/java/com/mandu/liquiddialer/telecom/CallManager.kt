@@ -202,6 +202,8 @@ object CallManager {
                 putExtra("com.google.android.apps.tachyon.extra.IS_AUDIO_ONLY", false)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            // experimental intent: handler na mile to false, UI imaandari se Meet home/Play Store kholega
+            if (ctx.packageManager.resolveActivity(i, 0) == null) return false
             ctx.startActivity(i)
             true
         } catch (_: Throwable) { false }
