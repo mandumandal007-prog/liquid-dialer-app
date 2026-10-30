@@ -47,7 +47,29 @@ class LdInCallService : InCallService() {
     }
 
     private val videoWatched = HashSet<Call>()
+    private var cameraChosen = false
+
+    /** VideoCall provider baad me bhi aa sakta hai ya replace ho sakta hai - har details change par
+     *  dobara bind karo (VideoLink current surfaces turant attach karta hai). */
+    private fun bindVideoProvider(call: Call) {
+        val vc = try { call.videoCall } catch (_: Throwable) { null } ?: return
+        VideoLink.bind { d, p -> try { vc.setDisplaySurface(d); vc.setPreviewSurface(p) } catch (_: Throwable) { } }
+        if (!cameraChosen) {
+            cameraChosen = true
+            // provider contract: sirf camera ID bhejo; capture IMS/telephony stack karta hai.
+            // cameraIdList/getCameraCharacteristics ke liye CAMERA permission nahi chahiye.
+            try {
+                val cm = getSystemService(android.hardware.camera2.CameraManager::class.java)
+                val front = cm.cameraIdList.firstOrNull {
+                    runCatching { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT }.getOrDefault(false)
+                } ?: cm.cameraIdList.firstOrNull()
+                if (front != null) vc.setCamera(front)
+            } catch (_: Throwable) { }
+        }
+    }
+
     private fun watchVideo(call: Call) {
+        bindVideoProvider(call)
         if (!videoWatched.add(call)) return
         try {
             call.videoCall?.registerCallback(object : InCallService.VideoCall.Callback() {
@@ -128,6 +150,8 @@ class LdInCallService : InCallService() {
         if (answered.contains(call) && s.vibrateEnd) vibrate(60)
         wasRinging -= call; wasOutgoing -= call; answered -= call; videoWatched -= call
         if (CallManager.calls.value.isEmpty()) {
+            VideoLink.unbind()
+            cameraChosen = false
             CallRecorder.stop()
             CallNotifier.cancelAll(this)
             stopFlip(); stopFlash(); stopMinuteBeep()
