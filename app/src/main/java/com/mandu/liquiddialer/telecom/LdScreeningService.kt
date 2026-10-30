@@ -12,7 +12,7 @@ class LdScreeningService : CallScreeningService() {
         val n = details.handle?.schemeSpecificPart ?: ""
         val incoming = android.os.Build.VERSION.SDK_INT < 29 || details.callDirection == Call.Details.DIRECTION_INCOMING
         val hasContacts = checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        val block = incoming && ((s.blockPrivate && n.isBlank()) || (s.blockUnknown && n.isNotBlank() && hasContacts && Repo.lookupName(this, n) == null))
+        val block = incoming && ((s.blockPrivate && n.isBlank()) || (s.blockUnknown && n.isNotBlank() && hasContacts && Repo.lookupName(this, n) == null) || (n.isNotBlank() && SeriesBlock.matches(n, s.blockedPrefixes)))
         val cal = java.util.Calendar.getInstance()
         val nowMin = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
         // Contacts permission ke bina favourite check nahi ho sakta: bypass ON hai to silence mat karo (favourite miss na ho)
