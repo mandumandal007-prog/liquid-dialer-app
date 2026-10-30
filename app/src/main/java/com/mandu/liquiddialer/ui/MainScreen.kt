@@ -623,6 +623,9 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                         Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").padding(horizontal = 10.dp, vertical = 2.dp)) {
                             LdText("+ Pause (,)", 12f, FontWeight.SemiBold, p.accent)
                         }
+                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp)) {
+                            LdText("Meet video call", 12f, FontWeight.SemiBold, p.accent)
+                        }
                     }
                 }
             }
