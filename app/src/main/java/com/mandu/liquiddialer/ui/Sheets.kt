@@ -91,7 +91,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             LdText("Samay lagbhag hoga - battery saver thoda der kar sakta hai", 11.5f, color = p.muted,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp))
             if (!androidx.core.app.NotificationManagerCompat.from(ctx).areNotificationsEnabled()) {
-                SheetRow(LdIcons.Block, "Notifications band hain - reminder nahi dikhega", "Khulne par settings khulengi", danger = true) {
+                SheetRow(LdIcons.Block, "Notifications band hain!", "Reminder nahi dikhega - settings kholo", danger = true) {
                     try {
                         ctx.startActivity(Intent("android.settings.APP_NOTIFICATION_SETTINGS")
                             .putExtra("android.provider.extra.APP_PACKAGE", ctx.packageName)
