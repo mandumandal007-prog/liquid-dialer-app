@@ -158,6 +158,37 @@ class ScreenshotTest {
     }
 
     @Test
+    fun remindersStripUi() {
+        settle(2500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        val act = rule.activity
+        act.state.showOnboarding = false
+        act.state.contacts = listOf(
+            Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null),
+            Contact(12, "lk2", "Papa", "", "+91 91234 56789", "MOBILE", false, null))
+        act.state.recents = listOf(
+            Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null),
+            Recent(2, "+91 91234 56789", "Papa", 2, System.currentTimeMillis() - 5 * 3600_000, 60, null, null),
+        )
+        act.state.isDefault = true
+        org.robolectric.Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG, android.Manifest.permission.READ_CONTACTS)
+        val cr = com.mandu.liquiddialer.data.CallReminders
+        cr.cancel(ctx, "+91 98765 43210"); cr.cancel(ctx, "+91 91234 56789")
+        cr.set(ctx, "+91 98765 43210", "Rahul Sharma", System.currentTimeMillis() + 3600_000L)
+        cr.set(ctx, "+91 91234 56789", "Papa", System.currentTimeMillis() + 2 * 3600_000L)
+        settle()
+        // strip header + dono rows dikhe (recents rows se alag - testTag se)
+        rule.onNodeWithText("CALL REMINDERS", substring = true, useUnmergedTree = true).assertExists()
+        org.junit.Assert.assertEquals(2, rule.onAllNodesWithTag("reminder_row", useUnmergedTree = true).fetchSemanticsNodes().size)
+        saveShot(rule, "40-reminders-strip")
+        // row tap -> us number ki details khule
+        rule.onAllNodesWithTag("reminder_row", useUnmergedTree = true).onFirst().performClick()
+        settle()
+        rule.onNodeWithTag("page_back", useUnmergedTree = true).assertExists()
+        cr.cancel(ctx, "+91 98765 43210"); cr.cancel(ctx, "+91 91234 56789")
+    }
+
+    @Test
     fun contactsScreen() {
         settle(2500)
         val act = rule.activity
