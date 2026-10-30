@@ -43,6 +43,9 @@ class FlowTest {
         ctx.ldStore.edit { p ->
             p[K.onboarded] = true; p[K.profileName] = "Mandu"; p[K.theme] = "daylight"; p[K.dialerScale] = 1f
         }
+        // static call state can leak between test classes sharing a JVM: start clean
+        com.mandu.liquiddialer.telecom.CallManager.calls.value = emptyList()
+        com.mandu.liquiddialer.telecom.CallManager.bump()
         Unit
     }
 
@@ -227,6 +230,30 @@ class FlowTest {
         assertTrue("call button under nav bar: $call rootH=$rootH", call.bottom <= rootH - 144f + 1f)
         assertTrue("sheet clipped at top", top.top >= 0f)
         assertEquals("9876", act.state.dial)
+    }
+
+    @Test
+    fun dialerSheetHasNoDeadGapsEvenAtMaxScale() = runBlocking {
+        // user-reported: big empty space below the number/chips and below the 0 row (worst at max dialer scale)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        ctx.ldStore.edit { it[K.dialerScale] = 1.3f }
+        load()
+        rule.onNodeWithTag("dialer_fab").performClick(); settle(2500)
+        "9876".forEach { tapKey(it.toString()) }; settle(1500)
+        saveShot(rule, "12-dialer-maxscale")
+        val d = rule.activity.resources.displayMetrics.density
+        val suggest = rule.onNodeWithTag("dial_suggest", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val keypad = rule.onNodeWithTag("dial_keypad", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val call = rule.onNodeWithTag("call_btn", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val gapAbove = keypad.top - suggest.bottom
+        val gapBelow = call.top - keypad.bottom
+        println("GAPS above=${gapAbove / d}dp below=${gapBelow / d}dp")
+        assertTrue("gap below number/chips too big: ${gapAbove / d}dp", gapAbove <= 40 * d)
+        assertTrue("gap below keypad too big: ${gapBelow / d}dp", gapBelow <= 40 * d)
+        // digit keys keep their natural width-based size (no shrink to fix gaps)
+        val key2 = rule.onNode(hasText("2") and hasNoClickAction() and !hasAnyAncestor(hasTestTag("bottom_bar")) and !hasSetTextAction(), useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        println("KEY2 text bounds=$key2")
+        noCallStarted()
     }
 
     @Test
