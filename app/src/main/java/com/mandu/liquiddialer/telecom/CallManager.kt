@@ -127,6 +127,8 @@ object CallManager {
      *  honestly say if the network fell back to voice (videoState stayed AUDIO_ONLY). */
     var pendingVideoRequest = false
 
+    const val VIDEO_NOT_READY = "Video calling abhi is app me ready nahi hai - video dikhane ka hissa agle update me aayega"
+
     /** True only while the call is audio-only AND both sides report bidirectional video (ViLTE) support. */
     fun supportsVideo(call: Call?): Boolean {
         val d = call?.details ?: return false
@@ -135,18 +137,11 @@ object CallManager {
             d.can(Call.Details.CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL)
     }
 
-    /** Ask the telephony stack to upgrade this call to bidirectional video. False when the call has no video provider. */
+    /** Video upgrade abhi band hai: app ke paas video dikhane/bhejne ka surface path nahi hai,
+     *  isliye unusable video call kabhi mat banao - saaf wajah batao, kuch mat karo. */
     fun requestVideo(call: Call? = primary()): Boolean {
-        call ?: return false
-        val vc = try { call.videoCall } catch (_: Throwable) { null }
-        if (vc == null) { videoNotice.value = "Video call is SIM/phone par uplabdh nahi"; return false }
-        return try {
-            vc.sendSessionModifyRequest(VideoProfile(VideoProfile.STATE_BIDIRECTIONAL, VideoProfile.STATE_AUDIO_ONLY))
-            true
-        } catch (_: Throwable) {
-            videoNotice.value = "Video call is SIM/phone par uplabdh nahi"
-            false
-        }
+        videoNotice.value = VIDEO_NOT_READY
+        return false
     }
 
     @SuppressLint("MissingPermission")
@@ -154,10 +149,9 @@ object CallManager {
         val uri = Uri.fromParts("tel", number, null)
         val extras = Bundle()
         if (account != null) extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, account)
-        // direct native video call (ViLTE): asks Telecom to START the call as bidirectional video.
-        // Sach me video banegi ya nahi ye SIM/carrier/phone aur saamne wale par depend karta hai;
-        // support na ho to system normal voice call bana sakta hai ya mana kar sakta hai.
-        if (video) { extras.putInt(TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE, VideoProfile.STATE_BIDIRECTIONAL); pendingVideoRequest = true }
+        // video initiation DISABLED: is app me video surfaces nahi hai, isliye video request yahin
+        // rok do (koi call nahi lagegi) - kabhi unusable video call mat lagao.
+        if (video) { videoNotice.value = VIDEO_NOT_READY; return false }
         return try { ctx.getSystemService(TelecomManager::class.java).placeCall(uri, extras); true } catch (e: Exception) { false }
     }
 }
