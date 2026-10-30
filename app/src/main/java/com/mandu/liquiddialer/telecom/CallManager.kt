@@ -167,15 +167,50 @@ object CallManager {
         return "Video abhi is call par uplabdh nahi"
     }
 
-    /** Google Meet ka alag internet raasta: app ho to kholo, nahi to Play Store page.
-     *  Koi meeting/invite auto nahi banta - user khud Meet me shuru karta hai. */
+    /** Meet ke do asli package: aaj ka Google Meet purane Duo wala app hai (tachyon);
+     *  meetings purana/legacy Meet hai. Pehle jo installed ho wahi kholo, warna Play Store. */
+    private val meetPackages = listOf("com.google.android.apps.tachyon", "com.google.android.apps.meetings")
+
+    fun meetInstalledPackage(ctx: Context): String? = meetPackages.firstOrNull { pkg ->
+        try { ctx.packageManager.getLaunchIntentForPackage(pkg) != null } catch (_: Throwable) { false }
+    }
+
+    /** Meet kholo: installed package (naya Meet pehle) warna Play Store page. */
     fun openMeet(ctx: Context) {
-        val meet = "com.google.android.apps.meetings"
         try {
-            val launch = ctx.packageManager.getLaunchIntentForPackage(meet)
-            if (launch != null) { ctx.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return }
-            ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$meet")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            val pkg = meetInstalledPackage(ctx)
+            if (pkg != null) {
+                val launch = try { ctx.packageManager.getLaunchIntentForPackage(pkg) } catch (_: Throwable) { null }
+                if (launch != null) { ctx.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return }
+            }
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=${meetPackages[0]}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (_: Exception) { videoNotice.value = "Google Meet nahi khul paaya" }
+    }
+
+    /** Number ke liye Meet ka call screen kholo. Google Contacts / Truecaller bhi yehi
+     *  tachyon CALL intent use karte hain; ye public documented API nahi hai, isliye fail
+     *  ho to imaandari false dete hain (UI phir Meet home / Play Store raasta leta hai).
+     *  Hum khud koi call nahi lagate - user ke tap par Meet ka screen khulta hai aur asli
+     *  call Meet ke andar hi confirm hoti hai. */
+    fun meetCallNumber(ctx: Context, number: String): Boolean {
+        val clean = cleanMeetNumber(number) ?: return false
+        val pkg = meetInstalledPackage(ctx) ?: return false
+        return try {
+            val i = Intent("com.google.android.apps.tachyon.action.CALL").apply {
+                setPackage(pkg)
+                data = Uri.parse("tel:$clean")
+                putExtra("com.google.android.apps.tachyon.extra.IS_AUDIO_ONLY", false)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            ctx.startActivity(i)
+            true
+        } catch (_: Throwable) { false }
+    }
+
+    /** Sirf digits aur + rakho; 3 se chhota number Meet ke laayak nahi. */
+    fun cleanMeetNumber(number: String): String? {
+        val c = number.filter { it.isDigit() || it == '+' }
+        return if (c.length >= 3) c else null
     }
 
     /** Mid-call video upgrade (audio -> ViLTE): asli session-modify request bhejo. Provider na ho
