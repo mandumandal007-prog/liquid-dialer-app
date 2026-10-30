@@ -2,6 +2,7 @@ package com.mandu.liquiddialer.ui
 
 import android.os.Build
 import android.telecom.Call
+import android.telecom.VideoProfile
 import android.telecom.CallAudioState
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -131,7 +132,7 @@ fun androidx.compose.foundation.layout.BoxScope.EndConfirmCard(align: Alignment,
 }
 
 @Composable
-fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit, onMinimize: () -> Unit, onManageContact: (String) -> Unit = {}) {
+fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit, onMinimize: () -> Unit) {
     val ver by CallManager.version.collectAsState()
     val calls by CallManager.calls.collectAsState()
     val audio by CallManager.audio.collectAsState()
@@ -156,10 +157,9 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                 CallEndedScreen(lastEnded)
             } else {
                 val st = CallManager.state(call)
-                if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" }, onManageContact = { onManageContact(CallManager.number(call)) })
+                if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" })
                 else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { sheet = it },
-                    onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) },
-                    onManageContact = { onManageContact(CallManager.number(call)) })
+                    onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) })
                 if (st == Call.STATE_SELECT_PHONE_ACCOUNT && sheet == null) sheet = "sim"
             }
             val c = call
@@ -173,6 +173,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                         "notes" -> NotesSheet(CallManager.number(c), CallManager.nameFor(ctx, c)) { sheet = null }
                         "audio" -> AudioRouteSheet(audio) { CallManager.setRoute(it); sheet = null }
                         "sim" -> SimPickSheet { h -> c.phoneAccountSelected(h, false); sheet = null }
+                        "conference" -> ConferenceSheet(c) { sheet = null }
                     }
                 }
             }
@@ -203,7 +204,7 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit) {
 }
 
 @Composable
-private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean, onManageContact: () -> Unit = {}) {
+private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, badges: List<Pair<String, Color>>, ringing: Boolean, manage: (() -> Unit)? = null) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
@@ -251,11 +252,11 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
                     LdText(t, 10f, FontWeight.Bold, c, letter = .6f)
                 }
             }
-            // manage the caller's contact (opens the contact editor; never changes anything by itself)
-            if (number.isNotBlank()) {
-                Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable(onClick = onManageContact).padding(horizontal = 10.dp, vertical = 5.dp).testTag("manage_contact"),
+            // conference manage: kisi ek participant ko cut/private karo (chip sirf tab jab call sach me conference ho)
+            if (manage != null) {
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable(onClick = manage).padding(horizontal = 10.dp, vertical = 5.dp).testTag("manage_conf"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    LdIcon(LdIcons.User, 11.dp, p.accent)
+                    LdIcon(LdIcons.Users, 11.dp, p.accent)
                     LdText("Manage", 10f, FontWeight.Bold, p.accent, letter = .6f)
                 }
             }
@@ -265,7 +266,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
 
 @Composable
 private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.RecInfo?, onRecord: () -> Unit, onAddCall: () -> Unit,
-                           onMinimize: () -> Unit, openSheet: (String) -> Unit, onEndRequest: (Call) -> Unit, onManageContact: () -> Unit = {}) {
+                           onMinimize: () -> Unit, openSheet: (String) -> Unit, onEndRequest: (Call) -> Unit) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val now = nowTicker()
@@ -273,6 +274,15 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     var keypad by remember { mutableStateOf(false) }
     var dtmf by remember { mutableStateOf("") }
     val connect = call.details?.connectTimeMillis ?: 0L
+    // direct video call request ki sachai: connect par bhi audio-only hai to saaf batao (koi chhupa fallback nahi)
+    LaunchedEffect(st) {
+        if (st == Call.STATE_ACTIVE && CallManager.pendingVideoRequest) {
+            CallManager.pendingVideoRequest = false
+            if (call.details?.videoState == VideoProfile.STATE_AUDIO_ONLY) {
+                CallManager.videoNotice.value = "Seedhi video call is SIM/phone par support nahi hui - voice call chal rahi hai"
+            }
+        }
+    }
     val status = when (st) {
         Call.STATE_DIALING, Call.STATE_CONNECTING -> "Calling…"
         Call.STATE_SELECT_PHONE_ACCOUNT -> "SIM chuno"
@@ -311,7 +321,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, onManageContact) }
+            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, manage = if (CallManager.isConference(call)) ({ openSheet("conference") }) else null) }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
@@ -362,7 +372,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
 }
 
 @Composable
-private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, onManageContact: () -> Unit = {}) {
+private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
@@ -370,7 +380,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, false) {}
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true, onManageContact)
+            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
@@ -566,4 +576,60 @@ private fun CallEndedScreen(last: Triple<String, String, String>?) {
             }
         }
     }
+}
+
+
+/** Conference participants: kisi EK ko cut ya private karo - poori conference yahan se kabhi nahi kat-ti. */
+@Composable
+private fun ConferenceSheet(call: Call, onClose: () -> Unit) {
+    val ctx = LocalContext.current
+    val p = LocalLd.current
+    val ver by CallManager.version.collectAsState()
+    val children = remember(ver) { CallManager.conferenceChildren(call) }
+    val anyUnsupported = remember(ver) { children.any { !CallManager.canDisconnectChild(it) && !CallManager.canSeparateChild(it) } }
+    SheetTitle("Conference manage karo")
+    if (children.isEmpty()) {
+        LdText("Is call me abhi koi alag participant nahi mila. Ye tabhi dikhta hai jab phone/SIM conference support kare.", 12.5f, color = p.muted, maxLines = 4)
+        return
+    }
+    LdText("Kisi ek ko cut ya private karo - baaki conference chalti rahegi.", 12f, color = p.muted, maxLines = 3, modifier = Modifier.padding(bottom = 10.dp))
+    children.forEachIndexed { i, child ->
+        val canCut = remember(ver) { CallManager.canDisconnectChild(child) }
+        val canSplit = remember(ver) { CallManager.canSeparateChild(child) }
+        val cname = CallManager.nameFor(ctx, child)
+        val cnum = CallManager.number(child)
+        val cstate = when (CallManager.state(child)) {
+            Call.STATE_HOLDING -> "On hold"
+            Call.STATE_ACTIVE -> "Connected"
+            Call.STATE_DIALING, Call.STATE_CONNECTING -> "Calling…"
+            else -> ""
+        }
+        Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Avatar(cname, CallManager.photoFor(child), 38.dp, 14f, seed = cname)
+                Column(Modifier.weight(1f)) {
+                    LdText(cname, 14f, FontWeight.SemiBold, maxLines = 1)
+                    val sub = (if (cnum.isNotBlank() && cname != Repo.pretty(cnum)) Repo.pretty(cnum) + if (cstate.isNotBlank()) " · $cstate" else "" else cstate)
+                    if (sub.isNotBlank()) LdText(sub, 11.5f, color = p.muted, maxLines = 1)
+                }
+            }
+            Row(Modifier.padding(top = 8.dp, start = 48.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).background(if (canCut) Color(0xFFD93025) else p.glass).alpha(if (canCut) 1f else .45f)
+                    .clickable(enabled = canCut) { CallManager.disconnectChild(child) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp).testTag("conf_cut_$i"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LdIcon(LdIcons.PhoneOff, 13.dp, if (canCut) Color.White else p.muted)
+                    LdText("Cut karo", 12f, FontWeight.SemiBold, if (canCut) Color.White else p.muted)
+                }
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).background(p.glass).alpha(if (canSplit) 1f else .45f)
+                    .clickable(enabled = canSplit) { CallManager.separateChild(child); onClose() }
+                    .padding(horizontal = 14.dp, vertical = 8.dp).testTag("conf_priv_$i"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LdIcon(LdIcons.PhoneOut, 13.dp, if (canSplit) p.accent else p.muted)
+                    LdText("Private", 12f, FontWeight.SemiBold, if (canSplit) p.accent else p.muted)
+                }
+            }
+        }
+    }
+    if (anyUnsupported) LdText("Gray option is call par SIM/phone support nahi kar raha.", 11.5f, color = p.muted, maxLines = 3, modifier = Modifier.padding(top = 10.dp))
 }
