@@ -525,7 +525,8 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     val sim = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { "SIM ${it.slot}" } ?: "SIM"
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, false, onMinimize = {})
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // hero upar ki third me (jaise asli dialers) - beech ka dead space kam, actions ko saans
+        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = androidx.compose.ui.BiasAlignment(0f, -0.32f)) {
             Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, p.accent, null, emptyList(), true)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
@@ -581,7 +582,7 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                     val a = (1f - kotlin.math.abs(ph - .5f) * 1.6f).coerceIn(.18f, 1f)
                     LdIcon(LdIcons.ChevronDown, 18.dp, base.copy(alpha = a), Modifier.rotate(180f).offset(y = (i * -4).dp))
                 }
-                LdText("Upar khiskao", 10.5f, FontWeight.SemiBold, p.muted)
+                LdText("Upar khiskao", 11.5f, FontWeight.Bold, base.copy(alpha = .8f))
             }
         }
         Box(Modifier
