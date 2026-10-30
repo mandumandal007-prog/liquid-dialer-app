@@ -107,6 +107,11 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
                 }
             }
         }
+        SheetRow(LdIcons.Phone, "Home screen par call button",
+            if (com.mandu.liquiddialer.data.DialShortcuts.supported(ctx)) "Button dabate hi call lag jayega" else "Is launcher par shortcut nahi ban sakta") {
+            val ok = com.mandu.liquiddialer.data.DialShortcuts.pin(ctx, number, name)
+            Toast.makeText(ctx, trNow(if (ok) "Home screen par button ban gaya" else "Shortcut nahi ban saka"), Toast.LENGTH_SHORT).show()
+        }
         SheetRow(LdIcons.Block, if (blocked) "Unblock karo" else "Number block karo", if (!st.isDefault) "Default phone app hone par kaam karega" else null, danger = !blocked) {
             if (!Repo.canBlock(ctx)) { act.requestDefault(); return@SheetRow }
             blocked = if (blocked) !Repo.unblock(ctx, number) else Repo.block(ctx, number)
