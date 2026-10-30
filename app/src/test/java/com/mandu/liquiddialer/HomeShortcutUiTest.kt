@@ -64,4 +64,13 @@ class HomeShortcutUiTest {
         rule.onNodeWithText("Home screen par call button", substring = true, useUnmergedTree = true).performClick()
         settle(400)
     }
+
+    @Test
+    fun shortcutIconArtwork() {
+        // launcher par jo icon banega usi bitmap ka render - artwork pixel-proof (device tile alag baat)
+        val bmp = com.mandu.liquiddialer.data.DialShortcuts.initialIcon("Rahul")
+        java.io.File("build/shots").mkdirs()
+        bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, java.io.FileOutputStream("build/shots/43-shortcut-icon.png"))
+        org.junit.Assert.assertTrue(java.io.File("build/shots/43-shortcut-icon.png").length() > 500)
+    }
 }
