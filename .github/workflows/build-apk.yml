@@ -36,6 +36,11 @@ jobs:
             echo "::warning::KEYSTORE_BASE64 secret not set - APK will be signed with a debug key"
           fi
 
+      - name: Run unit tests
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --no-daemon
+
       - name: Build release APK
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
