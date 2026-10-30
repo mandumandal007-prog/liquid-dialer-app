@@ -125,4 +125,19 @@ class CallFlowTest {
         rule.onNodeWithTag("conf_cut_1", useUnmergedTree = true).assertExists()
         rule.onNodeWithText("Gray option is call par SIM/phone support nahi kar raha.", substring = true, useUnmergedTree = true).assertExists()
     }
+    @Test
+    fun videoInitiationNeverPlacesCallAndExplains() {
+        CallManager.videoNotice.value = null
+        val ok = CallManager.place(ApplicationProvider.getApplicationContext<LdApp>(), "+91 98765 43210", null, video = true)
+        org.junit.Assert.assertFalse("video initiation must never place any call", ok)
+        org.junit.Assert.assertEquals(CallManager.VIDEO_NOT_READY, CallManager.videoNotice.value)
+    }
+
+    @Test
+    fun videoUpgradeRequestIsRefusedWithHonestNotice() {
+        CallManager.videoNotice.value = null
+        val ok = CallManager.requestVideo(null)
+        org.junit.Assert.assertFalse(ok)
+        org.junit.Assert.assertEquals(CallManager.VIDEO_NOT_READY, CallManager.videoNotice.value)
+    }
 }
