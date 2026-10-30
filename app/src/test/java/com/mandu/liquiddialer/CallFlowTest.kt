@@ -160,6 +160,40 @@ class CallFlowTest {
     }
 
     @Test
+    fun videoLinkLateProviderGetsCurrentSurfaces() {
+        val link = com.mandu.liquiddialer.telecom.VideoLink
+        link.unbind()
+        val fakeSurface = android.view.Surface(android.graphics.SurfaceTexture(0))
+        // surface pehle bana, provider baad me aaya -> bind par turant attach hona chahiye
+        link.setDisplay(fakeSurface)
+        var got: Pair<android.view.Surface?, android.view.Surface?>? = null
+        link.bind { d, p -> got = d to p }
+        org.junit.Assert.assertSame("late provider must receive the already-created display surface", fakeSurface, got?.first)
+        // provider replace: naye provider ko bhi current surface milna chahiye
+        var got2: Pair<android.view.Surface?, android.view.Surface?>? = null
+        link.bind { d, p -> got2 = d to p }
+        org.junit.Assert.assertSame(fakeSurface, got2?.first)
+        // teardown: unbind par provider ko null push + refs clear
+        var cleared: Pair<android.view.Surface?, android.view.Surface?>? = null
+        link.bind { d, p -> cleared = d to p }
+        link.unbind()
+        org.junit.Assert.assertNull(cleared?.first)
+        org.junit.Assert.assertNull(link.display)
+        fakeSurface.release()
+    }
+
+    @Test
+    fun appDoesNotNeedCameraPermissionForVilte() {
+        // ViLTE managed-connection path: capture IMS/telephony stack karta hai, app ko CAMERA
+        // permission nahi chahiye - isliye denial ka sawal hi nahi (deny karne ko kuch nahi).
+        val pm = ApplicationProvider.getApplicationContext<LdApp>().packageManager
+        val info = pm.getPackageInfo(ApplicationProvider.getApplicationContext<LdApp>().packageName,
+            android.content.pm.PackageManager.GET_PERMISSIONS)
+        org.junit.Assert.assertFalse("CAMERA permission must NOT be requested for the ViLTE path",
+            info.requestedPermissions?.contains(android.Manifest.permission.CAMERA) == true)
+    }
+
+    @Test
     fun answerKeepsIncomingVideoState() {
         val vc = FakeCall.make("+91 98765 43210", "Rahul", Call.STATE_RINGING, videoState = android.telecom.VideoProfile.STATE_BIDIRECTIONAL)
         org.junit.Assert.assertEquals(android.telecom.VideoProfile.STATE_BIDIRECTIONAL, CallManager.answerVideoState(vc))
