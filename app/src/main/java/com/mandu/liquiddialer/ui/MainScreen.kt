@@ -106,7 +106,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding(), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
                         "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
-                            onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it })
+                            onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
+                            onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } })
                         else -> ContactsScreen(st, act, query, 86.dp + bannerPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it })
                     }
                 }
@@ -351,7 +352,7 @@ private fun dayLabel(ts: Long): String {
 }
 
 @Composable
-private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit) {
+private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit, onOpenNumber: (String) -> Unit = {}) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val s by LdApp.settings.collectAsState()
@@ -437,6 +438,25 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     LdIcon(LdIcons.Clock, 13.dp, p.accent)
                     LdText("Aaj: ${stats.calls} calls · ${stats.talkSecs / 60} min baat" + (if (stats.missed > 0) " · ${stats.missed} missed" else ""), 11.5f, FontWeight.SemiBold, p.muted, Modifier.testTag("today_stats"))
+                }
+            }
+        }
+        // NAYA: upcoming call reminders ka strip - set reminders ek jagah dikhte hain, tap = number details
+        item(key = "reminders-strip") {
+            val rems = com.mandu.liquiddialer.data.CallReminders.all(ctx)
+            if (rems.isNotEmpty()) {
+                val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
+                Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    LdText("CALL REMINDERS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
+                    rems.take(3).forEach { r ->
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onOpenNumber(r.number) }.padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                            LdIcon(LdIcons.Clock, 13.dp, p.accent)
+                            LdText((if (r.name.isNotBlank()) r.name else Repo.pretty(r.number)) + "  ·  " + df.format(Date(r.atMs)), 11.5f, FontWeight.SemiBold, p.text,
+                                Modifier.weight(1f).testTag("reminder_row"), maxLines = 1)
+                        }
+                    }
+                    if (rems.size > 3) LdText("+${rems.size - 3} aur", 11f, color = p.muted, modifier = Modifier.padding(start = 20.dp, bottom = 2.dp))
                 }
             }
         }
