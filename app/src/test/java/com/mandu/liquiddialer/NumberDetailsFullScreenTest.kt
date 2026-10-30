@@ -54,6 +54,9 @@ class NumberDetailsFullScreenTest {
         rule.onNodeWithText("Rahul Sharma", substring = true, useUnmergedTree = true).performClick()
         settle()
         // reminder row dikhe, presets folded
+        // notifications band state me warning row dikhni chahiye
+        val nmShadow = org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.app.NotificationManager::class.java))
+        nmShadow.setNotificationsEnabled(false)
         rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performScrollTo()
         settle(300)
         rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performClick()
@@ -62,8 +65,10 @@ class NumberDetailsFullScreenTest {
         rule.onNodeWithText("1 ghante baad", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("Shaam 6 baje", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("Kal subah 9 baje", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Samay lagbhag", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("Notifications band hain", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "38-call-reminder-presets")
-        // preset set -> alarm + row par "Set:" dikhe + hataye option aaye
+        // preset set -> alarm + row par "Set:" dikhe
         rule.onNodeWithText("1 ghante baad", substring = true, useUnmergedTree = true).performClick()
         settle(400)
         val am = org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.app.AlarmManager::class.java))
