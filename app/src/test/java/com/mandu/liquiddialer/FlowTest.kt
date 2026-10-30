@@ -299,6 +299,8 @@ class FlowTest {
         rule.onNodeWithTag("dialer_fab").performClick(); settle(2500)
         "1800".forEach { tapKey(it.toString()) }; settle(800)
         rule.onNodeWithTag("dial_pause", useUnmergedTree = true).assertExists()
+        // Meet video call chip bhi same row me honi chahiye (Meet fix v140)
+        rule.onNodeWithTag("dial_meet", useUnmergedTree = true).assertExists()
         saveShot(rule, "17-pause-chip")
         rule.onNodeWithTag("dial_pause", useUnmergedTree = true).performClick(); settle(600)
         "123".forEach { tapKey(it.toString()) }; settle(800)
