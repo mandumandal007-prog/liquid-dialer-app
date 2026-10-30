@@ -375,11 +375,13 @@ data class DayStats(val calls: Int, val talkSecs: Long, val missed: Int)
 fun dayStats(recents: List<Recent>, nowMs: Long): DayStats {
     val dayFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
     val today = recents.filter { dayFmt.format(Date(it.date)) == dayFmt.format(Date(nowMs)) }
-    val missed = today.count { it.type == CallLog.Calls.MISSED_TYPE || it.type == CallLog.Calls.REJECTED_TYPE || it.type == CallLog.Calls.BLOCKED_TYPE }
+    val missed = today.count { it.type == CallLog.Calls.MISSED_TYPE }
     val talk = today.filter { it.type == CallLog.Calls.INCOMING_TYPE || it.type == CallLog.Calls.OUTGOING_TYPE }.sumOf { it.duration }
     return DayStats(today.size, talk, missed)
 }
 
+// sirf sachmuch MISSED (ring hui, user ne nahi uthaya): user-rejected ya app-blocked calls
+// "missed" nahi hoti - unka badge dena user ko galat signal deta hai (blocked ka apna section hai)
 fun unseenMissed(recents: List<Recent>, seenAt: Long): Int =
-    recents.count { it.date > seenAt && (it.type == CallLog.Calls.MISSED_TYPE || it.type == CallLog.Calls.REJECTED_TYPE || it.type == CallLog.Calls.BLOCKED_TYPE) }
+    recents.count { it.date > seenAt && it.type == CallLog.Calls.MISSED_TYPE }
 }
