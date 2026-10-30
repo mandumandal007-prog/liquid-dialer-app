@@ -94,4 +94,22 @@ class CallScreenshotTest {
         settle()
         saveShot(rule, "09-incall-keypad")
     }
+
+    @Test
+    fun ongoingConferenceManageSheet() {
+        seed { this[K.theme] = "midnight" }
+        settle(2000)
+        val parent = FakeCall.make("+91 90000 00000", "Conference", Call.STATE_ACTIVE,
+            System.currentTimeMillis() - 300_000, props = Call.Details.PROPERTY_CONFERENCE)
+        val c1 = FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_ACTIVE, System.currentTimeMillis() - 280_000,
+            caps = Call.Details.CAPABILITY_DISCONNECT_FROM_CONFERENCE or Call.Details.CAPABILITY_SEPARATE_FROM_CONFERENCE)
+        val c2 = FakeCall.make("+91 91234 56789", "Papa", Call.STATE_ACTIVE, System.currentTimeMillis() - 200_000)
+        FakeCall.setChildren(parent, listOf(c1, c2))
+        CallManager.calls.value = listOf(parent, c1, c2)
+        CallManager.bump()
+        settle(2500)
+        rule.onNodeWithTag("manage_conf", useUnmergedTree = true).performClick()
+        settle()
+        saveShot(rule, "08c-conference-manage-dark")
+    }
 }
