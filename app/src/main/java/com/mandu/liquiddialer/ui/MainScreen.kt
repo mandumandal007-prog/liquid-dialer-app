@@ -443,12 +443,14 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         }
         // NAYA: upcoming call reminders ka strip - set reminders ek jagah dikhte hain, tap = number details
         item(key = "reminders-strip") {
-            val rems = com.mandu.liquiddialer.data.CallReminders.all(ctx)
+            val remTick by com.mandu.liquiddialer.data.CallReminders.tick.collectAsState()
+            val rems = remember(remTick) { com.mandu.liquiddialer.data.CallReminders.all(ctx) }
             if (rems.isNotEmpty()) {
                 val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
+                var expanded by remember { mutableStateOf(false) }
                 Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
                     LdText("CALL REMINDERS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
-                    rems.take(3).forEach { r ->
+                    (if (expanded) rems else rems.take(3)).forEach { r ->
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onOpenNumber(r.number) }.padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             LdIcon(LdIcons.Clock, 13.dp, p.accent)
@@ -456,7 +458,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 Modifier.weight(1f).testTag("reminder_row"), maxLines = 1)
                         }
                     }
-                    if (rems.size > 3) LdText("+${rems.size - 3} aur", 11f, color = p.muted, modifier = Modifier.padding(start = 20.dp, bottom = 2.dp))
+                    if (rems.size > 3) LdText(if (expanded) "Kam dikho" else "+${rems.size - 3} aur dikho", 11.5f, FontWeight.SemiBold, p.accent,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(horizontal = 20.dp, vertical = 4.dp).testTag("reminders_expand"))
                 }
             }
         }
