@@ -31,6 +31,8 @@ import com.mandu.liquiddialer.ui.LdThemeHost
 import com.mandu.liquiddialer.ui.MainScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -117,7 +119,8 @@ class MainActivity : ComponentActivity() {
         refreshDefault()
         state.permsTick++
         reload()
-        Repo.markMissedRead(this)
+        // provider write main thread par nahi - startup jank rokne ke liye background me
+        lifecycleScope.launch(Dispatchers.IO) { Repo.markMissedRead(this@MainActivity) }
     }
 
     override fun onDestroy() { try { contentResolver.unregisterContentObserver(observer) } catch (_: Exception) { }; super.onDestroy() }
@@ -179,18 +182,25 @@ class MainActivity : ComponentActivity() {
     fun reload() {
         lifecycleScope.launch {
             val s = LdApp.settings.value
-            val (c, r, b, sims) = withContext(Dispatchers.IO) {
-                listOf(
-                    if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList<Contact>(),
-                    if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit) else emptyList<Recent>(),
-                    if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList<String>(),
-                    if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList<SimInfo>(),
-                )
-            }
-            @Suppress("UNCHECKED_CAST")
-            run {
-                state.contacts = c as List<Contact>; state.recents = r as List<Recent>
-                state.blocked = b as List<String>; state.sims = sims as List<SimInfo>
+            // Saare queries parallel IO pe; recents ka result AATE HI turant dikhao -
+            // pehle recents contacts ki lambi query ke peeche atke rehte the (startup delay).
+            coroutineScope {
+                val dContacts = async(Dispatchers.IO) {
+                    if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList()
+                }
+                val dRecents = async(Dispatchers.IO) {
+                    if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit) else emptyList()
+                }
+                val dBlocked = async(Dispatchers.IO) {
+                    if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList()
+                }
+                val dSims = async(Dispatchers.IO) {
+                    if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList()
+                }
+                state.recents = dRecents.await()
+                state.contacts = dContacts.await()
+                state.blocked = dBlocked.await()
+                state.sims = dSims.await()
             }
         }
     }
