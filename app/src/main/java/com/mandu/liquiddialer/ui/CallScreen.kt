@@ -1,10 +1,8 @@
 package com.mandu.liquiddialer.ui
 
-import android.graphics.SurfaceTexture
 import android.os.Build
 import android.telecom.Call
-import android.view.Surface
-import android.view.TextureView
+import android.view.SurfaceView
 import android.telecom.VideoProfile
 import android.telecom.CallAudioState
 import androidx.compose.animation.*
@@ -318,7 +316,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
         if (upgradeReq == call) {
             Row(Modifier.padding(top = 10.dp).fillMaxWidth().glass(p, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                LdText("Saamne wala video chalu karna chahta hai", 12.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                LdText("Video on karna chahta hai", 12.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 Row(Modifier.clip(RoundedCornerShape(999.dp)).background(p.ok).clickable { CallManager.respondVideoUpgrade(call, true) }.padding(horizontal = 12.dp, vertical = 7.dp).testTag("video_accept")) { LdText("Chalu karo", 11.5f, FontWeight.Bold, Color.White) }
                 Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable { CallManager.respondVideoUpgrade(call, false) }.padding(horizontal = 12.dp, vertical = 7.dp).testTag("video_decline")) { LdText("Nahi", 11.5f, FontWeight.Bold, p.muted) }
             }
@@ -390,6 +388,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
 @Composable
 private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     val p = LocalLd.current
+    val incomingVideo = ((try { call.details?.videoState } catch (_: Throwable) { null }) ?: VideoProfile.STATE_AUDIO_ONLY) != VideoProfile.STATE_AUDIO_ONLY
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
     val sim = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { "SIM ${it.slot}" } ?: "SIM"
@@ -405,7 +404,15 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
                 LdText("Message", 11f, FontWeight.SemiBold, p.muted)
                 Spacer(Modifier.height(18.dp))
             }
-            SwipeCallBtn(danger = false, label = "Answer", swipe = swipe) { CallManager.answer(call) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SwipeCallBtn(danger = false, label = if (incomingVideo) "Video answer" else "Answer", swipe = swipe) { CallManager.answer(call) }
+                // camera consent: video call ko sirf audio me lene ka saaf option (camera share nahi hoti)
+                if (incomingVideo) {
+                    Box(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable { CallManager.answerAudioOnly(call) }.padding(horizontal = 12.dp, vertical = 6.dp).testTag("answer_audio")) {
+                        LdText("Sirf audio me lo", 10.5f, FontWeight.SemiBold, p.muted)
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(16.dp))
     }
@@ -651,43 +658,28 @@ private fun ConferenceSheet(call: Call, onClose: () -> Unit) {
 }
 
 /** Asli ViLTE video: saamne wale ka video poora area (display surface) + apna chhota preview.
- *  Surfaces call ke VideoCall ko diye jate hain; capture/modem ka kaam IMS stack karta hai.
- *  Surface destroy hote hi provider ko null diya jata hai - koi leaked/stale surface nahi. */
+ *  Surfaces VideoLink ke through provider ko diye jate hain; capture/modem ka kaam IMS stack karta
+ *  hai. Surface destroy hote hi provider ko null push - koi leaked/stale surface nahi. SurfaceView
+ *  ka surface system-owned hai, isliye release nahi karte. */
 @Composable
 private fun VideoStage(call: Call) {
     Box(Modifier.fillMaxSize().padding(top = 14.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black)) {
         AndroidView(factory = { ctx ->
-            TextureView(ctx).apply {
-                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                    private var surf: Surface? = null
-                    override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                        val s = Surface(st); surf = s
-                        try { call.videoCall?.setDisplaySurface(s) } catch (_: Throwable) { }
-                    }
-                    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
-                        try { call.videoCall?.setDisplaySurface(null) } catch (_: Throwable) { }
-                        surf?.release(); surf = null; return true
-                    }
-                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) { }
-                    override fun onSurfaceTextureUpdated(st: SurfaceTexture) { }
-                }
+            SurfaceView(ctx).apply {
+                holder.addCallback(object : android.view.SurfaceHolder.Callback {
+                    override fun surfaceCreated(h: android.view.SurfaceHolder) { com.mandu.liquiddialer.telecom.VideoLink.setDisplay(h.surface) }
+                    override fun surfaceChanged(h: android.view.SurfaceHolder, f: Int, w: Int, ht: Int) { }
+                    override fun surfaceDestroyed(h: android.view.SurfaceHolder) { com.mandu.liquiddialer.telecom.VideoLink.setDisplay(null) }
+                })
             }
         }, modifier = Modifier.fillMaxSize().testTag("video_display"))
         AndroidView(factory = { ctx ->
-            TextureView(ctx).apply {
-                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                    private var surf: Surface? = null
-                    override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                        val s = Surface(st); surf = s
-                        try { call.videoCall?.setPreviewSurface(s) } catch (_: Throwable) { }
-                    }
-                    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
-                        try { call.videoCall?.setPreviewSurface(null) } catch (_: Throwable) { }
-                        surf?.release(); surf = null; return true
-                    }
-                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) { }
-                    override fun onSurfaceTextureUpdated(st: SurfaceTexture) { }
-                }
+            SurfaceView(ctx).apply {
+                holder.addCallback(object : android.view.SurfaceHolder.Callback {
+                    override fun surfaceCreated(h: android.view.SurfaceHolder) { com.mandu.liquiddialer.telecom.VideoLink.setPreview(h.surface) }
+                    override fun surfaceChanged(h: android.view.SurfaceHolder, f: Int, w: Int, ht: Int) { }
+                    override fun surfaceDestroyed(h: android.view.SurfaceHolder) { com.mandu.liquiddialer.telecom.VideoLink.setPreview(null) }
+                })
             }
         }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(88.dp, 120.dp)
             .clip(RoundedCornerShape(12.dp)).background(Color.DarkGray).testTag("video_preview"))
