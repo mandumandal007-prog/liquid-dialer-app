@@ -25,11 +25,14 @@ import kotlinx.coroutines.launch
  * deprecated framework path; support varies by device/HAL and is unverified until run on the
  * user's phone - any refusal is reported honestly and the setting is switched off.
  *
- * Honest scope: this boosts MEDIA playback (music, videos, other apps' sound) only. It cannot
- * and does not touch SIM/voice-call audio - Android exposes no API for that. The effect dies
- * with the process, so this small foreground service holds it while the user keeps the boost
- * on. It never starts or re-enables itself: only an explicit user toggle/slider/"dobara chalu
- * karo" starts it.
+ * Honest scope: this boosts MEDIA playback (music, videos, other apps' sound) only. This app
+ * never routes it at SIM/voice-call audio: whenever a call starts (incoming or outgoing),
+ * LdInCallService calls pauseForCall and the effect is released on the spot. It then stays
+ * OFF until the user explicitly resumes it (Volume page "Boost dobara chalu karo"); there is
+ * no auto-resume after the call, and applyNow refuses to start while any call is live.
+ * The effect dies with the process, so this small foreground service holds it while the user
+ * keeps the boost on. It never starts or re-enables itself: only an explicit user
+ * toggle/slider/"dobara chalu karo" starts it.
  */
 class BoostService : Service() {
 
@@ -121,10 +124,24 @@ class BoostService : Service() {
         val running = kotlinx.coroutines.flow.MutableStateFlow(false)
 
         fun applyNow(ctx: Context, pct: Int) {
+            // call chal rahi ho to boost shuru hi mat karo (session-0 effect call audio tak
+            // kuch devices par pahunch sakta hai - risk lene ke bajaye saaf mana)
+            if (com.mandu.liquiddialer.telecom.CallManager.calls.value.isNotEmpty()) return
             try {
                 ContextCompat.startForegroundService(ctx, Intent(ctx, BoostService::class.java)
                     .setAction(ACTION_APPLY).putExtra(EXTRA_PCT, pct))
             } catch (_: Throwable) {}
+        }
+
+        /**
+         * SIM call start hote hi boost rok do. Setting (volBoost) jaan-boojh kar ON rehti hai
+         * taaki Volume page par "Boost dobara chalu karo" dikhe aur user khud hi wapas chalu
+         * kare - call ke baad kabhi auto-resume NAHI hota.
+         */
+        fun pauseForCall(ctx: Context) {
+            if (!running.value) return
+            running.value = false
+            stop(ctx)
         }
 
         fun stop(ctx: Context) {
