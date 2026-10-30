@@ -81,8 +81,14 @@ class RecentsDensityShotTest {
         act.state.isDefault = true
         act.state.contacts = emptyList()
         // 2-line cards (name + type/time/duration/SIM merged line)
+        // noon-anchor: now-offset se raat 12 baje ke baad rows do din me bat jaate the
+        // (extra day header + chhupi aaj-stats strip) aur compact-count assertion tut jaata tha
+        val noon = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 12); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
         act.state.recents = (3..14).map {
-            Recent(it.toLong(), "+91 90000 000$it", "Zed $it", 2, System.currentTimeMillis() - it * 3_600_000L, 95, null, null)
+            Recent(it.toLong(), "+91 90000 000$it", "Zed $it", 2, noon - it * 45 * 60_000L, 95, null, null)
         }
         settle()
         val defCount = waitRows()
@@ -116,9 +122,13 @@ class RecentsDensityShotTest {
             com.mandu.liquiddialer.data.SimInfo(android.telecom.PhoneAccountHandle(cn, "sim0"), "Jio", 1),
             com.mandu.liquiddialer.data.SimInfo(android.telecom.PhoneAccountHandle(cn, "sim1"), "Airtel", 2)
         )
+        val noonH = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 12); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
         act.state.recents = (3..14).map {
             Recent(it.toLong(), "+91 90000 000$it", "Zedd Singh Chauhan Verylongname $it", 2,
-                System.currentTimeMillis() - it * 3_600_000L, 95, if (it % 2 == 0) "sim0" else "sim1", null)
+                noonH - it * 45 * 60_000L, 95, if (it % 2 == 0) "sim0" else "sim1", null)
         }
         settle()
         val defCount = waitRows()
