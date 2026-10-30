@@ -123,6 +123,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page.startsWith("notes:") -> NotesPage(page.removePrefix("notes:"), onBack)
         page == "stats" -> StatsPage(st, onBack)
         page == "blocked" -> BlockedPage(st, act, onBack)
+        page == "series" -> SeriesPage(onBack)
         page == "speeddial" -> SpeedDialPage(st, onBack)
         page == "radio" -> RadioInfoPage(onBack)
         page == "replies" -> RepliesPage(onBack)
@@ -271,14 +272,19 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         SecTitle("Blocking")
         GlassCard {
             SRow("Blocked numbers", "${st.blocked.size} blocked", LdIcons.Block) { onOpen("blocked") }
+            SRow("Spam series block", if (s.blockedPrefixes.isEmpty()) "Koi series nahi" else "${s.blockedPrefixes.size} series block", LdIcons.Block) { onOpen("series") }
             SwitchRow("Unknown numbers block", "Jo contacts me nahi, unki call kat jayegi", s.blockUnknown) { save(K.blockUnknown, it); if (it) act.requestScreeningRole() }
-            SwitchRow("Private / hidden numbers block", null, s.blockPrivate, last = true) { save(K.blockPrivate, it); if (it) act.requestScreeningRole() }
+            SwitchRow("Private / hidden numbers block", null, s.blockPrivate, last = (s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty()) && !act.screeningRoleHeld()) { save(K.blockPrivate, it); if (it) act.requestScreeningRole() }
+            if ((s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty()) && !act.screeningRoleHeld())
+                SRow("Screening role nahi mila", "Blocking abhi kaam nahi karegi — tap karke role do", LdIcons.Info, last = true) { act.requestScreeningRole() }
         }
 
         SecTitle("Quiet hours")
         GlassCard {
             SwitchRow("Quiet hours", "Is time me incoming call silent (Android 10+, call screening role chahiye; call reject nahi hogi, log me rahegi)", s.quietHours, last = !s.quietHours) { save(K.quietHours, it); if (it) act.requestScreeningRole() }
             if (s.quietHours) {
+                if (!act.screeningRoleHeld())
+                    SRow("Screening role nahi mila", "Quiet hours abhi kaam nahi karega — tap karke role do", LdIcons.Info) { act.requestScreeningRole() }
                 TimeRow("Shuru", s.quietStart) { save(K.quietStart, it) }
                 TimeRow("Khatam", s.quietEnd) { save(K.quietEnd, it) }
                 SwitchRow("Favourites ko bajne do", "Starred contacts quiet hours me bhi ring karenge (contacts permission chahiye; permission nahi to sab bajenge)", s.quietAllowFav, last = true) { save(K.quietAllowFav, it) }
@@ -738,6 +744,36 @@ private fun BlockedPage(st: AppState, act: MainActivity, onBack: () -> Unit) {
                 }
                 Spacer(Modifier.height(10.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun SeriesPage(onBack: () -> Unit) {
+    val p = LocalLd.current
+    val s by LdApp.settings.collectAsState()
+    var n by remember { mutableStateOf("") }
+    PageFrame("Spam series block", onBack) {
+        LdText("Jo series se spam aati hai (jaise 140, 1800123) wo prefix likho — usse shuru hone wala HAR number reject hoga. Call log me dikhega. Kam se kam 3 digits. Dhyan rahe: chhota ya common prefix chahiye calls bhi rok sakta hai, isliye poora series prefix likho.", 12f, color = p.muted, maxLines = 5, modifier = Modifier.padding(start = 4.dp, bottom = 12.dp))
+        GlassCard {
+            LdField(n, { n = it }, "Prefix (jaise 140 ya +911800)", phone = true)
+            PrimaryButton("Series block karo", enabled = n.filter { it.isDigit() }.length >= 3) {
+                val d = n.trim()
+                if (d.filter { ch -> ch.isDigit() }.length >= 3 && !s.blockedPrefixes.contains(d))
+                    LdApp.instance.scope.launch { LdApp.instance.repo.setBlockedPrefixes(s.blockedPrefixes + d) }
+                n = ""
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        if (s.blockedPrefixes.isEmpty()) EmptyState(LdIcons.Block, "Koi series block nahi", "Spam number ka shuru ka hissa upar likho")
+        s.blockedPrefixes.forEachIndexed { i, pre ->
+            GlassRow(onClick = {}) {
+                Column(Modifier.weight(1f)) { LdText(pre + "\u2026", 14.5f, FontWeight.SemiBold); LdText("Isse shuru hone wale number reject", 11.5f, color = p.muted) }
+                Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { LdApp.instance.scope.launch { LdApp.instance.repo.setBlockedPrefixes(s.blockedPrefixes.filterIndexed { j, _ -> j != i }) } }.padding(8.dp)) {
+                    LdText("Hatao", 12.5f, FontWeight.SemiBold, p.accent)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
         }
     }
 }
