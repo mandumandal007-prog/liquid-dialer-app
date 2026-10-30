@@ -310,6 +310,88 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val others = CallManager.others()
     val s by LdApp.settings.collectAsState()
 
+    val gridL = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
+    val bottomL = remember(s.layoutBottom) { parseLayout(s.layoutBottom, BOTTOM_IDS) }
+    // audio-route button shows where the sound goes now, so it is not a second Speaker toggle
+    val routeIcon = if (bt) LdIcons.Bluetooth else if (speaker) LdIcons.Volume else LdIcons.Phone
+    val routeLabel = if (bt) "Bluetooth" else if (speaker) "Speaker" else "Earpiece"
+    val audioVisible = gridL.any { it.first == "audio" && it.second }
+    val spec: (String) -> BtnSpec? = { id ->
+        when (id) {
+            "mute" -> BtnSpec(LdIcons.Mic, if (muted) "Unmute" else "Mute", muted) { CallManager.toggleMute() }
+            "keypad" -> BtnSpec(LdIcons.Dialpad, "Keypad") { keypad = true }
+            "record" -> BtnSpec(LdIcons.Record, if (rec != null) "Stop rec" else "Record", rec != null, onClick = onRecord)
+            "hold" -> BtnSpec(LdIcons.Pause, if (st == Call.STATE_HOLDING) "Resume" else "Hold", st == Call.STATE_HOLDING,
+                call.details?.can(Call.Details.CAPABILITY_HOLD) == true || st == Call.STATE_HOLDING) { CallManager.toggleHold(call) }
+            "add" -> BtnSpec(LdIcons.Plus, "Add call", onClick = onAddCall)
+            "merge" -> when {
+                others.isNotEmpty() && CallManager.canMerge() -> BtnSpec(LdIcons.Merge, "Merge") { CallManager.merge() }
+                others.isNotEmpty() -> BtnSpec(LdIcons.Swap, "Swap") { CallManager.swap() }
+                !audioVisible -> BtnSpec(routeIcon, routeLabel, bt) { openSheet("audio") }
+                else -> BtnSpec(LdIcons.Merge, "Merge", enabled = false) {}
+            }
+            "audio" -> BtnSpec(routeIcon, routeLabel, bt) { openSheet("audio") }
+            "speaker" -> BtnSpec(LdIcons.SpeakerFill, if (speaker) "Speaker on" else "Speaker", speaker, flat = true) {
+                if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
+            }
+            "notes" -> BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") }
+            else -> null
+        }
+    }
+
+    // upgrade card 60 sec me apne aap hat jaye: provider request timeout ho to prompt na atke
+    LaunchedEffect(upgradeReq) {
+        val uc = upgradeReq ?: return@LaunchedEffect
+        delay(60_000)
+        if (CallManager.videoUpgradeFrom.value === uc) { CallManager.videoUpgradeFrom.value = null; CallManager.bump() }
+    }
+
+    if (videoActive && !keypad) {
+        // ===== full-screen video calling card: saamne wala video poori screen, saare controls overlay =====
+        // video ke upar sab text pada ja sake: is card par palette ke text/muted white
+        CompositionLocalProvider(LocalLd provides p.copy(text = Color.White, muted = Color.White.copy(alpha = .72f))) {
+        Box(Modifier.fillMaxSize()) {
+            VideoStage(call, fullBleed = true)
+            Column(Modifier.align(Alignment.TopCenter).fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .55f), Color.Transparent)))
+                .statusBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 26.dp)) {
+                TopChips(call, true, onMinimize)
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LiveDot(if (st == Call.STATE_ACTIVE) p.ok else p.accent)
+                    LdText(CallManager.nameFor(ctx, call), 16f, FontWeight.Bold, Color.White, Modifier.weight(1f), maxLines = 1)
+                    LdText(if (timer != null) "$status · $timer" else status, 12.5f, FontWeight.SemiBold, Color.White.copy(alpha = .85f))
+                }
+                // saamne wale ka video upgrade request: user hi decide kare (kabhi auto-accept nahi)
+                if (upgradeReq == call) {
+                    Row(Modifier.padding(top = 10.dp).fillMaxWidth().glass(p, RoundedCornerShape(16.dp)).padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LdText("Video on karna chahta hai", 12.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Row(Modifier.clip(RoundedCornerShape(999.dp)).background(p.ok).clickable { CallManager.respondVideoUpgrade(call, true) }.padding(horizontal = 12.dp, vertical = 7.dp).testTag("video_accept")) { LdText("Chalu karo", 11.5f, FontWeight.Bold, Color.White) }
+                        Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable { CallManager.respondVideoUpgrade(call, false) }.padding(horizontal = 12.dp, vertical = 7.dp).testTag("video_decline")) { LdText("Nahi", 11.5f, FontWeight.Bold, p.muted) }
+                    }
+                }
+                if (others.isNotEmpty()) {
+                    val o = others.first()
+                    Row(Modifier.padding(top = 12.dp).fillMaxWidth().glass(p, RoundedCornerShape(20.dp)).clickable { CallManager.swap() }.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Avatar(CallManager.nameFor(ctx, o), CallManager.photoFor(o), 36.dp, 13f)
+                        Column(Modifier.weight(1f)) {
+                            LdText(CallManager.nameFor(ctx, o), 13.5f, FontWeight.SemiBold)
+                            LdText(if (CallManager.state(o) == Call.STATE_HOLDING) "On hold · tap to swap" else "Doosri call", 11.5f, color = p.muted)
+                        }
+                        LdIcon(LdIcons.Swap, 20.dp, p.accent)
+                    }
+                }
+            }
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .62f))))
+                .navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 30.dp, bottom = 10.dp)) {
+                CallControlsLayout(gridL, bottomL, s.gridScale, s.bottomScale, spec, onEnd = { onEndRequest(call) })
+            }
+        }
+        }
+    } else {
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 18.dp)) {
         TopChips(call, true, onMinimize)
         // saamne wale ka video upgrade request: user hi decide kare (kabhi auto-accept nahi)
@@ -334,8 +416,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            if (videoActive) VideoStage(call)
-            else if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, manage = if (CallManager.isConference(call)) ({ openSheet("conference") }) else null) }
+            if (!keypad) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, badges, false, manage = if (CallManager.isConference(call)) ({ openSheet("conference") }) else null) }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
@@ -344,34 +425,6 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdIcon(LdIcons.X, 16.dp); LdText("Keypad band karo", 13f, FontWeight.SemiBold)
                 }
-            }
-        }
-        val gridL = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
-        val bottomL = remember(s.layoutBottom) { parseLayout(s.layoutBottom, BOTTOM_IDS) }
-        // audio-route button shows where the sound goes now, so it is not a second Speaker toggle
-        val routeIcon = if (bt) LdIcons.Bluetooth else if (speaker) LdIcons.Volume else LdIcons.Phone
-        val routeLabel = if (bt) "Bluetooth" else if (speaker) "Speaker" else "Earpiece"
-        val audioVisible = gridL.any { it.first == "audio" && it.second }
-        val spec: (String) -> BtnSpec? = { id ->
-            when (id) {
-                "mute" -> BtnSpec(LdIcons.Mic, if (muted) "Unmute" else "Mute", muted) { CallManager.toggleMute() }
-                "keypad" -> BtnSpec(LdIcons.Dialpad, "Keypad") { keypad = true }
-                "record" -> BtnSpec(LdIcons.Record, if (rec != null) "Stop rec" else "Record", rec != null, onClick = onRecord)
-                "hold" -> BtnSpec(LdIcons.Pause, if (st == Call.STATE_HOLDING) "Resume" else "Hold", st == Call.STATE_HOLDING,
-                    call.details?.can(Call.Details.CAPABILITY_HOLD) == true || st == Call.STATE_HOLDING) { CallManager.toggleHold(call) }
-                "add" -> BtnSpec(LdIcons.Plus, "Add call", onClick = onAddCall)
-                "merge" -> when {
-                    others.isNotEmpty() && CallManager.canMerge() -> BtnSpec(LdIcons.Merge, "Merge") { CallManager.merge() }
-                    others.isNotEmpty() -> BtnSpec(LdIcons.Swap, "Swap") { CallManager.swap() }
-                    !audioVisible -> BtnSpec(routeIcon, routeLabel, bt) { openSheet("audio") }
-                    else -> BtnSpec(LdIcons.Merge, "Merge", enabled = false) {}
-                }
-                "audio" -> BtnSpec(routeIcon, routeLabel, bt) { openSheet("audio") }
-                "speaker" -> BtnSpec(LdIcons.SpeakerFill, if (speaker) "Speaker on" else "Speaker", speaker, flat = true) {
-                    if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
-                }
-                "notes" -> BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") }
-                else -> null
             }
         }
         if (!keypad) {
@@ -383,8 +436,8 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             CallControlsLayout(emptyList(), bottomL, s.gridScale, s.bottomScale, spec, onEnd = { CallManager.end(call) }, compact = true)
         }
     }
+    }
 }
-
 @Composable
 private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     val p = LocalLd.current
@@ -395,7 +448,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, false) {}
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Hero(call, "Incoming call · $sim", p.accent, null, emptyList(), true)
+            Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, p.accent, null, emptyList(), true)
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
@@ -662,8 +715,9 @@ private fun ConferenceSheet(call: Call, onClose: () -> Unit) {
  *  hai. Surface destroy hote hi provider ko null push - koi leaked/stale surface nahi. SurfaceView
  *  ka surface system-owned hai, isliye release nahi karte. */
 @Composable
-private fun VideoStage(call: Call) {
-    Box(Modifier.fillMaxSize().padding(top = 14.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black)) {
+private fun VideoStage(call: Call, fullBleed: Boolean = false) {
+    Box(if (fullBleed) Modifier.fillMaxSize().background(Color.Black)
+        else Modifier.fillMaxSize().padding(top = 14.dp).clip(RoundedCornerShape(20.dp)).background(Color.Black)) {
         AndroidView(factory = { ctx ->
             SurfaceView(ctx).apply {
                 holder.addCallback(object : android.view.SurfaceHolder.Callback {
@@ -675,13 +729,17 @@ private fun VideoStage(call: Call) {
         }, modifier = Modifier.fillMaxSize().testTag("video_display"))
         AndroidView(factory = { ctx ->
             SurfaceView(ctx).apply {
+                // media overlay: preview doosre (display) SurfaceView ke UPAR dikhe, peeche na chhupe
+                setZOrderMediaOverlay(true)
                 holder.addCallback(object : android.view.SurfaceHolder.Callback {
                     override fun surfaceCreated(h: android.view.SurfaceHolder) { com.mandu.liquiddialer.telecom.VideoLink.setPreview(h.surface) }
                     override fun surfaceChanged(h: android.view.SurfaceHolder, f: Int, w: Int, ht: Int) { }
                     override fun surfaceDestroyed(h: android.view.SurfaceHolder) { com.mandu.liquiddialer.telecom.VideoLink.setPreview(null) }
                 })
             }
-        }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(88.dp, 120.dp)
+        }, modifier = Modifier.align(Alignment.TopEnd)
+            .padding(top = if (fullBleed) 120.dp else 10.dp, end = if (fullBleed) 14.dp else 10.dp)
+            .size(if (fullBleed) 96.dp else 88.dp, if (fullBleed) 132.dp else 120.dp)
             .clip(RoundedCornerShape(12.dp)).background(Color.DarkGray).testTag("video_preview"))
     }
 }
