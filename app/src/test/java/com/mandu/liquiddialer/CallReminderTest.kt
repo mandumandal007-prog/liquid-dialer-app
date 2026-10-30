@@ -90,14 +90,14 @@ class CallReminderTest {
         CallReminders.set(ctx, "9812345678", "Rahul", at)
         val am = Shadows.shadowOf(ctx.getSystemService(AlarmManager::class.java))
         assertNotNull(am.nextScheduledAlarm)
-        am.scheduledAlarms.clear() // reboot ke baad alarms gayab
+        while (am.nextScheduledAlarm != null) { } // reboot ke baad alarms gayab (shadow: getNext poll karta hai, scheduledAlarms.clear() copy par no-op hai)
         assertNull(am.nextScheduledAlarm)
         com.mandu.liquiddialer.telecom.BootReceiver().onReceive(ctx, android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED))
         val a = am.nextScheduledAlarm
         assertNotNull("boot ke baad reminder dobara schedule hona chahiye", a)
         assertEquals(at, a!!.triggerAtTime)
         // galat action par kuch nahi hota
-        am.scheduledAlarms.clear()
+        while (am.nextScheduledAlarm != null) { }
         com.mandu.liquiddialer.telecom.BootReceiver().onReceive(ctx, android.content.Intent("com.example.OTHER"))
         assertNull(am.nextScheduledAlarm)
         CallReminders.cancel(ctx, "9812345678")
@@ -124,5 +124,29 @@ class CallReminderTest {
         val before = nm.allNotifications.size
         CallActionReceiver().onReceive(ctx, android.content.Intent(CallActionReceiver.CALL_REMIND).putExtra("number", ""))
         assertEquals(before, nm.allNotifications.size)
+    }
+
+    @Test
+    fun bootReceiverFiresRecentlyMissedAndDropsAncient() {
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        CallNotifier.createChannels(ctx)
+        val now = System.currentTimeMillis()
+        // phone band tha jab ye dono nikal gaye: ek 2 ghante pehle, ek 2 din pehle
+        CallReminders.set(ctx, "9811111111", "Recent Miss", now - 2 * 3600_000L)
+        CallReminders.set(ctx, "9822222222", "Ancient", now - 48 * 3600_000L)
+        val am = Shadows.shadowOf(ctx.getSystemService(AlarmManager::class.java))
+        while (am.nextScheduledAlarm != null) { } // reboot: shadow me getNext poll karta hai
+        val nm = Shadows.shadowOf(ctx.getSystemService(NotificationManager::class.java))
+        val before = nm.allNotifications.size
+        com.mandu.liquiddialer.telecom.BootReceiver().onReceive(ctx, android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED))
+        // recent miss: notification aayi, store saaf, koi naya alarm nahi
+        val n = nm.allNotifications.lastOrNull { it.extras.getCharSequence("android.title").toString().contains("Recent Miss") }
+        assertNotNull("band phone ke dauraan nikla reminder boot par batana chahiye", n)
+        assertTrue(nm.allNotifications.size > before)
+        assertNull("fire ke baad recent miss store se hatna chahiye", CallReminders.allRaw(ctx).firstOrNull { it.number.contains("9811111111") })
+        // ancient: chup-chap saaf, koi notification nahi
+        assertNull("ancient reminder saaf hona chahiye", CallReminders.allRaw(ctx).firstOrNull { it.number.contains("9822222222") })
+        assertTrue("ancient ke liye notification nahi", nm.allNotifications.none { it.extras.getCharSequence("android.title").toString().contains("Ancient") })
+        assertNull("past reminders ke liye koi alarm nahi", am.nextScheduledAlarm)
     }
 }
