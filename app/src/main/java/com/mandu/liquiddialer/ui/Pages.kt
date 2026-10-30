@@ -879,7 +879,7 @@ private fun VolumePage(onBack: () -> Unit) {
                 // koi auto-restart nahi: process marne ke baad boost khud wapas nahi chalta
                 if (!boostRunning) SRow("Boost dobara chalu karo", "App/process band hone par boost ruk gaya tha; ye khud wapas nahi chalta", LdIcons.Volume) { BoostService.applyNow(ctx, s.volBoostGain) }
             }
-            LdText("Dhyan: boost sirf media (music/video/apps) ki awaaz ke liye hai - phone/SIM call ki awaaz koi app nahi badha sakta. Zyada boost se awaaz phat sakti hai aur speaker ya kaan ko nuksan ho sakta hai; hamesha kam se shuru karo. Boost chalne par chhota notification dikhega, wahan se bhi band kar sakte ho.", 11.5f,
+            LdText("Dhyan: boost sirf media (music/video/apps) ki awaaz ke liye hai - ye app call ki awaaz nahi badhata - call aate hi boost apne aap ruk jata hai aur call ke baad sirf tum chahu to hi dobara chalu hoga. Zyada boost se awaaz phat sakti hai aur speaker ya kaan ko nuksan ho sakta hai; hamesha kam se shuru karo. Boost chalne par chhota notification dikhega, wahan se bhi band kar sakte ho.", 11.5f,
                 color = p.danger, maxLines = 8, modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 12.dp))
         }
     }
