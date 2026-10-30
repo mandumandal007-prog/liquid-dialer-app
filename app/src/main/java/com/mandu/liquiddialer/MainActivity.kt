@@ -46,6 +46,7 @@ class AppState {
     var undoInfo by mutableStateOf<Pair<String, android.telecom.PhoneAccountHandle?>?>(null) // number waiting out the undo window
     var permsTick by mutableIntStateOf(0)
     var showOnboarding by mutableStateOf(false)
+    var editContactRequest by mutableStateOf<Pair<Long?, String>?>(null) // contact editor asked from the call screen
 }
 
 val RUNTIME_PERMS: List<Pair<String, String>> = buildList {
@@ -183,6 +184,10 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(i: Intent?) {
         i ?: return
         i.getStringExtra("tab")?.let { state.tab = it }
+        i.getStringExtra("editContact")?.takeIf { it.isNotBlank() }?.let { num ->
+            state.editContactRequest = try { Repo.contactIdFor(this, num) } catch (_: Exception) { null } to num
+            i.removeExtra("editContact")
+        }
         val number = i.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: i.getStringExtra("number")
         when (i.action) {
             Intent.ACTION_DIAL, Intent.ACTION_VIEW -> if (number != null) { state.dial = number; state.tab = "dialer" } else if (i.action == Intent.ACTION_DIAL) state.tab = "dialer"
