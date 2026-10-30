@@ -73,6 +73,39 @@ class CallScreenshotTest {
         saveShot(rule, "08-ongoing-call")
     }
 
+    /** Real-device defect (user screenshot, fontScale bada phone): hero overflow se timer/avatar clip.
+     *  fontScale 1.25 pe: badge strip UPAR, timer controls ke UPAR poora visible, avatar chips ke neeche. */
+    @Test
+    fun ongoingCallLargeFontNoClip() {
+        org.robolectric.RuntimeEnvironment.setFontScale(1.25f)
+        try {
+            settle(2000)
+            activeCall()
+            settle(2500)
+
+            // badge strip upar (HD VOICE + manage) aur timer se upar hona chahiye
+            rule.onNodeWithTag("badge_strip").assertIsDisplayed()
+            rule.onNodeWithText("HD VOICE").assertIsDisplayed()
+            rule.onNodeWithTag("call_timer").assertIsDisplayed()
+            val strip = rule.onNodeWithTag("badge_strip").fetchSemanticsNode().boundsInRoot
+            val timer = rule.onNodeWithTag("call_timer").fetchSemanticsNode().boundsInRoot
+            org.junit.Assert.assertTrue("badge strip timer ke upar honi chahiye", strip.bottom <= timer.top)
+
+            // timer ka bottom controls (Mute) ke top ke upar - device pe timer button ke neeche clip ho raha tha
+            val mute = rule.onNodeWithText("Mute").fetchSemanticsNode().boundsInRoot
+            org.junit.Assert.assertTrue("timer controls ke upar poora dikhna chahiye (clipped nahi)", timer.bottom <= mute.top)
+
+            // avatar top chips (SIM) ke neeche - device pe avatar chips ke neeche clip ho raha tha
+            val avatar = rule.onNodeWithTag("hero_avatar").fetchSemanticsNode().boundsInRoot
+            val sim = rule.onNodeWithText("SIM").fetchSemanticsNode().boundsInRoot
+            org.junit.Assert.assertTrue("avatar top chips se overlap nahi hona chahiye", avatar.top >= sim.bottom)
+
+            saveShot(rule, "30-ongoing-bigfont")
+        } finally {
+            org.robolectric.RuntimeEnvironment.setFontScale(1.0f)
+        }
+    }
+
     @Test
     fun ongoingCallVideoCapable() {
         seed { this[K.theme] = "midnight" }
