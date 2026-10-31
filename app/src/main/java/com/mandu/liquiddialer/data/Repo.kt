@@ -380,6 +380,57 @@ fun dayStats(recents: List<Recent>, nowMs: Long): DayStats {
     return DayStats(today.size, talk, missed)
 }
 
+// ---- birthdays (lazy strip; startup query NAHI - Recents screen khulne ke BAAD load hota hai) ----
+
+data class Birthday(val name: String, val number: String, val daysUntil: Int)
+
+/** Birthday string ("yyyy-MM-dd" ya "--MM-dd") se agle occurrence tak ke din. Parse na ho to null. */
+fun daysUntilBirthday(raw: String, today: java.time.LocalDate): Int? {
+    val parts = raw.trim().split("-").filter { it.isNotEmpty() }
+    if (parts.size < 2) return null
+    val (month, day) = try {
+        if (parts.size == 2) parts[0].toInt() to parts[1].toInt()          // --MM-dd
+        else parts[1].toInt() to parts[2].toInt()                          // yyyy-MM-dd
+    } catch (_: Exception) { return null }
+    if (month !in 1..12 || day !in 1..31) return null
+    var next = try { java.time.LocalDate.of(today.year, month, day) }
+        catch (_: Exception) {
+            // 29 Feb: non-leap saal me 28 Feb ko manaate hain
+            if (month == 2 && day == 29) java.time.LocalDate.of(today.year, 2, 28) else return null
+        }
+    if (next.isBefore(today)) next = try { java.time.LocalDate.of(today.year + 1, month, day) }
+        catch (_: Exception) { java.time.LocalDate.of(today.year + 1, 2, 28) }
+    return java.time.temporal.ChronoUnit.DAYS.between(today, next).toInt()
+}
+
+/** Contacts ke birthdays agle `withinDays` dinon me. LAZY call - startup pe mat chalao. */
+fun birthdays(ctx: Context, withinDays: Int = 7): List<Birthday> {
+    val today = java.time.LocalDate.now()
+    val out = LinkedHashMap<String, Birthday>()
+    val proj = arrayOf(
+        CommonDataKinds.Event.CONTACT_ID, CommonDataKinds.Event.DISPLAY_NAME,
+        CommonDataKinds.Event.START_DATE,
+    )
+    val sel = "${CommonDataKinds.Event.MIMETYPE}=? AND ${CommonDataKinds.Event.TYPE}=?"
+    val args = arrayOf(CommonDataKinds.Event.CONTENT_ITEM_TYPE, "${CommonDataKinds.Event.TYPE_BIRTHDAY}")
+    try {
+        ctx.contentResolver.query(ContactsContract.Data.CONTENT_URI, proj, sel, args, null)?.use { c ->
+            while (c.moveToNext()) {
+                val name = c.getString(1) ?: continue
+                val days = daysUntilBirthday(c.getString(2) ?: continue, today) ?: continue
+                if (days > withinDays) continue
+                // number: strip tap pe number sheet kholne ke liye pehla phone
+                val num = ctx.contentResolver.query(
+                    CommonDataKinds.Phone.CONTENT_URI, arrayOf(CommonDataKinds.Phone.NUMBER),
+                    "${CommonDataKinds.Phone.CONTACT_ID}=?", arrayOf("${c.getLong(0)}"), null
+                )?.use { p -> if (p.moveToFirst()) p.getString(0) ?: "" else "" } ?: ""
+                out.getOrPut(name) { Birthday(name, num, days) }
+            }
+        }
+    } catch (_: Exception) { }
+    return out.values.sortedBy { it.daysUntil }
+}
+
 // sirf sachmuch MISSED (ring hui, user ne nahi uthaya): user-rejected ya app-blocked calls
 // "missed" nahi hoti - unka badge dena user ko galat signal deta hai (blocked ka apna section hai)
 fun unseenMissed(recents: List<Recent>, seenAt: Long): Int =
