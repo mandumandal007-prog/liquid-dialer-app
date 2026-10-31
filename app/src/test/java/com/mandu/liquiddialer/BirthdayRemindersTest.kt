@@ -94,4 +94,17 @@ class BirthdayRemindersTest {
         assertEquals(listOf(bday), notified)
         assertNotNull(am.nextScheduledAlarm)
     }
+
+    @Test
+    fun permissionDeniedNoCrashNoNotification() {
+        // Contacts permission revoke/deny: query SecurityException fekti hai -> koi crash nahi,
+        // koi stale/private data ka notification nahi; agla alarm phir bhi arm (kal phir koshish).
+        val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val am = Shadows.shadowOf(ctx.getSystemService(AlarmManager::class.java))
+        BirthdayReminders.cancel(ctx)
+        var notified = false
+        BirthdayReminders.onAlarm(ctx, enabled = true, load = { throw SecurityException("revoked") }, notify = { _, _ -> notified = true })
+        assertFalse("denied/revoked par koi notification nahi", notified)
+        assertNotNull("agla alarm phir bhi arm", am.nextScheduledAlarm)
+    }
 }
