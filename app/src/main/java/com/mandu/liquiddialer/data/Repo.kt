@@ -159,6 +159,35 @@ object Repo {
         ctx.contentResolver.delete(uri, null, null) > 0
     } catch (e: Exception) { false }
 
+    /** Per-contact ringtone write target: lookup URI + values. ringtoneUri null = provider default wapas, "" = silent. */
+    fun contactRingtoneUpdate(contactId: Long, lookupKey: String, ringtoneUri: String?): Pair<Uri, ContentValues> {
+        val uri = ContactsContract.Contacts.getLookupUri(contactId, lookupKey)
+        val v = ContentValues().apply {
+            if (ringtoneUri == null) putNull(ContactsContract.Contacts.CUSTOM_RINGTONE)
+            else put(ContactsContract.Contacts.CUSTOM_RINGTONE, ringtoneUri)
+        }
+        return uri to v
+    }
+
+    /** User-initiated per-contact ringtone write. true SIRF tab jab provider ne sach me row update ki. */
+    fun setContactRingtone(ctx: Context, contactId: Long, lookupKey: String, ringtoneUri: String?): Boolean = try {
+        val (uri, v) = contactRingtoneUpdate(contactId, lookupKey, ringtoneUri)
+        ctx.contentResolver.update(uri, v, null, null) > 0
+    } catch (e: Exception) { false }
+
+    /** Contact ki current custom ringtone URI string; null = phone default. Lazy single-row read. */
+    fun contactRingtone(ctx: Context, contactId: Long): String? = try {
+        ctx.contentResolver.query(ContactsContract.Contacts.CONTENT_URI, arrayOf(ContactsContract.Contacts.CUSTOM_RINGTONE),
+            "${ContactsContract.Contacts._ID}=?", arrayOf("$contactId"), null)?.use {
+            if (it.moveToFirst()) it.getString(0) else null
+        }
+    } catch (e: Exception) { null }
+
+    /** Ringtone ka dikhne wala naam; koi bhi dikkat par null. */
+    fun ringtoneTitle(ctx: Context, uriString: String?): String? = uriString?.let {
+        try { android.media.RingtoneManager.getRingtone(ctx, Uri.parse(it))?.getTitle(ctx) } catch (e: Exception) { null }
+    }
+
     fun setStarred(ctx: Context, contactId: Long, starred: Boolean) {
         try {
             val v = ContentValues().apply { put(ContactsContract.Contacts.STARRED, if (starred) 1 else 0) }
