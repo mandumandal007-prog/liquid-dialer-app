@@ -413,17 +413,18 @@ fun insights(recents: List<Recent>): Insights {
 
 // ---- duplicate contacts (SIRF detection - merge/delete kuch nahi hota) ----
 
-data class DupGroup(val numberKey: String, val pretty: String, val names: List<String>, val first: Contact, val count: Int)
+data class DupGroup(val numberKey: String, val pretty: String, val contacts: List<Contact>, val count: Int)
 
-/** Same normalized number 2+ alag contact entries me saved. Id-distinct hona zaroori (same contact dobara list ho to dup nahi).
- *  6+ digit key se chote/service numbers ko ignore. Result count desc. */
+/** POSSIBLE duplicates: aakhri 10 digits (key) same. Conservative full-number match NAHI -
+ *  alag country code + same last-10 bhi ek group me aa sakte hain (isliye UI "possible" bolta hai, pakka nahi).
+ *  Id-distinct hona zaroori; 6+ digit keys only (service numbers ignore). Count desc. */
 fun duplicateGroups(contacts: List<Contact>): List<DupGroup> =
     contacts.filter { it.number.isNotBlank() }
         .groupBy { key(it.number) }
         .filter { (k, l) -> k.length >= 6 && l.map { it.id }.distinct().size > 1 }
         .map { (k, l) ->
             val d = l.distinctBy { it.id }
-            DupGroup(k, pretty(d.first().number), d.map { it.name.ifBlank { pretty(it.number) } }.distinct(), d.first(), d.size)
+            DupGroup(k, pretty(d.first().number), d, d.size)
         }
         .sortedByDescending { it.count }
 
