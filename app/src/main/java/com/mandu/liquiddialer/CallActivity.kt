@@ -34,6 +34,9 @@ class CallActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // App lock ON = call screen ka recents preview bhi secure (MainActivity ke saath same rule)
+        if (com.mandu.liquiddialer.LdApp.settings.value.appLock)
+            window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
         enableEdgeToEdge()
         if (Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true) }
         @Suppress("DEPRECATION")
