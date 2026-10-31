@@ -10,6 +10,7 @@ import com.mandu.liquiddialer.data.Repo
 import com.mandu.liquiddialer.data.ldStore
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -20,7 +21,7 @@ import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Duplicates math: pure, detection-only (koi merge/delete nahi). */
+/** Duplicates math: pure, detection-only (koi merge/delete nahi). Matching = aakhri 10 digits (POSSIBLE match, pakka nahi). */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class DuplicatesMathTest {
@@ -42,8 +43,22 @@ class DuplicatesMathTest {
         ))
         assertEquals(1, g.size)
         assertEquals(3, g[0].count)
-        assertEquals(3, g[0].names.size) // teeno alag naam dikhte hain
+        assertEquals(3, g[0].contacts.map { it.id }.distinct().size) // har contact alag se milta hai
         assertEquals("9876543210", g[0].numberKey)
+    }
+
+    @Test
+    fun countryCodeCollisionGroupsButIsOnlyPossible() {
+        // +91 98765 43210 aur +1 (987) 654-3210: aakhri 10 digits same -> EK group (known approximation).
+        // Full digit strings alag hain - isi liye UI "possible" bolta hai, "same number" pakka claim nahi.
+        val g = Repo.duplicateGroups(listOf(
+            c(1, "India Wala", "+91 98765 43210"),
+            c(2, "US Wala", "+1 98765 43210"),
+        ))
+        assertEquals(1, g.size)
+        assertEquals(2, g[0].count)
+        val fullDigits = g[0].contacts.map { it.number.filter { ch -> ch.isDigit() } }
+        assertNotEquals(fullDigits[0], fullDigits[1])
     }
 
     @Test
@@ -57,7 +72,7 @@ class DuplicatesMathTest {
     }
 }
 
-/** Duplicates sheet: Contacts tab se "N dup" chip -> sheet, detection-only caveat + rows. */
+/** Duplicates sheet: Contacts tab se "N dup" chip -> sheet, possible-label caveat + per-contact rows + expand. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -77,8 +92,7 @@ class DuplicatesSheetShotTest {
         Unit
     }
 
-    @Test
-    fun sheetShowsGroupsWithoutAnyMergeAction() {
+    private fun openContactsWithDups() {
         settle(2500)
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
         val act = rule.activity
@@ -94,11 +108,59 @@ class DuplicatesSheetShotTest {
         settle()
         rule.onNodeWithTag("dups_open", useUnmergedTree = true).assertExists().performClick()
         settle()
-        rule.onNodeWithText("Duplicate contacts", substring = true, useUnmergedTree = true).assertExists()
-        // detection-only ka saaf dawa
+    }
+
+    @Test
+    fun sheetShowsPossibleLabelAndEachContactRow() {
+        openContactsWithDups()
+        rule.onNodeWithText("Possible duplicate contacts", substring = true, useUnmergedTree = true).assertExists()
+        // approximation ka saaf dawa + detection-only
+        rule.onNodeWithText("aakhri 10 digits same", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("delete ya merge nahi hoga", substring = true, useUnmergedTree = true).assertExists()
-        rule.onNodeWithText("Rahul, Rahul Sharma", substring = true, useUnmergedTree = true).assertExists()
+        // HAR contact ki apni row (sirf arbitrary first nahi)
+        rule.onNodeWithTag("dup_contact_11", useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("dup_contact_12", useUnmergedTree = true).assertExists()
         saveShot(rule, "49-duplicates-sheet")
+    }
+
+    @Test
+    fun contactRowOpensThatContact() {
+        openContactsWithDups()
+        rule.onNodeWithTag("dup_contact_12", useUnmergedTree = true).performClick()
+        settle()
+        // dup sheet band, number sheet khula (Rahul Sharma wala)
+        rule.onNodeWithText("Possible duplicate contacts", substring = true, useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun expandReachesRemainingGroups() {
+        settle(2500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        val act = rule.activity
+        Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CONTACTS, android.Manifest.permission.READ_CALL_LOG)
+        act.state.showOnboarding = false
+        act.state.isDefault = true
+        // 32 groups (64 contacts) -> cap 30 + expand
+        val list = mutableListOf<Contact>()
+        var id = 1L
+        for (g in 1..32) {
+            val base = 9000000000L + g * 137
+            list.add(Contact(id++, "lk${id}", "UserA$g", "", "+91 $base", "MOBILE", false, null))
+            list.add(Contact(id++, "lk${id}", "UserB$g", "", "$base", "MOBILE", false, null))
+        }
+        act.state.contacts = list
+        act.state.tab = "contacts"
+        settle()
+        rule.onNodeWithTag("dups_open", useUnmergedTree = true).assertExists().performClick()
+        settle()
+        rule.onNodeWithTag("dups_expand", useUnmergedTree = true).assertExists().performClick()
+        settle()
+        // expand ke baad sheet khuli rahti hai aur control gayab (showAll flip)
+        rule.onNodeWithText("Possible duplicate contacts", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("dups_expand", useUnmergedTree = true).assertDoesNotExist()
+        // 32nd group ka contact ab pahunch sakta hai
+        val lastId = 2L * 32
+        rule.onNodeWithTag("dup_contact_$lastId", useUnmergedTree = true).assertExists()
     }
 
     @Test
