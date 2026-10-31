@@ -113,4 +113,31 @@ class AlphaRailHardCaseShotTest {
         assertTrue("fontScale 1.3 pe rail bottom clip nahi (bottom=${rb.bottom} <= $rootH)", rb.bottom <= rootH)
         assertAllLettersPlaced(rb)
     }
+
+    @Test
+    fun dragOnRailJumpsEndToEnd() {
+        seedAndOpen(1f)
+        val rail = rule.onAllNodesWithTag("alpha_rail", useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue("rail render hona chahiye", rail.isNotEmpty())
+        val rootH = rule.onRoot().fetchSemanticsNode().boundsInRoot.height
+        // DRAG top->bottom: asli touch path (detectVerticalDragGestures -> jumpAt -> scrollToItem),
+        // jo sirf tap/click tests cover nahi karte. v184 geometry (viewport padding) ke baad bhi
+        // drag ka final landing exact hona chahiye.
+        rule.onNodeWithTag("alpha_rail", useUnmergedTree = true).performTouchInput {
+            swipe(start = center, end = center.copy(y = bottom - 6f), durationMillis = 400)
+        }
+        settle(1500)
+        val last = rule.onAllNodesWithText("1800flowers", useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue("rail drag neeche karne par aakhri contact composed hona chahiye", last.isNotEmpty())
+        val lb = last[0].boundsInRoot
+        assertTrue("drag ke baad aakhri contact viewport me (top=${lb.top}, rootH=$rootH)", lb.bottom > 0 && lb.top < rootH)
+        saveShot(rule, "58-alpha-rail-drag")
+        // wapas upar drag -> pehla section
+        rule.onNodeWithTag("alpha_rail", useUnmergedTree = true).performTouchInput {
+            swipe(start = center.copy(y = bottom - 6f), end = center.copy(y = top + 6f), durationMillis = 400)
+        }
+        settle(1500)
+        val first = rule.onAllNodesWithText("Akumar", useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue("rail drag upar karne par Akumar viewport me", first.isNotEmpty() && first[0].boundsInRoot.let { it.bottom > 0 && it.top < rootH })
+    }
 }
