@@ -53,7 +53,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import dev.chrisbanes.haze.haze
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MainScreen(st: AppState, act: MainActivity) {
@@ -463,6 +465,10 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 }
             }
         }
+        // NAYA: birthdays strip - LAZY load (startup pe query NAHI, recents gate nahi hota), tap = number sheet
+        item(key = "birthdays-strip") {
+            BirthdayStripLoader(onOpenNumber)
+        }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 2.dp)) {
                 chipLabels.forEachIndexed { i, label ->
@@ -524,6 +530,35 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         PrimaryButton("Haan, clear karo", danger = true) { Repo.clearRecents(ctx); confirmClear = false; act.reload() }
         Spacer(Modifier.height(8.dp))
         GhostButton("Rehne do") { confirmClear = false }
+    }
+}
+
+/** Birthdays ka lazy loader: Recents screen dikhe USKE BAAD IO pe query; startup/recents ko gate nahi karta. */
+@Composable
+private fun BirthdayStripLoader(onOpen: (String) -> Unit) {
+    val ctx = LocalContext.current
+    var items by remember { mutableStateOf<List<Repo.Birthday>?>(null) }
+    LaunchedEffect(Unit) {
+        items = withContext(Dispatchers.IO) { try { Repo.birthdays(ctx) } catch (_: Exception) { emptyList() } }
+    }
+    items?.let { BirthdayStrip(it, onOpen) }
+}
+
+@Composable
+fun BirthdayStrip(items: List<Repo.Birthday>, onOpen: (String) -> Unit) {
+    if (items.isEmpty()) return
+    val p = LocalLd.current
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
+        LdText("BIRTHDAYS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
+        items.take(3).forEach { b ->
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { if (b.number.isNotBlank()) onOpen(b.number) }.padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                LdIcon(LdIcons.Users, 13.dp, p.accent)
+                val whenStr = when (b.daysUntil) { 0 -> "aaj hai!" ; 1 -> "kal hai"; else -> "${b.daysUntil} din me" }
+                LdText("${b.name} ka birthday  ·  $whenStr", 11.5f, FontWeight.SemiBold, p.text,
+                    Modifier.weight(1f).testTag("birthday_row"), maxLines = 1)
+            }
+        }
     }
 }
 
