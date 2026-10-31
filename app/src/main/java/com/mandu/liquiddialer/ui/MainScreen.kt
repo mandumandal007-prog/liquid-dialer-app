@@ -124,7 +124,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== top bar =====
             AnimatedVisibility(st.tab != "dialer", enter = fadeIn() + slideInVertically { -it / 4 }, exit = fadeOut() + slideOutVertically { -it / 4 }) {
-                Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
+                Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp).testTag("top_bar"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.size(42.dp).liquid(CircleShape, 6.dp).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu) }
                     Row(Modifier.weight(1f).height(46.dp).liquid(RoundedCornerShape(18.dp), 8.dp).padding(horizontal = 12.dp),
