@@ -64,6 +64,7 @@ data class LdSettings(
     val redialSuggest: Boolean = true,       // busy/fail pe "Dobara call" notification
     val postCallSave: Boolean = true,        // unknown number ke baad Save/Block prompt
     val missedRemind: Boolean = false,       // opt-in: missed call reminder 5 min x3
+    val birthdayRemind: Boolean = false,     // opt-in: birthday wale din subah 9 baje notification
     val quietHours: Boolean = false,         // opt-in: quiet hours me incoming call silent (sirf silence, reject nahi)
     val quietStart: Int = 1320,              // quiet hours shuru (minute of day, default 22:00)
     val quietEnd: Int = 420,                 // quiet hours khatam (minute of day, default 07:00)
@@ -164,6 +165,7 @@ object K {
     val redialSuggest = booleanPreferencesKey("redialSuggest")
     val postCallSave = booleanPreferencesKey("postCallSave")
     val missedRemind = booleanPreferencesKey("missedRemind")
+    val birthdayRemind = booleanPreferencesKey("birthdayRemind")
     val quietHours = booleanPreferencesKey("quietHours")
     val quietStart = intPreferencesKey("quietStart")
     val quietEnd = intPreferencesKey("quietEnd")
@@ -260,6 +262,7 @@ fun Preferences.toSettings(): LdSettings {
         redialSuggest = this[K.redialSuggest] ?: true,
         postCallSave = this[K.postCallSave] ?: true,
         missedRemind = this[K.missedRemind] ?: false,
+        birthdayRemind = this[K.birthdayRemind] ?: false,
         quietHours = this[K.quietHours] ?: false,
         quietStart = this[K.quietStart] ?: 1320,
         quietEnd = this[K.quietEnd] ?: 420,
