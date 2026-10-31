@@ -78,6 +78,7 @@ class MainActivity : ComponentActivity() {
     }
 
     val state = AppState()
+    private val lockState = mutableStateOf(false)
     private val handler = Handler(Looper.getMainLooper())
     private var pendingIntentAfterPerms: Intent? = null
 
@@ -113,7 +114,22 @@ class MainActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { LdThemeHost { MainScreen(state, this) } }
+        // Cold-start lock decision PEHLE composition ke (settings LdApp me sync load ho chuki)
+        run {
+            val sNow = LdApp.settings.value
+            lockState.value = com.mandu.liquiddialer.data.AppLock.shouldLock(sNow.appLock, com.mandu.liquiddialer.data.AppLock.unlockedThisSession, com.mandu.liquiddialer.data.AppLock.lastBackgroundAt, com.mandu.liquiddialer.data.AppLock.clock(), sNow.appLockDelaySec)
+        }
+        setContent {
+            LdThemeHost {
+                val s = LdApp.settings.collectAsState().value
+                LaunchedEffect(s.appLock, s.appLockDelaySec) {
+                    lockState.value = com.mandu.liquiddialer.data.AppLock.shouldLock(s.appLock, com.mandu.liquiddialer.data.AppLock.unlockedThisSession, com.mandu.liquiddialer.data.AppLock.lastBackgroundAt, com.mandu.liquiddialer.data.AppLock.clock(), s.appLockDelaySec)
+                }
+                // Locked me MainScreen compose hi nahi hota - content flash ka sawaal hi nahi
+                if (s.appLock && lockState.value) com.mandu.liquiddialer.ui.AppLockScreen(onUnlock = { unlockNow() })
+                else MainScreen(state, this)
+            }
+        }
         lifecycleScope.launch {
             val s = (application as LdApp).repo.flow.first()
             if (!s.onboarded) state.showOnboarding = true
@@ -133,8 +149,25 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handleIntent(intent) }
 
+    @Deprecated("KeyguardManager credential flow (API 26-29) ke liye chahiye")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        com.mandu.liquiddialer.data.AppLock.handleCredentialResult(requestCode, resultCode)
+    }
+
+    private fun unlockNow() {
+        com.mandu.liquiddialer.data.AppLock.authenticator(this) { ok ->
+            runOnUiThread { if (ok) { com.mandu.liquiddialer.data.AppLock.onUnlocked(); lockState.value = false } }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        // Re-lock (timeout) + recents preview protection: appLock ON = FLAG_SECURE hamesha
+        val sNow = LdApp.settings.value
+        lockState.value = com.mandu.liquiddialer.data.AppLock.shouldLock(sNow.appLock, com.mandu.liquiddialer.data.AppLock.unlockedThisSession, com.mandu.liquiddialer.data.AppLock.lastBackgroundAt, com.mandu.liquiddialer.data.AppLock.clock(), sNow.appLockDelaySec)
+        if (sNow.appLock) window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         refreshDefault()
         state.permsTick++
         reload()
