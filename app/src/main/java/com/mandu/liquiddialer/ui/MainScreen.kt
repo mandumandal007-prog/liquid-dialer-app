@@ -281,7 +281,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     InsightRow("${ins.calls}", "calls is window me")
                     InsightRow(fmtDur(ins.talkSecs), "kul baat-chit ka time")
                     if (ins.missed > 0) InsightRow("${ins.missed}", "missed calls")
-                    if (ins.topName != null) InsightRow(ins.topName, "sabse zyada baat (${ins.topCount} calls)")
+                    if (ins.topName != null) InsightRow(ins.topName, "sabse zyada calls (${ins.topCount})")
                     if (ins.longestName != null) InsightRow("${ins.longestName} · ${fmtDur(ins.longestSecs)}", "sabse lambi call")
                     if (ins.busiestLabel != null) InsightRow("${ins.busiestLabel} (${ins.busiestCount})", "sabse busy din")
                     Spacer(Modifier.height(14.dp))
