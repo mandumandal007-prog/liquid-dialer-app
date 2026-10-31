@@ -112,7 +112,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 // recents dikhte hi missed-seen mark karo (tab badge isi se clear hota hai)
                 LaunchedEffect(st.tab, st.recents) { if (st.tab == "recents") { val nowMs = System.currentTimeMillis(); if (s.recentsSeenAt < nowMs) LdApp.instance.scope.launch { LdApp.instance.repo.setRecentsSeen(nowMs) } } }
                 LaunchedEffect(st.tab) { if (st.tab in tabKeys) { val i = tabKeys.indexOf(st.tab); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) } }
-                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding(), userScrollEnabled = s.tabSwipe) { page ->
+                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = 102.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
                         "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
@@ -156,7 +156,9 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
             val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users))
-            Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 18.dp, end = 18.dp, bottom = 24.dp).fillMaxWidth().height(66.dp).testTag("bottom_bar")
+            Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 18.dp, end = 18.dp, bottom = 24.dp).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f).height(66.dp).testTag("bottom_bar")
                 .liquid(RoundedCornerShape(999.dp), 22.dp)
                 .pointerInput(Unit) {
                     var dragX = 0f
@@ -201,15 +203,18 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     }
                 }
             }
-            // ===== round frosted dialer button above the bar (Contacts side) =====
+            // ===== round frosted dialer button: bar ke andar nav ke bagal me - rows/call buttons cover nahi karta =====
             AnimatedVisibility(visible = st.tab != "dialer" && pages.isEmpty(),
-                modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 112.dp),
-                enter = fadeIn(tween(220)) + scaleIn(tween(300, easing = CubicBezierEasing(.22f, 1f, .36f, 1f)), initialScale = .7f),
-                exit = fadeOut(tween(160)) + scaleOut(tween(180), targetScale = .7f)) {
-                Box(Modifier.size(80.dp).shadow(18.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).testTag("dialer_fab")
-                    .liquid(CircleShape, 22.dp).clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
-                    LdIcon(LdIcons.Dialpad, 34.dp, p.accent)
+                enter = fadeIn(tween(220)) + expandHorizontally(tween(300, easing = CubicBezierEasing(.22f, 1f, .36f, 1f))) + scaleIn(tween(300, easing = CubicBezierEasing(.22f, 1f, .36f, 1f)), initialScale = .7f),
+                exit = fadeOut(tween(160)) + shrinkHorizontally(tween(180)) + scaleOut(tween(180), targetScale = .7f)) {
+                Row {
+                    Spacer(Modifier.width(12.dp))
+                    Box(Modifier.size(64.dp).shadow(18.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).testTag("dialer_fab")
+                        .liquid(CircleShape, 22.dp).clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
+                        LdIcon(LdIcons.Dialpad, 30.dp, p.accent)
+                    }
                 }
+            }
             }
             // ===== half-screen frosted dialer sheet =====
             if (st.tab == "dialer") Sheet(onDismiss = { st.tab = lastTab }) {
@@ -456,7 +461,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val contactHits = remember(st.contacts, query) { if (query.isBlank()) emptyList() else st.contacts.filter { Repo.matches(it, query) }.take(8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 200.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -664,7 +669,7 @@ fun CallMini(onClick: () -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape)
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape).testTag("call_mini")
         .background(Brush.linearGradient(listOf(p.accent.pct(.30f), p.accent.pct(.12f)))).border(1.dp, p.accent.pct(.45f), CircleShape)
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 20.dp, p.accent) }
 }
@@ -693,7 +698,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val railEntries = remember(list, s.lastNameFirst) { AlphaIndex.indexOf(list.map { if (s.lastNameFirst) it.altName else it.name }, headItems = 1) }
     val showRail = hasPerm && query.isBlank() && railEntries.size >= 4
     Box(Modifier.fillMaxSize()) {
-    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 160.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
