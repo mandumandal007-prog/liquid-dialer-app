@@ -66,11 +66,15 @@ fun MainScreen(st: AppState, act: MainActivity) {
     var query by remember { mutableStateOf("") }
     var drawer by remember { mutableStateOf(false) }
     val pages = remember { mutableStateListOf<String>() }
+    val ctx = LocalContext.current
     var sheetNumber by remember { mutableStateOf<String?>(null) }
     var sheetContact by remember { mutableStateOf<Contact?>(null) }
     var editContactId by remember { mutableStateOf<Long?>(null) }
     var editPrefill by remember { mutableStateOf("") }
     var menuNumber by remember { mutableStateOf<String?>(null) }
+    // Sheets haze source Box ke BAHAR overlay level pe rehne chahiye (hazeChild inside haze = draw crash)
+    var confirmClear by remember { mutableStateOf(false) }
+    var showInsights by remember { mutableStateOf(false) }
     var lastTab by remember { mutableStateOf("recents") }
     val calls by CallManager.calls.collectAsState()
     val ver by CallManager.version.collectAsState()
@@ -110,7 +114,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     when (tabKeys[page]) {
                         "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
-                            onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } })
+                            onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } },
+                            onClear = { confirmClear = true }, onInsights = { showInsights = true })
                         else -> ContactsScreen(st, act, query, 86.dp + bannerPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it })
                     }
                 }
@@ -264,6 +269,33 @@ fun MainScreen(st: AppState, act: MainActivity) {
             if (pc != null) Sheet(onDismiss = { st.pendingCall = null }) {
                 SimPickSheet { h -> st.pendingCall = null; act.call(pc.first, h, video = pc.second) }
             }
+            // NAYA: insights sheet - SIRF loaded recents ka hisaab, window label ke saath (poori history ka dawa nahi)
+            if (showInsights) {
+                val ins = remember(st.recents) { Repo.insights(st.recents) }
+                val windowLabel = if (ins.calls >= s.recentLimit) "Aakhri ${ins.calls} calls ka hisaab (limit: ${s.recentLimit})"
+                    else "Phone ki saari ${ins.calls} calls ka hisaab"
+                Sheet(onDismiss = { showInsights = false }) {
+                    SheetTitle("Call insights")
+                    LdText(windowLabel, 12f, color = p.muted, maxLines = 2, modifier = Modifier.testTag("insights_window"))
+                    Spacer(Modifier.height(12.dp))
+                    InsightRow("${ins.calls}", "calls is window me")
+                    InsightRow(fmtDur(ins.talkSecs), "kul baat-chit ka time")
+                    if (ins.missed > 0) InsightRow("${ins.missed}", "missed calls")
+                    if (ins.topName != null) InsightRow(ins.topName, "sabse zyada baat (${ins.topCount} calls)")
+                    if (ins.longestName != null) InsightRow("${ins.longestName} · ${fmtDur(ins.longestSecs)}", "sabse lambi call")
+                    if (ins.busiestLabel != null) InsightRow("${ins.busiestLabel} (${ins.busiestCount})", "sabse busy din")
+                    Spacer(Modifier.height(14.dp))
+                    GhostButton("Band karo") { showInsights = false }
+                }
+            }
+            if (confirmClear) Sheet(onDismiss = { confirmClear = false }) {
+                SheetTitle("Saari call history delete karein?")
+                LdText("Ye phone ki call log se hamesha ke liye hat jayegi.", 13f, color = p.muted, maxLines = 3)
+                Spacer(Modifier.height(14.dp))
+                PrimaryButton("Haan, clear karo", danger = true) { Repo.clearRecents(ctx); confirmClear = false; act.reload() }
+                Spacer(Modifier.height(8.dp))
+                GhostButton("Rehne do") { confirmClear = false }
+            }
             if (st.showOnboarding) Onboarding(st, act)
         }
     }
@@ -355,12 +387,11 @@ private fun dayLabel(ts: Long): String {
 }
 
 @Composable
-private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit, onOpenNumber: (String) -> Unit = {}) {
+private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit, onOpenNumber: (String) -> Unit = {}, onClear: () -> Unit = {}, onInsights: () -> Unit = {}) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val s by LdApp.settings.collectAsState()
     val scope = rememberCoroutineScope()
-    var confirmClear by remember { mutableStateOf(false) }
     var filter by remember { mutableIntStateOf(0) }
     val favs = st.contacts.filter { it.starred }
     val rows = remember(st.recents, query, filter, s.groupByDay, s.recentsHideBlocked) {
@@ -428,8 +459,13 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         }
         item {
             SectionHead("Recent calls") {
-                if (st.recents.isNotEmpty()) Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { confirmClear = true }.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                    LdText("Clear", 12.5f, FontWeight.SemiBold, p.accent)
+                if (st.recents.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("insights_open")) {
+                        LdText("Hisab", 12.5f, FontWeight.SemiBold, p.accent)
+                    }
+                    Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onClear() }.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                        LdText("Clear", 12.5f, FontWeight.SemiBold, p.accent)
+                    }
                 }
             }
         }
@@ -524,14 +560,6 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             }
         }
     }
-    if (confirmClear) Sheet(onDismiss = { confirmClear = false }) {
-        SheetTitle("Saari call history delete karein?")
-        LdText("Ye phone ki call log se hamesha ke liye hat jayegi.", 13f, color = p.muted, maxLines = 3)
-        Spacer(Modifier.height(14.dp))
-        PrimaryButton("Haan, clear karo", danger = true) { Repo.clearRecents(ctx); confirmClear = false; act.reload() }
-        Spacer(Modifier.height(8.dp))
-        GhostButton("Rehne do") { confirmClear = false }
-    }
 }
 
 /** Birthdays ka lazy loader: screen ke render ko gate nahi karta; IO pe load karke state me likhta hai.
@@ -570,6 +598,15 @@ fun BirthdayStrip(items: List<Repo.Birthday>, onOpen: (String) -> Unit) {
         }
         if (items.size > 3) LdText(if (expanded) "Kam dikho" else "+${items.size - 3} aur dikho", 11.5f, FontWeight.SemiBold, p.accent,
             modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(horizontal = 20.dp, vertical = 4.dp).testTag("birthdays_expand"))
+    }
+}
+
+@Composable
+private fun InsightRow(value: String, label: String) {
+    val p = LocalLd.current
+    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LdText(value, 13.5f, FontWeight.SemiBold, p.text, Modifier.weight(1f), maxLines = 1)
+        LdText(label, 11.5f, color = p.muted, maxLines = 1)
     }
 }
 
