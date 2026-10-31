@@ -411,6 +411,22 @@ fun insights(recents: List<Recent>): Insights {
     )
 }
 
+// ---- duplicate contacts (SIRF detection - merge/delete kuch nahi hota) ----
+
+data class DupGroup(val numberKey: String, val pretty: String, val names: List<String>, val first: Contact, val count: Int)
+
+/** Same normalized number 2+ alag contact entries me saved. Id-distinct hona zaroori (same contact dobara list ho to dup nahi).
+ *  6+ digit key se chote/service numbers ko ignore. Result count desc. */
+fun duplicateGroups(contacts: List<Contact>): List<DupGroup> =
+    contacts.filter { it.number.isNotBlank() }
+        .groupBy { key(it.number) }
+        .filter { (k, l) -> k.length >= 6 && l.map { it.id }.distinct().size > 1 }
+        .map { (k, l) ->
+            val d = l.distinctBy { it.id }
+            DupGroup(k, pretty(d.first().number), d.map { it.name.ifBlank { pretty(it.number) } }.distinct(), d.first(), d.size)
+        }
+        .sortedByDescending { it.count }
+
 // ---- birthdays (lazy strip; startup query NAHI - Recents screen khulne ke BAAD load hota hai) ----
 
 data class Birthday(val name: String, val number: String, val daysUntil: Int)
