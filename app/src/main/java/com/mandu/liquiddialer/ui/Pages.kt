@@ -182,6 +182,26 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Permissions", "${RUNTIME_PERMS.count { act.has(it.first) }}/${RUNTIME_PERMS.size} mili hui".also { tick }, LdIcons.Check, last = true) { onOpen("permissions") }
         }
 
+        SecTitle("Privacy & lock")
+        GlassCard {
+            // Device ka EXISTING credential (fingerprint ya PIN/pattern/password); koi app PIN nahi.
+            // Sirf app kholne ka gate: files/notifications encrypt NAHI hote.
+            SwitchRow("App lock", "App kholne pe fingerprint ya phone ka PIN/Pattern/Password. Sirf app ka gate - files ya notifications encrypt nahi hote", s.appLock) { want ->
+                if (!want) { com.mandu.liquiddialer.data.AppLock.unlockedThisSession = false; save(K.appLock, false); return@SwitchRow }
+                if (!com.mandu.liquiddialer.data.AppLock.availability(ctx)) { Toast.makeText(ctx, trNow("Pehle phone me screen lock ya fingerprint set karo"), Toast.LENGTH_LONG).show(); return@SwitchRow }
+                com.mandu.liquiddialer.data.AppLock.authenticator(act) { ok ->
+                    act.runOnUiThread {
+                        if (ok) { com.mandu.liquiddialer.data.AppLock.onUnlocked(); save(K.appLock, true) }
+                        else Toast.makeText(ctx, trNow("App lock on nahi hua"), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            if (s.appLock) {
+                LdText("Background mein jaane par dobara lock", 11.5f, color = p.muted, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                Segmented(listOf("Turant", "30 sec", "1 min"), when (s.appLockDelaySec) { 30 -> 1; 60 -> 2; else -> 0 }) { i -> save(K.appLockDelaySec, listOf(0, 30, 60)[i]) }
+            }
+        }
+
         SecTitle("Display")
         GlassCard {
             SRow("Theme & appearance", "${paletteFor(s.theme, p.accent, true).name.let { if (s.theme == "auto") "Auto (system)" else it }} · blur ${s.blur}px", LdIcons.Palette) { onOpen("appearance") }
