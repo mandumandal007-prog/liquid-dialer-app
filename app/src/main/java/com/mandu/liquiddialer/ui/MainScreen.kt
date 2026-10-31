@@ -297,25 +297,37 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 Spacer(Modifier.height(8.dp))
                 GhostButton("Rehne do") { confirmClear = false }
             }
-            // NAYA: duplicate contacts - SIRF detection (koi merge/delete nahi); row tap pe pehla contact kholta hai
+            // NAYA: possible duplicates - SIRF detection (koi merge/delete nahi); HAR contact row alag khulti hai
             if (showDups) {
                 val dups = remember(st.contacts) { Repo.duplicateGroups(st.contacts) }
+                var showAll by remember { mutableStateOf(false) }
+                val shown = if (showAll) dups else dups.take(30)
                 Sheet(onDismiss = { showDups = false }) {
-                    SheetTitle("Duplicate contacts")
-                    LdText("Same number wale contacts dikh rahe hain. Kuch bhi delete ya merge nahi hoga - row kholke khud decide karo.", 12f, color = p.muted, maxLines = 3, modifier = Modifier.testTag("dups_caveat"))
-                    Spacer(Modifier.height(12.dp))
-                    dups.take(30).forEach { g ->
-                        GlassRow(onClick = { showDups = false; sheetContact = g.first; sheetNumber = g.first.number }) {
-                            Column(Modifier.weight(1f)) {
-                                LdText(g.pretty, 14f, FontWeight.SemiBold)
-                                LdText(g.names.joinToString(", "), 12f, color = p.muted, maxLines = 2)
-                            }
-                            LdText("${g.count}", 12f, FontWeight.Bold, p.accent, Modifier.clip(RoundedCornerShape(999.dp)).background(p.glass).border(1.dp, p.stroke, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 4.dp))
-                        }
+                    SheetTitle("Possible duplicate contacts")
+                    LdText("In groups ke number ke aakhri 10 digits same hain. Alag country code wale numbers kabhi kabhi same lag sakte hain, isliye khud check karo. Kuch bhi delete ya merge nahi hoga.", 12f, color = p.muted, maxLines = 4, modifier = Modifier.testTag("dups_caveat"))
+                    // expand control TOP pe: lambi list ke bottom pe off-viewport dead control nahi (scroll kiye bina reachable)
+                    if (!showAll && dups.size > 30) {
                         Spacer(Modifier.height(8.dp))
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(p.glass).border(1.dp, p.stroke, RoundedCornerShape(12.dp)).clickable { showAll = true }.padding(horizontal = 12.dp, vertical = 8.dp).testTag("dups_expand")) {
+                            LdText("+${dups.size - 30} aur groups hain - sab dikhao", 12.5f, FontWeight.SemiBold, p.accent)
+                        }
                     }
-                    if (dups.size > 30) LdText("+${dups.size - 30} aur groups", 12f, color = p.muted)
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(12.dp))
+                    shown.forEach { g ->
+                        LdText(g.pretty, 12.5f, FontWeight.Bold, p.accent)
+                        Spacer(Modifier.height(4.dp))
+                        g.contacts.forEach { c ->
+                            GlassRow(onClick = { showDups = false; sheetContact = c; sheetNumber = c.number }, modifier = Modifier.testTag("dup_contact_" + c.id)) {
+                                Avatar(c.name, c.photo, size = 34.dp, fontSize = 12f, seed = c.name)
+                                Column(Modifier.weight(1f)) {
+                                    LdText(c.name.ifBlank { Repo.pretty(c.number) }, 14f, FontWeight.SemiBold, maxLines = 1)
+                                    LdText(c.label + " \u00b7 " + Repo.pretty(c.number), 11.5f, color = p.muted, maxLines = 1)
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                    }
                     GhostButton("Band karo") { showDups = false }
                 }
             }
@@ -635,11 +647,11 @@ private fun InsightRow(value: String, label: String) {
 
 /** .row glass list item */
 @Composable
-fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Boolean = false, content: @Composable RowScope.() -> Unit) {
+fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Boolean = false, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .985f)
-    Row(Modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.glass(p, RoundedCornerShape(20.dp), 8.dp, .20f)
+    Row(modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.glass(p, RoundedCornerShape(20.dp), 8.dp, .20f)
         .combinedClickable(src, null, onLongClick = onLongClick, onClick = onClick)
         .padding(horizontal = 12.dp, vertical = if (dense) 4.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
