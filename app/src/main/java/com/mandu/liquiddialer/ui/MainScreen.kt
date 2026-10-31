@@ -15,6 +15,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -686,7 +687,13 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val list = remember(st.contacts, query) { st.contacts.filter { Repo.matches(it, query) } }
     val dups = remember(st.contacts) { Repo.duplicateGroups(st.contacts) }
     val hasPerm = act.has(android.Manifest.permission.READ_CONTACTS)
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 160.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    val listState = rememberLazyListState()
+    val railScope = rememberCoroutineScope()
+    // A-Z side rail entries: displayed order ke pehle occurrence ka LazyColumn index (1 = SectionHead item)
+    val railEntries = remember(list, s.lastNameFirst) { AlphaIndex.indexOf(list.map { if (s.lastNameFirst) it.altName else it.name }, headItems = 1) }
+    val showRail = hasPerm && query.isBlank() && railEntries.size >= 4
+    Box(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 160.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -717,6 +724,8 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
                 CallMini { act.call(c.number) }
             }
         }
+    }
+    if (showRail) AlphaRail(railEntries, Modifier.align(Alignment.CenterEnd).padding(end = 2.dp)) { idx -> railScope.launch { listState.scrollToItem(idx) } }
     }
 }
 
