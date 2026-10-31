@@ -149,3 +149,57 @@ class BirthdayStripShotTest {
         CallReminders.cancel(ctx, "+91 98765 43210")
     }
 }
+
+/** NORMAL phone viewport (360x800dp): panels fit karke Recents scroll pe milte hain - asli phone geometry. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class BirthdayPhoneShotTest {
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+
+    private fun settle(ms: Long = 1500) {
+        rule.mainClock.autoAdvance = false
+        rule.mainClock.advanceTimeBy(ms)
+        rule.waitForIdle()
+    }
+
+    @Before
+    fun seed() = runBlocking {
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        ctx.ldStore.edit { p -> p[K.onboarded] = true; p[K.profileName] = "Mandu"; p[K.theme] = "daylight" }
+        Unit
+    }
+
+    @Test
+    fun homePhoneViewport() {
+        settle(2500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        val act = rule.activity
+        Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG, android.Manifest.permission.READ_CONTACTS)
+        act.state.showOnboarding = false
+        act.state.isDefault = true
+        act.state.contacts = listOf(Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null))
+        val noonToday = java.time.LocalDate.now().atTime(13, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        act.state.recents = listOf(Recent(1, "+91 90000 11111", "Vikram Singh", 1, noonToday - 42 * 60_000, 245, null, null))
+        val tomorrow10 = java.time.LocalDate.now().plusDays(1).atTime(10, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        CallReminders.set(ctx, "+91 98765 43210", "Rahul Sharma", tomorrow10)
+        act.state.birthdays = listOf(
+            Repo.Birthday("Rahul Sharma", "+91 98765 43210", 0),
+            Repo.Birthday("Papa", "+91 91234 56789", 1),
+            Repo.Birthday("Anjali Verma", "+91 99887 76655", 4),
+        )
+        settle()
+        rule.onNodeWithText("BIRTHDAYS", substring = true, useUnmergedTree = true).assertExists()
+        rule.onAllNodesWithTag("reminder_row", useUnmergedTree = true).assertCountEquals(1)
+        val rows = rule.onAllNodesWithTag("birthday_row", useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue("phone viewport pe koi birthday row compose hi nahi hui", rows.isNotEmpty())
+        saveShot(rule, "46-home-phone-viewport")
+        // Recents scroll pe reachable: SINGLE swipe (performScrollTo chain hang karta hai is harness me)
+        rule.mainClock.autoAdvance = true
+        rule.onRoot().performTouchInput { swipeUp() }
+        settle(1500)
+        rule.onNodeWithText("Vikram Singh", substring = true, useUnmergedTree = true).assertExists()
+        saveShot(rule, "46b-home-phone-scrolled")
+        CallReminders.cancel(ctx, "+91 98765 43210")
+    }
+}
