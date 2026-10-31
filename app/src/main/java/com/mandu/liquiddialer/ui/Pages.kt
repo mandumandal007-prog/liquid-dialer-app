@@ -338,6 +338,10 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         GlassCard {
             SwitchRow("Missed call alert", "Call back, Message aur Block button ke saath", s.missedAlerts) { save(K.missedAlerts, it) }
             SwitchRow("Missed call reminder", "Har 5 min me yaad dilayega (3 baar tak)", s.missedRemind) { save(K.missedRemind, it) }
+            SwitchRow("Birthday reminder", "Contact ke birthday wale din subah 9 baje notification", s.birthdayRemind) {
+                save(K.birthdayRemind, it)
+                if (it) com.mandu.liquiddialer.data.BirthdayReminders.schedule(ctx) else com.mandu.liquiddialer.data.BirthdayReminders.cancel(ctx)
+            }
             SwitchRow("Call summary notification", "Call khatam hote hi naam + duration ka notification. Lock screen par naam nahi dikhta.", s.callSummary) { save(K.callSummary, it) }
             SRow("Notification settings", null, LdIcons.Settings, last = true) {
                 open(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
