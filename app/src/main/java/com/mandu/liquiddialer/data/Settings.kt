@@ -95,6 +95,7 @@ data class LdSettings(
     val volBoost: Boolean = false,           // opt-in: media loudness boost (session 0, GOODEV-style); call audio ko kabhi nahi chhoota
     val volBoostGain: Int = 25,              // boost 0..100% -> LoudnessEnhancer gain; shuruaat jaan-boojh kar LOW
     val boostAck: Boolean = false,           // user ne distortion/hearing/speaker risk acknowledge kiya
+    val simUse: Map<String, String> = emptyMap(), // number -> SIM handle id (memory me; call dispatch pe disk read nahi)
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
@@ -193,6 +194,11 @@ object K {
     val simUse = stringPreferencesKey("simUse")   // "digits=handleId;digits=handleId"
 }
 
+internal fun simUseMapOf(p: Preferences): Map<String, String> = (p[K.simUse] ?: "").split(";").mapNotNull {
+    val kv = it.split("=", limit = 2)
+    if (kv.size == 2 && kv[0].isNotBlank()) kv[0] to kv[1] else null
+}.toMap()
+
 fun Preferences.toSettings(): LdSettings {
     val d = LdSettings()
     return LdSettings(
@@ -280,6 +286,7 @@ fun Preferences.toSettings(): LdSettings {
         volBoostGain = (this[K.volBoostGain] ?: 25).coerceIn(0, 100),
         boostAck = this[K.boostAck] ?: false,
         callBgStyle = this[K.callBgStyle] ?: "blobs",
+        simUse = simUseMapOf(this),
     )
 }
 
