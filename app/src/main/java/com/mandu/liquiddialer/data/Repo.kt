@@ -380,6 +380,37 @@ fun dayStats(recents: List<Recent>, nowMs: Long): DayStats {
     return DayStats(today.size, talk, missed)
 }
 
+// ---- insights (sirf LOADED recents ka hisaab - poori call history ka dawa NAHI) ----
+
+data class Insights(
+    val calls: Int, val talkSecs: Long, val missed: Int,
+    val topName: String?, val topCount: Int,
+    val longestName: String?, val longestSecs: Long,
+    val busiestLabel: String?, val busiestCount: Int,
+)
+
+/** Loaded recents se hisaab. missed = sirf sachmuch MISSED_TYPE (badge semantics ke saath match). */
+fun insights(recents: List<Recent>): Insights {
+    if (recents.isEmpty()) return Insights(0, 0, 0, null, 0, null, 0, null, 0)
+    val answered = recents.filter { it.type == CallLog.Calls.INCOMING_TYPE || it.type == CallLog.Calls.OUTGOING_TYPE }
+    val talk = answered.sumOf { it.duration }
+    val missed = recents.count { it.type == CallLog.Calls.MISSED_TYPE }
+    val topEntry = recents.filter { it.number.isNotBlank() }.groupBy { it.number }.maxByOrNull { it.value.size }
+    val topName = topEntry?.let { e -> e.value.firstOrNull { !it.name.isNullOrBlank() }?.name ?: pretty(e.key) }
+    val longest = answered.filter { it.duration > 0 }.maxByOrNull { it.duration }
+    val dayFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+    val labelFmt = SimpleDateFormat("d MMM", Locale.getDefault())
+    val busiest = recents.groupBy { dayFmt.format(Date(it.date)) }.maxByOrNull { it.value.size }
+    return Insights(
+        calls = recents.size,
+        talkSecs = talk,
+        missed = missed,
+        topName = topName, topCount = topEntry?.value?.size ?: 0,
+        longestName = longest?.let { it.name ?: pretty(it.number) }, longestSecs = longest?.duration ?: 0,
+        busiestLabel = busiest?.let { labelFmt.format(Date(it.value.first().date)) }, busiestCount = busiest?.value?.size ?: 0,
+    )
+}
+
 // ---- birthdays (lazy strip; startup query NAHI - Recents screen khulne ke BAAD load hota hai) ----
 
 data class Birthday(val name: String, val number: String, val daysUntil: Int)
