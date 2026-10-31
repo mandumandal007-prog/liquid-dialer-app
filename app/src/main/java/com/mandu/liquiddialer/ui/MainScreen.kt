@@ -75,6 +75,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
     // Sheets haze source Box ke BAHAR overlay level pe rehne chahiye (hazeChild inside haze = draw crash)
     var confirmClear by remember { mutableStateOf(false) }
     var showInsights by remember { mutableStateOf(false) }
+    var showDups by remember { mutableStateOf(false) }
     var lastTab by remember { mutableStateOf("recents") }
     val calls by CallManager.calls.collectAsState()
     val ver by CallManager.version.collectAsState()
@@ -116,7 +117,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
                             onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } },
                             onClear = { confirmClear = true }, onInsights = { showInsights = true })
-                        else -> ContactsScreen(st, act, query, 86.dp + bannerPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it })
+                        else -> ContactsScreen(st, act, query, 86.dp + bannerPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
                     }
                 }
             }
@@ -295,6 +296,28 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 PrimaryButton("Haan, clear karo", danger = true) { Repo.clearRecents(ctx); confirmClear = false; act.reload() }
                 Spacer(Modifier.height(8.dp))
                 GhostButton("Rehne do") { confirmClear = false }
+            }
+            // NAYA: duplicate contacts - SIRF detection (koi merge/delete nahi); row tap pe pehla contact kholta hai
+            if (showDups) {
+                val dups = remember(st.contacts) { Repo.duplicateGroups(st.contacts) }
+                Sheet(onDismiss = { showDups = false }) {
+                    SheetTitle("Duplicate contacts")
+                    LdText("Same number wale contacts dikh rahe hain. Kuch bhi delete ya merge nahi hoga - row kholke khud decide karo.", 12f, color = p.muted, maxLines = 3, modifier = Modifier.testTag("dups_caveat"))
+                    Spacer(Modifier.height(12.dp))
+                    dups.take(30).forEach { g ->
+                        GlassRow(onClick = { showDups = false; sheetContact = g.first; sheetNumber = g.first.number }) {
+                            Column(Modifier.weight(1f)) {
+                                LdText(g.pretty, 14f, FontWeight.SemiBold)
+                                LdText(g.names.joinToString(", "), 12f, color = p.muted, maxLines = 2)
+                            }
+                            LdText("${g.count}", 12f, FontWeight.Bold, p.accent, Modifier.clip(RoundedCornerShape(999.dp)).background(p.glass).border(1.dp, p.stroke, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 4.dp))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (dups.size > 30) LdText("+${dups.size - 30} aur groups", 12f, color = p.muted)
+                    Spacer(Modifier.height(6.dp))
+                    GhostButton("Band karo") { showDups = false }
+                }
             }
             if (st.showOnboarding) Onboarding(st, act)
         }
@@ -645,16 +668,20 @@ fun VideoMini(onClick: () -> Unit) {
 }
 
 @Composable
-private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Contact) -> Unit, onAdd: () -> Unit, onLong: (String) -> Unit) {
+private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Contact) -> Unit, onAdd: () -> Unit, onLong: (String) -> Unit, onShowDups: () -> Unit = {}) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val list = remember(st.contacts, query) { st.contacts.filter { Repo.matches(it, query) } }
+    val dups = remember(st.contacts) { Repo.duplicateGroups(st.contacts) }
     val hasPerm = act.has(android.Manifest.permission.READ_CONTACTS)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 160.dp + androidx.compose.foundation.layout.WindowInsets.Companion.navigationBars.asPaddingValues().calculateBottomPadding()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdText("${list.size}", 11.5f, FontWeight.Bold, p.muted, Modifier.clip(RoundedCornerShape(999.dp)).background(p.glass).border(1.dp, p.stroke, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 4.dp))
+                    if (dups.isNotEmpty()) Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onShowDups() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("dups_open")) {
+                        LdText("${dups.size} dup", 12.5f, FontWeight.SemiBold, p.accent)
+                    }
                     Box(Modifier.size(32.dp).glass(p, CircleShape, 2.dp).clickable { onAdd() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Plus, 16.dp, p.accent) }
                 }
             }
