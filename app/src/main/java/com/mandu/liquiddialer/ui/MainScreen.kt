@@ -54,6 +54,7 @@ import java.util.Date
 import java.util.Locale
 import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -542,7 +543,11 @@ private fun BirthdayStripLoader(st: AppState, onOpen: (String) -> Unit) {
     LaunchedEffect(st.permsTick) {
         val ok = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
         val items = if (!ok) emptyList() else withContext(Dispatchers.IO) { try { Repo.birthdays(ctx) } catch (_: Exception) { emptyList() } }
-        st.birthdays = items
+        // RACE GUARD: revoke/refresh ne is effect ko cancel kar diya to PURANA query result publish NAHI hoga
+        // (warna revoke ke baad clear hui state ko purana in-flight query dobara bhar deta)
+        ensureActive()
+        val stillOk = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        st.birthdays = if (stillOk) items else emptyList()
     }
     st.birthdays?.let { BirthdayStrip(it, onOpen) }
 }
