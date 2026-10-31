@@ -41,7 +41,9 @@ object CallNotifier {
         nm.createNotificationChannel(NotificationChannel(CH_SUMMARY, "Call summary", NotificationManager.IMPORTANCE_DEFAULT).apply {
             lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
         })
-        nm.createNotificationChannel(NotificationChannel(CH_BIRTHDAY, "Birthdays", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CH_BIRTHDAY, "Birthdays", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+        })
     }
 
     /** Call khatam hone ka chhota summary (opt-in). Lock screen par naam/number nahi dikhta:
@@ -265,6 +267,10 @@ object CallNotifier {
             .setContentText("$names - call karke badhai do")
             .setAutoCancel(true)
             .setColor(0xFF3DDC84.toInt())
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(NotificationCompat.Builder(ctx, CH_BIRTHDAY)
+                .setSmallIcon(R.drawable.ic_stat_call).setContentTitle("Birthday reminder")
+                .setContentText("App kholke dekho").build())
             .setContentIntent(open)
         if (first.number.isNotBlank()) {
             val callNow = PendingIntent.getActivity(ctx, 763,
