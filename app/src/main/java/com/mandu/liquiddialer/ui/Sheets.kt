@@ -1,9 +1,13 @@
 package com.mandu.liquiddialer.ui
 
+import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.media.RingtoneManager
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.provider.CallLog
 import android.text.format.DateUtils
 import android.widget.Toast
@@ -69,6 +73,46 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     detail?.emails?.forEach { e -> SheetRow(LdIcons.Message, e, "Email") { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$e"))) } }
     if (contact != null) SheetRow(LdIcons.Edit, "Contact edit karo") { onEdit(contact.id) }
     else if (number.isNotBlank()) SheetRow(LdIcons.Plus, "Contact me add karo") { onEdit(null) }
+    if (contact != null) {
+        // Per-contact ringtone: provider write SIRF user ke pick par hota hai; app kabhi khud nahi likhta.
+        // Ringing app ka nahi, system Telecom ka hai (IN_CALL_SERVICE_RINGING=false) - wahi CUSTOM_RINGTONE padhta hai.
+        var ringUri by remember(contact) { mutableStateOf(Repo.contactRingtone(ctx, contact.id)) }
+        val ru = ringUri
+        val ringName = remember(ru) { Repo.ringtoneTitle(ctx, ru) }
+        val ringSub = when {
+            ru == null -> "Is contact ki ringtone"
+            ru.isEmpty() -> "Silent · dabake rakho = default wapas"
+            else -> (ringName ?: "Custom") + " · dabake rakho = default wapas"
+        }
+        val ringPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
+            if (r.resultCode == Activity.RESULT_OK) {
+                // picker me "None" chunne par OK + null uri aata hai = silent ("")
+                val picked: Uri? = r.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                val value = picked?.toString() ?: ""
+                if (Repo.setContactRingtone(ctx, contact.id, contact.lookupKey, value)) {
+                    ringUri = value
+                    Toast.makeText(ctx, trNow("Ringtone set ho gayi"), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(ctx, trNow("Ringtone set nahi ho payi"), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        SheetRow(LdIcons.Volume, "Ringtone", ringSub, onLongClick = {
+            if (ru != null) {
+                if (Repo.setContactRingtone(ctx, contact.id, contact.lookupKey, null)) {
+                    ringUri = null
+                    Toast.makeText(ctx, trNow("Default ringtone wapas set ho gayi"), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(ctx, trNow("Ringtone set nahi ho payi"), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }) {
+            ringPicker.launch(Intent(RingtoneManager.ACTION_RINGTONE_PICKER)
+                .putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                .putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ru?.takeIf { it.isNotEmpty() }?.let(Uri::parse))
+                .putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Ringtone - $name"))
+        }
+    }
     if (number.isNotBlank()) {
         SheetRow(LdIcons.Check, "Number copy karo") {
             ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
