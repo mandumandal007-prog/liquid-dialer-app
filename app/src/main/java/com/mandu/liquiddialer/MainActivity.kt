@@ -209,6 +209,8 @@ class MainActivity : ComponentActivity() {
     fun reload() {
         val gen = ++reloadGen
         lifecycleScope.launch {
+            // contacts permission revoke hote hi purani birthday state turant saaf (private data retain NAHI), chahe user kisi bhi tab pe ho
+            if (!has(Manifest.permission.READ_CONTACTS) && state.birthdays?.isNotEmpty() == true) state.birthdays = emptyList()
             val s = LdApp.settings.value
             loadStartupSources(
                 contacts = { if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList() },
