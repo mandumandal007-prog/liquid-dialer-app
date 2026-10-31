@@ -3,6 +3,7 @@ package com.mandu.liquiddialer.telecom
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import kotlinx.coroutines.flow.first
 
 class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
@@ -27,6 +28,13 @@ class CallActionReceiver : BroadcastReceiver() {
                 val lm = CallNotifier.lastMissed
                 if (lm != null) CallNotifier.missed(ctx, lm.first, lm.second, remind = false)
             }
+            BIRTHDAY_CHECK -> {
+                // Cold process me LdApp.settings abhi default ho sakta hai - DataStore se sync read
+                val enabled = kotlinx.coroutines.runBlocking {
+                    try { com.mandu.liquiddialer.data.SettingsRepo(ctx).flow.first().birthdayRemind } catch (e: Exception) { false }
+                }
+                com.mandu.liquiddialer.data.BirthdayReminders.onAlarm(ctx, enabled)
+            }
             CALL_REMIND -> {
                 val number = intent.getStringExtra("number") ?: ""
                 val name = intent.getStringExtra("name") ?: number
@@ -48,5 +56,6 @@ class CallActionReceiver : BroadcastReceiver() {
         const val MISSED_DISMISS = "com.mandu.liquiddialer.MISSED_DISMISS"
         const val MISSED_REMIND = "com.mandu.liquiddialer.MISSED_REMIND"
         const val CALL_REMIND = "com.mandu.liquiddialer.CALL_REMIND"
+        const val BIRTHDAY_CHECK = "com.mandu.liquiddialer.BIRTHDAY_CHECK"
     }
 }
