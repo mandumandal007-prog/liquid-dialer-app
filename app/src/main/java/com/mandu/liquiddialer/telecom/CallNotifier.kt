@@ -22,9 +22,11 @@ object CallNotifier {
     const val CH_ONGOING = "ongoing_calls"
     const val CH_MISSED = "missed_calls"
     const val CH_SUMMARY = "call_summary"
+    const val CH_BIRTHDAY = "birthdays"
     const val ID_CALL = 41
     const val ID_MISSED = 42
     const val ID_SUMMARY = 43
+    const val ID_BIRTHDAY = 45
 
     fun createChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -39,6 +41,7 @@ object CallNotifier {
         nm.createNotificationChannel(NotificationChannel(CH_SUMMARY, "Call summary", NotificationManager.IMPORTANCE_DEFAULT).apply {
             lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
         })
+        nm.createNotificationChannel(NotificationChannel(CH_BIRTHDAY, "Birthdays", NotificationManager.IMPORTANCE_DEFAULT))
     }
 
     /** Call khatam hone ka chhota summary (opt-in). Lock screen par naam/number nahi dikhta:
@@ -245,6 +248,31 @@ object CallNotifier {
             .addAction(0, "Call karo", callNow)
             .build()
         try { NotificationManagerCompat.from(ctx).notify(req, n) } catch (e: Exception) { }
+    }
+
+    /** Opt-in birthday reminder: aaj jin contacts ka birthday hai unka ek notification.
+     *  Body tap = app khulti hai. "Call karo" sirf pehle birthday number par - user ka
+     *  tap hi call lagata hai, koi auto-call nahi. */
+    fun birthday(ctx: Context, items: List<com.mandu.liquiddialer.data.Repo.Birthday>) {
+        if (items.isEmpty()) return
+        val first = items.first()
+        val names = items.take(3).joinToString(", ") { it.name } + if (items.size > 3) " +${items.size - 3}" else ""
+        val open = PendingIntent.getActivity(ctx, 762,
+            Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val b = NotificationCompat.Builder(ctx, CH_BIRTHDAY)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle(if (items.size == 1) "Aaj ${first.name} ka birthday hai" else "Aaj ${items.size} contacts ka birthday hai")
+            .setContentText("$names - call karke badhai do")
+            .setAutoCancel(true)
+            .setColor(0xFF3DDC84.toInt())
+            .setContentIntent(open)
+        if (first.number.isNotBlank()) {
+            val callNow = PendingIntent.getActivity(ctx, 763,
+                Intent(ctx, MainActivity::class.java).setAction("com.mandu.liquiddialer.CALLBACK")
+                    .putExtra("number", first.number).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+            b.addAction(0, "Call karo", callNow)
+        }
+        try { NotificationManagerCompat.from(ctx).notify(ID_BIRTHDAY, b.build()) } catch (e: Exception) { }
     }
 
     /** After a call with an unsaved number: offer save / block. */
