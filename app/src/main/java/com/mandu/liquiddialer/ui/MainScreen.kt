@@ -540,7 +540,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
 private fun BirthdayStripLoader(st: AppState, onOpen: (String) -> Unit) {
     val ctx = LocalContext.current
     LaunchedEffect(st.permsTick) {
-        val items = withContext(Dispatchers.IO) { try { Repo.birthdays(ctx) } catch (_: Exception) { emptyList() } }
+        val ok = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val items = if (!ok) emptyList() else withContext(Dispatchers.IO) { try { Repo.birthdays(ctx) } catch (_: Exception) { emptyList() } }
         st.birthdays = items
     }
     st.birthdays?.let { BirthdayStrip(it, onOpen) }
