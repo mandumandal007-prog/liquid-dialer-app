@@ -33,7 +33,13 @@ class CallActionReceiver : BroadcastReceiver() {
                 val enabled = kotlinx.coroutines.runBlocking {
                     try { com.mandu.liquiddialer.data.SettingsRepo(ctx).flow.first().birthdayRemind } catch (e: Exception) { false }
                 }
-                com.mandu.liquiddialer.data.BirthdayReminders.onAlarm(ctx, enabled)
+                com.mandu.liquiddialer.data.BirthdayReminders.onAlarm(ctx, enabled, recheck = {
+                    // in-flight race cover: fresh toggle + fresh permission
+                    val on = kotlinx.coroutines.runBlocking {
+                        try { com.mandu.liquiddialer.data.SettingsRepo(ctx).flow.first().birthdayRemind } catch (e: Exception) { false }
+                    }
+                    on && androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                })
             }
             CALL_REMIND -> {
                 val number = intent.getStringExtra("number") ?: ""
