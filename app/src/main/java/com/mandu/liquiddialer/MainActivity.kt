@@ -93,6 +93,18 @@ class MainActivity : ComponentActivity() {
         override fun onChange(selfChange: Boolean) { reload() }
     }
 
+    // SIM badli/add/nikli -> cached SIM list turant refresh, taaki dispatch stale handle na pakde
+    private val subListener = object : android.telephony.SubscriptionManager.OnSubscriptionsChangedListener() {
+        override fun onSubscriptionsChanged() {
+            lifecycleScope.launch {
+                if (has(Manifest.permission.READ_PHONE_STATE)) {
+                    val sims = withContext(Dispatchers.IO) { Repo.sims(this@MainActivity) }
+                    state.sims = sims
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         LdApp.instance.scope.launch {
             val s0 = LdApp.settings.first()
@@ -110,7 +122,13 @@ class MainActivity : ComponentActivity() {
             contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, observer)
             contentResolver.registerContentObserver(ContactsContract.Contacts.CONTENT_URI, true, observer)
         } catch (_: Exception) { }
+        try {
+            @Suppress("DEPRECATION")
+            if (has(Manifest.permission.READ_PHONE_STATE))
+                getSystemService(android.telephony.SubscriptionManager::class.java).addOnSubscriptionsChangedListener(subListener)
+        } catch (_: Exception) { }
     }
+
 
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); handleIntent(intent) }
 
@@ -123,7 +141,11 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) { Repo.markMissedRead(this@MainActivity) }
     }
 
-    override fun onDestroy() { try { contentResolver.unregisterContentObserver(observer) } catch (_: Exception) { }; super.onDestroy() }
+    override fun onDestroy() {
+        try { contentResolver.unregisterContentObserver(observer) } catch (_: Exception) { }
+        try { getSystemService(android.telephony.SubscriptionManager::class.java).removeOnSubscriptionsChangedListener(subListener) } catch (_: Exception) { }
+        super.onDestroy()
+    }
 
     fun has(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
 
