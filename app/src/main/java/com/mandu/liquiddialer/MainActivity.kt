@@ -48,6 +48,7 @@ class AppState {
     var confirmNumber by mutableStateOf<String?>(null) // number waiting for call confirmation
     var undoInfo by mutableStateOf<Pair<String, android.telecom.PhoneAccountHandle?>?>(null) // number waiting out the undo window
     var permsTick by mutableIntStateOf(0)
+    var birthdays by mutableStateOf<List<com.mandu.liquiddialer.data.Repo.Birthday>?>(null) // null = abhi load nahi hua
     var showOnboarding by mutableStateOf(false)
     var editContactRequest by mutableStateOf<Pair<Long?, String>?>(null) // contact editor asked from the call screen
 }
