@@ -95,7 +95,7 @@ class InsightsSheetShotTest {
         rule.onNodeWithText("Call insights", substring = true, useUnmergedTree = true).assertExists()
         // window label: 3 calls < limit 300 -> sirf loaded window ka dawa, poori coverage ka nahi
         rule.onNodeWithText("Load hui 3 calls ka hisaab", substring = true, useUnmergedTree = true).assertExists()
-        rule.onNodeWithText("sabse zyada baat (2 calls)", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("sabse zyada calls (2)", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("missed calls", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "47-insights-sheet")
     }
