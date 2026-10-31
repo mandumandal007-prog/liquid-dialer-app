@@ -467,7 +467,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         }
         // NAYA: birthdays strip - LAZY load (startup pe query NAHI, recents gate nahi hota), tap = number sheet
         item(key = "birthdays-strip") {
-            BirthdayStripLoader(onOpenNumber)
+            BirthdayStripLoader(st, onOpenNumber)
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 2.dp)) {
@@ -533,15 +533,17 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     }
 }
 
-/** Birthdays ka lazy loader: Recents screen dikhe USKE BAAD IO pe query; startup/recents ko gate nahi karta. */
+/** Birthdays ka lazy loader: screen ke render ko gate nahi karta; IO pe load karke state me likhta hai.
+ *  Refresh: permsTick har onResume + permission change pe badhta hai (MainActivity), to strip resume/perm-grant pe taza ho jati hai.
+ *  Tab switch pe item dispose -> wapas aane pe dobara load. Sirf screen kholke baithe rahe to midnight rollover agle resume/nav pe dikhega. */
 @Composable
-private fun BirthdayStripLoader(onOpen: (String) -> Unit) {
+private fun BirthdayStripLoader(st: AppState, onOpen: (String) -> Unit) {
     val ctx = LocalContext.current
-    var items by remember { mutableStateOf<List<Repo.Birthday>?>(null) }
-    LaunchedEffect(Unit) {
-        items = withContext(Dispatchers.IO) { try { Repo.birthdays(ctx) } catch (_: Exception) { emptyList() } }
+    LaunchedEffect(st.permsTick) {
+        val items = withContext(Dispatchers.IO) { try { Repo.birthdays(ctx) } catch (_: Exception) { emptyList() } }
+        st.birthdays = items
     }
-    items?.let { BirthdayStrip(it, onOpen) }
+    st.birthdays?.let { BirthdayStrip(it, onOpen) }
 }
 
 @Composable
@@ -550,7 +552,8 @@ fun BirthdayStrip(items: List<Repo.Birthday>, onOpen: (String) -> Unit) {
     val p = LocalLd.current
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
         LdText("BIRTHDAYS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
-        items.take(3).forEach { b ->
+        var expanded by remember { mutableStateOf(false) }
+        (if (expanded) items else items.take(3)).forEach { b ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { if (b.number.isNotBlank()) onOpen(b.number) }.padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 LdIcon(LdIcons.Users, 13.dp, p.accent)
@@ -559,6 +562,8 @@ fun BirthdayStrip(items: List<Repo.Birthday>, onOpen: (String) -> Unit) {
                     Modifier.weight(1f).testTag("birthday_row"), maxLines = 1)
             }
         }
+        if (items.size > 3) LdText(if (expanded) "Kam dikho" else "+${items.size - 3} aur dikho", 11.5f, FontWeight.SemiBold, p.accent,
+            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(horizontal = 20.dp, vertical = 4.dp).testTag("birthdays_expand"))
     }
 }
 
