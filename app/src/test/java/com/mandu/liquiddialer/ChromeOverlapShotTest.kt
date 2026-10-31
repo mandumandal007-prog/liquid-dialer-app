@@ -71,12 +71,19 @@ class ChromeOverlapShotTest {
         assertTrue("$where: bottom_bar render hona chahiye", bar.isNotEmpty())
         val fb = fab[0].boundsInRoot; val bb = bar[0].boundsInRoot
         assertTrue("$where: fab aur nav pill ek dusre ko overlap nahi kare (fab=$fb bar=$bb)", !fb.overlaps(bb))
+        // scroll-0 invariant: pinned translucent header (top_bar) kisi bhi call button ko
+        // block nahi karta - list top padding (86dp) header ke 70dp se badi rehni chahiye.
+        // (scrolled state me rows header ke peeche JANA intended design hai; ye sirf rest state check hai.)
+        val hdr = rule.onAllNodesWithTag("top_bar", useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue("$where: top_bar render hona chahiye", hdr.isNotEmpty())
+        val hb = hdr[0].boundsInRoot
         val calls = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue("$where: call buttons composed hone chahiye", calls.isNotEmpty())
         calls.forEachIndexed { i, n ->
             val b = n.boundsInRoot
             assertTrue("$where: call button #$i FAB se overlap nahi (btn=$b fab=$fb)", !b.overlaps(fb))
             assertTrue("$where: call button #$i bottom_bar se overlap nahi (btn=$b bar=$bb)", !b.overlaps(bb))
+            assertTrue("$where: rest state me call button #$i top_bar se overlap nahi (btn=$b hdr=$hb)", !b.overlaps(hb))
         }
     }
 
