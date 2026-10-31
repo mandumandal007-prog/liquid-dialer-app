@@ -226,9 +226,11 @@ class MainActivity : ComponentActivity() {
         val s = LdApp.settings.value
         n = CallPrep.applyPrefix(n, s.autoPrefix)
         var acc = account
-        val sims = Repo.sims(this)
+        // Startup me load hui cached SIM list; khali ho to tabhi query (dispatch pe main-thread wait kam)
+        val sims = state.sims.ifEmpty { Repo.sims(this) }
         if (acc == null) {
-            val remembered = if (s.simMemory) kotlinx.coroutines.runBlocking { LdApp.instance.repo.simFor(Repo.key(n)) } else null
+            // SIM memory settings flow ke saath memory me rehti hai - dispatch pe runBlocking disk read NAHI
+            val remembered = if (s.simMemory) s.simUse[Repo.key(n)] else null
             acc = CallPrep.chooseSim(null, s.defaultSim, remembered, sims) { it.handle.id }?.handle
             if (acc == null && CallPrep.needsSimPicker(sims.size)) { state.pendingCall = n to video; return }
         }
