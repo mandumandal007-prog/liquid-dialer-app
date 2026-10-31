@@ -194,10 +194,16 @@ class BirthdayPhoneShotTest {
         val rows = rule.onAllNodesWithTag("birthday_row", useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue("phone viewport pe koi birthday row compose hi nahi hui", rows.isNotEmpty())
         saveShot(rule, "46-home-phone-viewport")
-        // Recents scroll pe reachable: SINGLE swipe (performScrollTo chain hang karta hai is harness me)
+        // Recents scroll pe reachable: bounded LAMBE swipes (default swipeUp list ko nahi hilata is
+        // harness me; performScrollTo chain hang karta hai). Chrome-clear viewport (bottom chrome ab
+        // rows ko cover nahi karta) chhota hai, isliye row ab genuinely scroll maangti hai.
         rule.mainClock.autoAdvance = true
-        rule.onRoot().performTouchInput { swipeUp() }
-        settle(1500)
+        repeat(6) {
+            if (rule.onAllNodesWithText("Vikram Singh", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) return@repeat
+            rule.onRoot().performTouchInput { swipe(start = center.copy(y = 1350f), end = center.copy(y = 150f), durationMillis = 600) }
+            rule.mainClock.advanceTimeBy(1500)
+            rule.waitForIdle()
+        }
         rule.onNodeWithText("Vikram Singh", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "46b-home-phone-scrolled")
         CallReminders.cancel(ctx, "+91 98765 43210")
