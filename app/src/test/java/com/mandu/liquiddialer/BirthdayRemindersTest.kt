@@ -107,4 +107,36 @@ class BirthdayRemindersTest {
         assertFalse("denied/revoked par koi notification nahi", notified)
         assertNotNull("agla alarm phir bhi arm", am.nextScheduledAlarm)
     }
+
+    @Test
+    fun inFlightToggleOffNoNotification() {
+        // Query ke DAURAN user ne toggle OFF kiya (ya permission gayi): recheck false ->
+        // query ka data aa chuka ho tab bhi notification NAHI; agla alarm arm rahe.
+        val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val am = Shadows.shadowOf(ctx.getSystemService(AlarmManager::class.java))
+        BirthdayReminders.cancel(ctx)
+        var notified = false
+        BirthdayReminders.onAlarm(ctx, enabled = true,
+            load = { listOf(Repo.Birthday("Rahul", "9812345678", 0)) },
+            notify = { _, _ -> notified = true },
+            recheck = { false })
+        assertFalse("recheck fail par notification nahi", notified)
+        assertNotNull(am.nextScheduledAlarm)
+    }
+
+    @Test
+    fun notificationLockscreenPrivate() {
+        // Lock screen par contact ka NAAM nahi: VISIBILITY_PRIVATE + generic public version.
+        val ctx = ApplicationProvider.getApplicationContext<android.content.Context>()
+        com.mandu.liquiddialer.telecom.CallNotifier.createChannels(ctx)
+        com.mandu.liquiddialer.telecom.CallNotifier.birthday(ctx, listOf(Repo.Birthday("Rahul", "9812345678", 0)))
+        val nm = Shadows.shadowOf(ctx.getSystemService(android.app.NotificationManager::class.java))
+        val n = nm.allNotifications.lastOrNull { it.channelId == com.mandu.liquiddialer.telecom.CallNotifier.CH_BIRTHDAY }
+        assertNotNull("birthday notification post honi chahiye", n)
+        assertEquals(android.app.Notification.VISIBILITY_PRIVATE, n!!.visibility)
+        val pub = n.publicVersion
+        assertTrue("public version me naam nahi", pub != null && !pub.extras.getCharSequence("android.title").toString().contains("Rahul"))
+        val ch = ctx.getSystemService(android.app.NotificationManager::class.java).getNotificationChannel(com.mandu.liquiddialer.telecom.CallNotifier.CH_BIRTHDAY)
+        assertEquals(android.app.Notification.VISIBILITY_PRIVATE, ch.lockscreenVisibility)
+    }
 }
