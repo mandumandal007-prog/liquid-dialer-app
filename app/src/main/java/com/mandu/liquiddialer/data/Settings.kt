@@ -96,6 +96,8 @@ data class LdSettings(
     val volBoostGain: Int = 25,              // boost 0..100% -> LoudnessEnhancer gain; shuruaat jaan-boojh kar LOW
     val boostAck: Boolean = false,           // user ne distortion/hearing/speaker risk acknowledge kiya
     val simUse: Map<String, String> = emptyMap(), // number -> SIM handle id (memory me; call dispatch pe disk read nahi)
+    val appLock: Boolean = false,            // opt-in: app kholne pe device credential (phone ka PIN/pattern/fingerprint)
+    val appLockDelaySec: Int = 0,            // background ke kitne sec baad relock (0 = turant)
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
@@ -192,6 +194,8 @@ object K {
     val volBoostGain = intPreferencesKey("volBoostGain")
     val boostAck = booleanPreferencesKey("boostAck")
     val simUse = stringPreferencesKey("simUse")   // "digits=handleId;digits=handleId"
+    val appLock = booleanPreferencesKey("appLock")
+    val appLockDelaySec = intPreferencesKey("appLockDelaySec")
 }
 
 internal fun simUseMapOf(p: Preferences): Map<String, String> = (p[K.simUse] ?: "").split(";").mapNotNull {
@@ -287,12 +291,28 @@ fun Preferences.toSettings(): LdSettings {
         boostAck = this[K.boostAck] ?: false,
         callBgStyle = this[K.callBgStyle] ?: "blobs",
         simUse = simUseMapOf(this),
+        appLock = this[K.appLock] ?: false,
+        appLockDelaySec = (this[K.appLockDelaySec] ?: 0).coerceIn(0, 300),
     )
 }
 
 class SettingsRepo(private val ctx: Context) {
     val flow: Flow<LdSettings> = ctx.ldStore.data.map { it.toSettings() }
-    suspend fun <T> set(key: Preferences.Key<T>, value: T) { ctx.ldStore.edit { it[key] = value } }
+
+    // Cold-start ke liye app-lock ke 2 fields ka sync mirror - DataStore main thread pe nahi padhna
+    private val mirrorSp by lazy { ctx.getSharedPreferences("applock_mirror", Context.MODE_PRIVATE) }
+
+    suspend fun <T> set(key: Preferences.Key<T>, value: T) {
+        ctx.ldStore.edit { it[key] = value }
+        when (key) {
+            K.appLock -> mirrorSp.edit().putBoolean("appLock", value as Boolean).apply()
+            K.appLockDelaySec -> mirrorSp.edit().putInt("appLockDelaySec", value as Int).apply()
+        }
+    }
+
+    /** Bounded cold-start read: sirf 2 primitives, koi DataStore/deserialization nahi. */
+    fun lockMirror(): Pair<Boolean, Int> =
+        mirrorSp.getBoolean("appLock", false) to mirrorSp.getInt("appLockDelaySec", 0)
     suspend fun resetCallLayout() { ctx.ldStore.edit { it.remove(K.layoutGrid); it.remove(K.layoutBottom); it.remove(K.gridScale); it.remove(K.bottomScale); it.remove(K.callCardScale); it.remove(K.dialerScale); it.remove(K.callAvatarShape); it.remove(K.callShowNumber); it.remove(K.callBgStyle) } }
     suspend fun setReplies(list: List<String>) = set(K.quickReplies, list.joinToString("\n"))
     suspend fun setBlockedPrefixes(list: List<String>) = set(K.blockedPrefixes, list.joinToString(";"))
