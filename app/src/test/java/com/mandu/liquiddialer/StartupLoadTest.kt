@@ -3,7 +3,8 @@ package com.mandu.liquiddialer
 import com.mandu.liquiddialer.data.Contact
 import com.mandu.liquiddialer.data.Recent
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -12,6 +13,10 @@ import org.junit.Test
  * Prova do fix de startup: com contacts/blocked/sims LENTOS, os recents sao
  * publicados ASSIM QUE a query deles termina, sem esperar as fontes lentas.
  * (No codigo antigo, tudo rodava em serie e os recents so saiam no fim.)
+ *
+ * Dispatcher injetado + runTest: os delays rodam em tempo VIRTUAL, entao a
+ * ordem "recents 50ms < fontes 400ms" e' deterministica - antes o teste usava
+ * Dispatchers.IO real e dependia do agendador da maquina (flake no CI).
  */
 class StartupLoadTest {
 
@@ -19,7 +24,8 @@ class StartupLoadTest {
     private fun c(id: Long) = Contact(id, "", "Ana $id", "", "+91 80000 0000$id", "Mobile", false, null)
 
     @Test
-    fun recentsPublicadosAntesDeFontesLentas() = runBlocking {
+    fun recentsPublicadosAntesDeFontesLentas() = runTest {
+        val io = StandardTestDispatcher(testScheduler)
         val events = mutableListOf<String>()
         loadStartupSources(
             contacts = { delay(400); events += "contacts-done"; listOf(c(1)) },
@@ -28,6 +34,7 @@ class StartupLoadTest {
             sims = { delay(400); events += "sims-done"; emptyList() },
             publishRecents = { events += "recents-published" },
             publishRest = { _, _, _ -> events += "rest-published" },
+            ioDispatcher = io,
         )
         // recents publicados PRIMEIRO, antes de qualquer fonte lenta terminar
         assertEquals("recents-published", events.first())
@@ -39,7 +46,8 @@ class StartupLoadTest {
     }
 
     @Test
-    fun todosOsResultadosEntregues() = runBlocking {
+    fun todosOsResultadosEntregues() = runTest {
+        val io = StandardTestDispatcher(testScheduler)
         var gotRecents: List<Recent>? = null
         var gotContacts: List<Contact>? = null
         var gotBlocked: List<String>? = null
@@ -51,6 +59,7 @@ class StartupLoadTest {
             sims = { delay(200); emptyList() },
             publishRecents = { gotRecents = it },
             publishRest = { c, b, s -> gotContacts = c; gotBlocked = b; gotSims = s.size },
+            ioDispatcher = io,
         )
         assertEquals(1, gotRecents!!.size)
         assertEquals(2, gotContacts!!.size)
