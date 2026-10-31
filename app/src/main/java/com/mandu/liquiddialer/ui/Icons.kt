@@ -52,6 +52,7 @@ object LdIcons {
     val User: ImageVector by lazy { build("user", Triple("M8.4,8.0a3.6,3.6 0 1,0 7.2,0a3.6,3.6 0 1,0 -7.2,0z", false, 1.8f), Triple("M4.5 20c.8-3.6 3.9-5.6 7.5-5.6s6.7 2 7.5 5.6", false, 1.8f)) }
     val Star: ImageVector by lazy { build("star", Triple("M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z", false, 1.8f)) }
     val StarFill: ImageVector by lazy { build("star-fill", Triple("M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z", true, 1.8f)) }
+    val Lock: ImageVector by lazy { build("lock", Triple("M6 11h12a1.5,1.5 0 0 1 1.5,1.5v6A1.5,1.5 0 0 1 18,20H6a1.5,1.5 0 0 1 -1.5,-1.5v-6A1.5,1.5 0 0 1 6,11z", false, 1.8f), Triple("M8.2 11V7.8a3.8,3.8 0 1 1 7.6,0V11", false, 1.8f), Triple("M12 14.8v1.7", false, 1.8f)) }
     val Block: ImageVector by lazy { build("block", Triple("M3.5,12.0a8.5,8.5 0 1,0 17.0,0a8.5,8.5 0 1,0 -17.0,0z", false, 1.8f), Triple("M6 6l12 12", false, 1.8f)) }
     val Message: ImageVector by lazy { build("message", Triple("M4 5h16v11H9l-5 4z", false, 1.8f)) }
     val Bluetooth: ImageVector by lazy { build("bluetooth", Triple("M7 7l10 10-5 4V3l5 4L7 17", false, 1.8f)) }
