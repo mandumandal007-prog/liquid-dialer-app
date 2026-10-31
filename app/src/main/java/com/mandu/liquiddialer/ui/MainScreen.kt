@@ -269,11 +269,11 @@ fun MainScreen(st: AppState, act: MainActivity) {
             if (pc != null) Sheet(onDismiss = { st.pendingCall = null }) {
                 SimPickSheet { h -> st.pendingCall = null; act.call(pc.first, h, video = pc.second) }
             }
-            // NAYA: insights sheet - SIRF loaded recents ka hisaab, window label ke saath (poori history ka dawa nahi)
+            // NAYA: insights sheet - SIRF loaded recents ka hisaab; label coverage ka dawa nahi karta (provider partial/capped ho sakta hai)
             if (showInsights) {
                 val ins = remember(st.recents) { Repo.insights(st.recents) }
                 val windowLabel = if (ins.calls >= s.recentLimit) "Aakhri ${ins.calls} calls ka hisaab (limit: ${s.recentLimit})"
-                    else "Phone ki saari ${ins.calls} calls ka hisaab"
+                    else "Load hui ${ins.calls} calls ka hisaab"
                 Sheet(onDismiss = { showInsights = false }) {
                     SheetTitle("Call insights")
                     LdText(windowLabel, 12f, color = p.muted, maxLines = 2, modifier = Modifier.testTag("insights_window"))
