@@ -46,17 +46,20 @@ object BirthdayReminders {
     /** Alarm fire ya boot/update ke baad re-arm. enabled = settings ka live value
      *  (caller synchronous read karke deta hai - receiver cold process me StateFlow
      *  default pe bharosa nahi kar sakta). off = sirf cancel, kuch schedule nahi.
-     *  on + aaj birthday = notification; dono haalat me agla din ka alarm set. */
+     *  on + aaj birthday = notification; dono haalat me agla din ka alarm set.
+     *  recheck: query ke DAURAN toggle-off ya contacts-permission revoke ho sakta hai -
+     *  publish se theek pehle fresh enabled+permission check; fail = koi notification nahi. */
     fun onAlarm(
         ctx: Context,
         enabled: Boolean,
         nowMs: Long = System.currentTimeMillis(),
         load: (Context) -> List<Repo.Birthday> = { Repo.birthdays(it, 0) },
         notify: (Context, List<Repo.Birthday>) -> Unit = { c, l -> CallNotifier.birthday(c, l) },
+        recheck: () -> Boolean = { true },
     ) {
         if (!enabled) { cancel(ctx); return }
         val todays = try { load(ctx) } catch (e: Exception) { emptyList() }
-        if (todays.isNotEmpty()) try { notify(ctx, todays) } catch (e: Exception) { }
+        if (todays.isNotEmpty() && recheck()) try { notify(ctx, todays) } catch (e: Exception) { }
         schedule(ctx, nowMs)
     }
 }
