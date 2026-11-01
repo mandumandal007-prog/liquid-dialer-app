@@ -54,7 +54,7 @@ fun Sheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
                 .onSizeChanged { sheetH = it.height }
                 .graphicsLayer { translationY = size.height * y + dragY.value }
-                .liquid(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .liquid(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), blur = false)
                 .background(p.bg2.copy(alpha = if (p.isLight) .99f else .98f))
                 .clickable(remember { MutableInteractionSource() }, null) {}
                 .navigationBarsPadding().imePadding()
