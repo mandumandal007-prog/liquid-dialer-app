@@ -52,19 +52,27 @@ fun BlobBackground(modifier: Modifier = Modifier, strong: Boolean = false) {
     val t2 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(32000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b2")
     val t3 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(38000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b3")
     val m = if (p.motion) 1f else 0f
-    val blurDp = (72f * (p.blur / 22f)).coerceIn(0f, 140f).dp
     Box(modifier.fillMaxSize().background(p.bg)) {
         if (strong) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(p.bg2, p.bg))))
         val size = vmax * 0.62f
         @Composable
         fun blob(x: Dp, y: Dp, t: Float, color: Color, centerX: Float, centerY: Float, alpha: Float) {
+            // Perf (Realme C25s / Helio G85): runtime RenderEffect blur(72dp) x3 har frame GPU pe bhari tha.
+            // Blur ki jagah multi-stop radial falloff - wahi soft premium glow, near-zero per-frame cost.
             Box(
                 Modifier
                     .offset(x + vmax * 0.06f * t * m, y + vmax * 0.04f * t * m)
                     .size(size)
                     .graphicsLayer { val s = 1f + 0.12f * t * m; scaleX = s; scaleY = s; this.alpha = alpha }
-                    .then(if (Build.VERSION.SDK_INT >= 31) Modifier.blur(blurDp, BlurredEdgeTreatment.Unbounded) else Modifier)
-                    .background(Brush.radialGradient(0f to color, 0.66f to Color.Transparent), CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            0f to color,
+                            0.38f to color.copy(alpha = color.alpha * .55f),
+                            0.62f to color.copy(alpha = color.alpha * .22f),
+                            0.82f to color.copy(alpha = color.alpha * .06f),
+                            1f to Color.Transparent
+                        ), CircleShape
+                    )
             )
         }
         val w = cfg.screenWidthDp.dp; val h = cfg.screenHeightDp.dp
@@ -110,6 +118,31 @@ fun Modifier.liquid(shape: Shape, shadow: Dp = 16.dp): Modifier {
         .border(1.dp, p.stroke, shape)
 }
 
+/** Gemini-style raised glass: soft BADA shadow + top-light->bottom-shade gradient = 3D depth (user ref: Gemini overlay panels). Sab static - shadow cached layer, koi per-frame cost nahi. */
+fun Modifier.raisedGlass(p: LdPalette, shape: Shape, elevation: Dp = 14.dp): Modifier = this
+    .shadow(elevation, shape, clip = false,
+        ambientColor = Color.Black.copy(alpha = if (p.isLight) .16f else .38f),
+        spotColor = p.accent.copy(alpha = if (p.isLight) .12f else .25f))
+    .clip(shape)
+    .background(Brush.verticalGradient(listOf(
+        if (p.isLight) Color.White.copy(alpha = .98f) else p.glass2.copy(alpha = (p.glass2.alpha + .12f).coerceAtMost(1f)),
+        if (p.isLight) p.glass2.copy(alpha = (p.glass2.alpha + .20f).coerceAtMost(1f)) else p.glass
+    )))
+    .drawWithContent {
+        drawContent()
+        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = if (p.isLight) .55f else .32f), (2.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent))
+        // bottom ki halki shade - 3D depth ka doosra half
+        drawRect(Brush.verticalGradient(1f - (3.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent, 1f to Color.Black.copy(alpha = if (p.isLight) .05f else .16f)))
+    }
+    .border(1.dp, if (p.isLight) Color.White.copy(alpha = .75f) else p.stroke, shape)
+
+/** Luxury polish: gradient ring (top sheen -> accent -> accent2) - jewelry finish, bilkul static/sasta. Light theme pe accent-forward, dark pe sheen-forward. */
+fun Modifier.premiumRing(p: LdPalette, shape: Shape): Modifier = this
+    .border(1.dp, Brush.linearGradient(
+        if (p.isLight) listOf(p.accent.pct(.45f), p.accent2.pct(.25f), p.accent.pct(.12f))
+        else listOf(Color.White.copy(alpha = .45f), p.accent.pct(.35f), p.accent2.pct(.20f))
+    ), shape)
+
 @Composable
 fun pressScale(src: MutableInteractionSource, pressed: Float = .92f): Float {
     val isP by src.collectIsPressedAsState()
@@ -132,7 +165,7 @@ fun IconBtn(icon: ImageVector, size: Dp = 42.dp, iconSize: Dp = 22.dp, on: Boole
         danger -> base.shadow(10.dp, CircleShape, ambientColor = Color(0x66FF3C50), spotColor = Color(0x66FF3C50)).clip(CircleShape)
             .background(Brush.linearGradient(listOf(Color(0xF2FF5D6C), Color(0xE6D6263A)))).border(1.dp, Color.White.copy(alpha = .22f), CircleShape)
         on -> base.clip(CircleShape).background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
-        else -> base.glass(p, CircleShape, 6.dp)
+        else -> base.raisedGlass(p, CircleShape, 10.dp).premiumRing(p, CircleShape)
     }
     Box(m.clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
         LdIcon(icon, iconSize, if (danger || on) Color.White else p.text)
