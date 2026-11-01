@@ -32,10 +32,14 @@ object CallManager {
 
     fun nameFor(ctx: Context, call: Call): String {
         val n = number(call)
-        val cached = names[n]
-        if (cached != null) return cached.first.ifBlank { n }
+        if (call.details?.handlePresentation != TelecomManager.PRESENTATION_ALLOWED) return "Private number"
+        if (call.details?.callerDisplayNamePresentation != TelecomManager.PRESENTATION_ALLOWED) return Repo.pretty(n)
         val looked = Repo.lookupName(ctx, n)
-        val disp = looked?.first ?: call.details?.callerDisplayName?.takeIf { it.isNotBlank() } ?: ""
+        if (looked != null) com.mandu.liquiddialer.data.ReceivedNames.clear(ctx,n)
+        else com.mandu.liquiddialer.data.ReceivedNames.observe(ctx,call)
+        val allowed = call.details?.handlePresentation == TelecomManager.PRESENTATION_ALLOWED &&
+            call.details?.callerDisplayNamePresentation == TelecomManager.PRESENTATION_ALLOWED
+        val disp = looked?.first ?: if(allowed) com.mandu.liquiddialer.data.ReceivedNames.get(ctx,n) ?: "" else ""
         names[n] = disp to looked?.second
         return disp.ifBlank { if (n.isBlank()) "Private number" else Repo.pretty(n) }
     }
