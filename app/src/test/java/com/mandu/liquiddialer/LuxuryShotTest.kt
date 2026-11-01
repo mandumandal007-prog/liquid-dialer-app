@@ -144,6 +144,27 @@ class LuxuryShotTest {
     }
 
     @Test
+    fun hisabLight() {
+        boot("daylight")
+        openDrawer()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        settle()
+        rule.onNodeWithText("CSV share karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule, "L12-hisab-light")
+    }
+
+    @Test
+    @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi", fontScale = 1.3f)
+    fun hisabBigfont() {
+        boot("midnight")
+        openDrawer()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        settle()
+        rule.onNodeWithText("CSV share karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule, "L13-hisab-bigfont")
+    }
+
+    @Test
     fun blockedDark() {
         boot("midnight")
         openDrawer()
@@ -174,5 +195,73 @@ class LuxuryShotTest {
         rule.onNodeWithText("Contacts", substring = true, useUnmergedTree = true).performTouchInput { click(center) }
         settle()
         saveShot(rule, "L5-contacts-light")
+    }
+}
+
+/** Hisab CSV share ki wiring: content:// attachment + read grant + chooser (khud kuch auto-send nahi), empty window pe Toast. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
+class HisabShareUiTest {
+
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+
+    private fun settle(ms: Long = 1200) {
+        rule.mainClock.autoAdvance = false
+        rule.mainClock.advanceTimeBy(ms)
+        rule.waitForIdle()
+    }
+
+    private fun boot(withRecents: Boolean, grantPermission: Boolean = true) {
+        val ctx0 = ApplicationProvider.getApplicationContext<LdApp>()
+        runBlocking { ctx0.ldStore.edit { p -> p[K.onboarded] = true; p[K.profileName] = "Mandu Mandal"; p[K.profileNumber] = "+91 83888 80466"; p[K.theme] = "midnight"; p[K.dialerScale] = 1f } }
+        settle(2500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        if (grantPermission) Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG, android.Manifest.permission.READ_CONTACTS)
+        rule.activity.state.showOnboarding = false
+        rule.activity.state.isDefault = true
+        rule.activity.state.recents = if (withRecents) listOf(
+            Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null),
+            Recent(2, "+91 91234 56789", "Papa", 2, System.currentTimeMillis() - 5 * 3600_000, 0, null, null),
+        ) else emptyList()
+        settle()
+        rule.onNodeWithTag("drawer_open", useUnmergedTree = true).performTouchInput { click(center) }
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        settle()
+    }
+
+    @Test
+    fun shareSendsCsvFileAttachmentWithReadGrantViaChooser() {
+        boot(withRecents = true)
+        rule.onNodeWithTag("hisab_csv_share", useUnmergedTree = true).performClick()
+        settle(600)
+        val chooser = Shadows.shadowOf(rule.activity).nextStartedActivity
+        assert(chooser != null && chooser.action == android.content.Intent.ACTION_CHOOSER) { "chooser expected, got $chooser" }
+        val inner: android.content.Intent? = chooser!!.getParcelableExtra(android.content.Intent.EXTRA_INTENT)
+        assert(inner != null && inner.action == android.content.Intent.ACTION_SEND) { "send intent expected, got $inner" }
+        assert(inner!!.type == "text/csv") { inner.type ?: "no type" }
+        val uri: android.net.Uri? = inner.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
+        assert(uri != null && uri.scheme == "content") { "content uri expected, got $uri" }
+        assert(inner.flags and android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) { "read grant missing" }
+        val f = java.io.File(ApplicationProvider.getApplicationContext<LdApp>().cacheDir, "hisab_calls.csv")
+        assert(f.exists() && f.readText().startsWith("date,time,name,number,type,duration_sec\n")) { "csv file missing/bad" }
+        assert(f.readText().contains("\t+91 98765 43210")) { "formula-prefix missing in exported file" }
+    }
+
+    @Test
+    fun emptyWindowShowsHonestEmptyStateAndNoShareButton() {
+        boot(withRecents = false)
+        rule.onNodeWithTag("stats_empty", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Koi call history nahi", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onAllNodesWithTag("hisab_csv_share", useUnmergedTree = true).assertCountEquals(0)
+        assert(Shadows.shadowOf(rule.activity).nextStartedActivity == null) { "empty window pe share nahi hona chahiye" }
+    }
+
+    @Test
+    fun missingPermissionShowsAccessStateAndNoShareButton() {
+        boot(withRecents = false, grantPermission = false)
+        rule.onNodeWithTag("stats_empty", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Call log ka access nahi", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onAllNodesWithTag("hisab_csv_share", useUnmergedTree = true).assertCountEquals(0)
     }
 }
