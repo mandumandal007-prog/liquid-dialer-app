@@ -40,6 +40,9 @@ class AppState {
     var tab by mutableStateOf("recents")
     var contacts by mutableStateOf<List<Contact>>(emptyList())
     var recents by mutableStateOf<List<Recent>>(emptyList())
+    // recents empty =/= history khaali: load chal raha hai ya query fail hui ho sakti hai - alag state
+    var recentsLoaded by mutableStateOf(false)
+    var recentsError by mutableStateOf(false)
     var blocked by mutableStateOf<List<String>>(emptyList())
     var sims by mutableStateOf<List<SimInfo>>(emptyList())
     var isDefault by mutableStateOf(true)
@@ -247,10 +250,19 @@ class MainActivity : ComponentActivity() {
             val s = LdApp.settings.value
             loadStartupSources(
                 contacts = { if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList() },
-                recents = { if (has(Manifest.permission.READ_CALL_LOG)) Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit) else emptyList() },
+                recents = {
+                    if (has(Manifest.permission.READ_CALL_LOG)) {
+                        try {
+                            Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit).also { state.recentsError = false }
+                        } catch (t: Throwable) {
+                            state.recentsError = true
+                            emptyList()
+                        }
+                    } else emptyList()
+                },
                 blocked = { if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList() },
                 sims = { if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList() },
-                publishRecents = { r -> if (gen == reloadGen) state.recents = r },
+                publishRecents = { r -> if (gen == reloadGen) { state.recents = r; state.recentsLoaded = true } },
                 publishRest = { c, b, sims ->
                     if (gen == reloadGen) {
                         state.contacts = c; state.blocked = b; state.sims = sims
