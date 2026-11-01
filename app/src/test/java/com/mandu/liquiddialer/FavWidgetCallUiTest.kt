@@ -28,7 +28,24 @@ import org.robolectric.shadows.ShadowContentResolver
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class FavWidgetCallUiTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
-    private val fake = FavWidgetChooserUiTest.FakeDetailProvider()
+    private val queryTrace=java.util.concurrent.CopyOnWriteArrayList<String>()
+    private val fake = object : android.content.ContentProvider() {
+        val delegate=FavWidgetChooserUiTest.FakeDetailProvider()
+        var phones:List<Pair<String,Int>>
+            get()=delegate.phones
+            set(v) { delegate.phones=v }
+        override fun onCreate()=true
+        override fun query(uri:android.net.Uri,projection:Array<out String>?,selection:String?,selectionArgs:Array<out String>?,sortOrder:String?):android.database.Cursor? {
+            queryTrace.add("${uri.path} id=${selectionArgs?.toList()} thread=${Thread.currentThread().name}")
+            return delegate.query(uri,projection,selection,selectionArgs,sortOrder).also {
+                queryTrace.add("done ${uri.path} rows=${it?.count}")
+            }
+        }
+        override fun insert(uri:android.net.Uri,values:android.content.ContentValues?):android.net.Uri?=null
+        override fun update(uri:android.net.Uri,values:android.content.ContentValues?,selection:String?,selectionArgs:Array<out String>?)=0
+        override fun delete(uri:android.net.Uri,selection:String?,selectionArgs:Array<out String>?)=0
+        override fun getType(uri:android.net.Uri):String?=null
+    }
     private val sim = PhoneAccountHandle(ComponentName("com.mandu", "A"), "liveSim")
     private val n = "+91 90000 11111"
     private val app get() = ApplicationProvider.getApplicationContext<LdApp>()
@@ -41,7 +58,7 @@ class FavWidgetCallUiTest {
             Thread.sleep(100); settle()
         }
         val st=rule.activity.state
-        assertTrue("awaited widget outcome: chooser=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, calls=${st.numberChoiceCalls}, undo=${st.undoInfo}, onboarding=${st.showOnboarding}; tree=" + rule.onRoot(useUnmergedTree=true).printToString(),check())
+        assertTrue("awaited widget outcome: chooser=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, calls=${st.numberChoiceCalls}, undo=${st.undoInfo}, onboarding=${st.showOnboarding}, settings=${LdApp.settings.value}, queries=$queryTrace; tree=" + rule.onAllNodes(isRoot(),useUnmergedTree=true).printToString(),check())
     }
     @Before fun seed() = runBlocking {
         app.ldStore.edit { it[K.onboarded]=true; it[K.undoCall]=false; it[K.simMemory]=false; it[K.theme]="daylight" }
@@ -111,6 +128,7 @@ class FavWidgetCallUiTest {
         assertEquals("+91 90000 22222",shadowOf(tm).onlyOutgoingCall.address.schemeSpecificPart)
     }
     private fun openCallChooser() {
+        assertEquals("provider fixture ready before widget intent",2,Repo.contactDetail(app,11L)?.phones?.size)
         tap(null)
         await { rule.activity.state.numberChoiceRequest?.first==11L }
         await { rule.onAllNodesWithTag("chooser_num",useUnmergedTree=true).fetchSemanticsNodes().size==2 }
