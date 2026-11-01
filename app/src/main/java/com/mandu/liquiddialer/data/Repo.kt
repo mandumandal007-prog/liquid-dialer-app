@@ -255,7 +255,11 @@ object Repo {
     fun csvType(t: Int) = when (t) {
         1 -> "Incoming"; 2 -> "Outgoing"; 3 -> "Missed"; 5 -> "Rejected"; 6 -> "Blocked"; else -> "Other"
     }
-    private fun csvCell(v: String) = if (v.any { it == ',' || it == '"' || it == '\n' }) "\"" + v.replace("\"", "\"\"") + "\"" else v
+    // spreadsheet formula-injection rokne ke liye: =,+,-,@ se shuru cell ke aage TAB (Excel/Sheets use text hi maante hain; +91/leading zeros literal rehte hain)
+    private fun csvCell(v: String): String {
+        val safe = if (v.isNotEmpty() && v[0] in "=+-@") "\t" + v else v
+        return if (safe.any { it == ',' || it == '"' || it == '\n' }) "\"" + safe.replace("\"", "\"\"") + "\"" else safe
+    }
     fun recentsCsv(recents: List<Recent>): String {
         val df = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
         val tf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
