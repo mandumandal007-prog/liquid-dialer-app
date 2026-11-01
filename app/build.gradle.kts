@@ -51,8 +51,13 @@ android {
     }
     buildFeatures { compose = true }
     testOptions { unitTests.isIncludeAndroidResources = true }
-    testOptions { unitTests.isIncludeAndroidResources = true }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
+}
+
+// Robolectric suite hygiene: CI ko bada heap, har jagah bounded fork (sandbox accumulation cap)
+tasks.withType<Test>().configureEach {
+    maxHeapSize = if (System.getenv("CI") == "true") "2g" else "512m"
+    forkEvery = 12
 }
 
 dependencies {
