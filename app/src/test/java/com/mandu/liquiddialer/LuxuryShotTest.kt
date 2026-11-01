@@ -365,6 +365,14 @@ class SettingsRestoreUiTest {
         org.junit.Assert.assertEquals("daylight", prefs[K.theme])
         org.junit.Assert.assertEquals("777", prefs[K.voicemail])          // whitelist ke bahar - untouched
         org.junit.Assert.assertNotEquals(true, prefs[K.blockUnknown])     // map me ho to bhi kabhi apply nahi
+        // DataStore completion precedes the IO->Main success message; virtual frames do not await IO.
+        repeat(30) {
+            if(org.robolectric.shadows.ShadowToast.getTextOfLatestToast()?.endsWith("settings restore ho gayi") != true) {
+                Thread.sleep(100)
+                org.robolectric.shadows.ShadowLooper.idleMainLooper()
+                settle(100)
+            }
+        }
         val toast = org.robolectric.shadows.ShadowToast.getTextOfLatestToast()
         assert(toast != null && toast.endsWith("settings restore ho gayi")) { "toast=$toast" }
     }
