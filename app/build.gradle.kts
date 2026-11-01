@@ -59,7 +59,12 @@ tasks.withType<Test>().configureEach {
     val ci = System.getenv("CI") == "true"
     maxHeapSize = if (ci) "2g" else "512m"
     forkEvery = 20
-    maxParallelForks = 1  // serial: parallel forks pe CI CPU contention se AppNotIdle cascade (run 196: 4 failures; serial run 195: 0 failures)
+    maxParallelForks = 1
+    // Fresh JVM per class contains cross-class static/looper leakage; cause is still under test.
+    testLogging {
+        events("started", "passed", "skipped", "failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
 
 dependencies {
