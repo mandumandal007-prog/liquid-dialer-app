@@ -112,7 +112,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 // recents dikhte hi missed-seen mark karo (tab badge isi se clear hota hai)
                 LaunchedEffect(st.tab, st.recents) { if (st.tab == "recents") { val nowMs = System.currentTimeMillis(); if (s.recentsSeenAt < nowMs) LdApp.instance.scope.launch { LdApp.instance.repo.setRecentsSeen(nowMs) } } }
                 LaunchedEffect(st.tab) { if (st.tab in tabKeys) { val i = tabKeys.indexOf(st.tab); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) } }
-                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = 102.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), userScrollEnabled = s.tabSwipe) { page ->
+                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = 90.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
                         "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
@@ -156,7 +156,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
             val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users))
-            Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 18.dp, end = 18.dp, bottom = 24.dp).fillMaxWidth(),
+            Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 18.dp, end = 18.dp, bottom = 12.dp).fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f).height(66.dp).testTag("bottom_bar")
                 .liquid(RoundedCornerShape(999.dp), 22.dp)
@@ -365,7 +365,7 @@ private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp, on
 
 @Composable
 fun SectionHead(title: String, right: @Composable () -> Unit = {}) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
         LdText(title, 19f, FontWeight.Bold, letter = -.2f); right()
     }
 }
@@ -461,11 +461,11 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val contactHits = remember(st.contacts, query) { if (query.isBlank()) emptyList() else st.contacts.filter { Repo.matches(it, query) }.take(8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
-                Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 4.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     LdText("FAVOURITES", 12f, FontWeight.Bold, p.muted, letter = 1.2f)
                     Spacer(Modifier.weight(1f))
                     Box(Modifier.size(30.dp).clip(CircleShape).testTag("fav_toggle").clickable { scope.launch { LdApp.instance.repo.set(K.showFavourites, !s.showFavourites) } }, contentAlignment = Alignment.Center) {
@@ -514,7 +514,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         if (hasLog) item(key = "today-stats") {
             val stats = remember(st.recents) { Repo.dayStats(st.recents, System.currentTimeMillis()) }
             if (stats.calls > 0) {
-                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+                Row(Modifier.fillMaxWidth().padding(bottom = 2.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     LdIcon(LdIcons.Clock, 13.dp, p.accent)
                     LdText("Aaj: ${stats.calls} calls · ${stats.talkSecs / 60} min baat" + (if (stats.missed > 0) " · ${stats.missed} missed" else ""), 11.5f, FontWeight.SemiBold, p.muted, Modifier.testTag("today_stats"))
@@ -528,7 +528,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             if (rems.isNotEmpty()) {
                 val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
                 var expanded by remember { mutableStateOf(false) }
-                Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                Column(Modifier.fillMaxWidth().padding(bottom = 2.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
                     LdText("CALL REMINDERS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
                     (if (expanded) rems else rems.take(3)).forEach { r ->
                         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onOpenNumber(r.number) }.padding(vertical = 6.dp),
@@ -548,13 +548,13 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             BirthdayStripLoader(st, onOpenNumber)
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 2.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 0.dp)) {
                 chipLabels.forEachIndexed { i, label ->
                     val on = filter == i
                     Box(Modifier.clip(RoundedCornerShape(999.dp))
                         .background(if (on) p.accent.pct(.30f) else p.glass)
                         .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(999.dp))
-                        .clickable { filter = i }.padding(horizontal = 14.dp, vertical = 7.dp)) {
+                        .clickable { filter = i }.padding(horizontal = 14.dp, vertical = 5.dp)) {
                         LdText(label, 12f, FontWeight.SemiBold, if (on) p.text else p.muted)
                     }
                 }
@@ -564,7 +564,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         else if (rows.isEmpty() && contactHits.isEmpty()) item { EmptyState(LdIcons.Clock, if (query.isBlank()) "Abhi koi call nahi" else "Kuch nahi mila", if (query.isBlank()) "Aapki calls yahan dikhengi" else "Doosra naam ya number try karo") }
         if (hasLog) items(rows, key = { when (it) { is RHead -> "h-" + it.label; is RRow -> "r-" + it.r.id } }) { it2 ->
             when (it2) {
-                is RHead -> LdText(it2.label, 12f, FontWeight.Bold, p.muted, Modifier.padding(start = 4.dp, top = 8.dp), letter = 1f)
+                is RHead -> LdText(it2.label, 12f, FontWeight.Bold, p.muted, Modifier.padding(start = 4.dp, top = 4.dp), letter = 1f)
                 is RRow -> {
                     val r = it2.r; val count = it2.count
                     val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
@@ -625,7 +625,7 @@ private fun BirthdayStripLoader(st: AppState, onOpen: (String) -> Unit) {
 fun BirthdayStrip(items: List<Repo.Birthday>, onOpen: (String) -> Unit) {
     if (items.isEmpty()) return
     val p = LocalLd.current
-    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
+    Column(Modifier.fillMaxWidth().padding(bottom = 2.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
         LdText("BIRTHDAYS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
         var expanded by remember { mutableStateOf(false) }
         (if (expanded) items else items.take(3)).forEach { b ->
@@ -659,7 +659,7 @@ fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Bool
     val s = pressScale(src, .985f)
     Row(modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.glass(p, RoundedCornerShape(20.dp), 8.dp, .20f)
         .combinedClickable(src, null, onLongClick = onLongClick, onClick = onClick)
-        .padding(horizontal = 12.dp, vertical = if (dense) 4.dp else 8.dp),
+        .padding(horizontal = 12.dp, vertical = if (dense) 3.dp else 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
 }
 
@@ -698,7 +698,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val railEntries = remember(list, s.lastNameFirst) { AlphaIndex.indexOf(list.map { if (s.lastNameFirst) it.altName else it.name }, headItems = 1) }
     val showRail = hasPerm && query.isBlank() && railEntries.size >= 4
     Box(Modifier.fillMaxSize()) {
-    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
