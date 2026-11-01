@@ -109,10 +109,11 @@ class FlowTest {
     fun swipeBottomBarBothDirectionsSwitchesTabsWithoutCalling() {
         load()
         rule.onNodeWithTag("bottom_bar").performTouchInput { swipeLeft() }
-        settle(1500)
+        rule.mainClock.autoAdvance = true
+        rule.waitUntil(8000) { rule.activity.state.tab == "contacts" }
         assertEquals("contacts", rule.activity.state.tab)
         rule.onNodeWithTag("bottom_bar").performTouchInput { swipeRight() }
-        settle(1500)
+        rule.waitUntil(8000) { rule.activity.state.tab == "recents" }
         assertEquals("recents", rule.activity.state.tab)
         noCallStarted()
     }
