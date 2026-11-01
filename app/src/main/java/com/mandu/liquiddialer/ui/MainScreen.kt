@@ -117,7 +117,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                         "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
                             onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } },
-                            onClear = { confirmClear = true }, onInsights = { showInsights = true })
+                            onClear = { confirmClear = true }, onInsights = { openPage("stats") })
                         else -> ContactsScreen(st, act, query, 86.dp + bannerPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
                     }
                 }
@@ -251,7 +251,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
             pages.forEachIndexed { i, pg ->
                 key(pg + i) { CompositionLocalProvider(LocalHaze provides null) {
                     Page(pg, st, act, onBack = { pages.removeLastOrNull() }, onOpen = { pages.add(it) }, editContactId = editContactId, editPrefill = editPrefill,
-                        onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } })
+                        onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } },
+                        onInsights = { showInsights = true })
                 } }
             }
             // ===== contact / number sheet =====
@@ -913,7 +914,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         item(LdIcons.Dialpad, "Calling card layout") { onOpen("calllayout") }
         item(LdIcons.Record, "Recordings") { onOpen("recordings") }
         item(LdIcons.Edit, "Call notes") { onOpen("notes") }
-        item(LdIcons.Clock, "Call stats") { onOpen("stats") }
+        item(LdIcons.Clock, "Hisab (call stats)") { onOpen("stats") }
         item(LdIcons.Block, "Blocked numbers") { onOpen("blocked") }
         item(LdIcons.Voicemail, "Voicemail") { onVoicemail() }
         Spacer(Modifier.weight(1f))
