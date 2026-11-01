@@ -366,6 +366,11 @@ class MainActivity : ComponentActivity() {
     fun widgetTapCall(contactId: Long, carried: String?, name: String, account: PhoneAccountHandle? = null, deliberateSelection: Boolean = false, afterUndo: Boolean = false) {
         val now = android.os.SystemClock.elapsedRealtime()
         if ((!afterUndo && state.undoInfo != null) || widgetBusy || (!deliberateSelection && account == null && now - widgetLastTap < 1200L)) return
+        if (deliberateSelection && !afterUndo) {
+            if (!state.numberChoiceCalls || state.numberChoiceRequest?.first != contactId) return
+            // Consume this displayed choice synchronously. Recomposition/IO completion cannot replay it.
+            state.numberChoiceRequest = null
+        }
         widgetLastTap = now
         if (!has(Manifest.permission.READ_CONTACTS) || !has(Manifest.permission.CALL_PHONE)) {
             if (!has(Manifest.permission.READ_CONTACTS)) askPermission(Manifest.permission.READ_CONTACTS)
