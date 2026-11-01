@@ -755,6 +755,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         val next = if (simIdx + 1 >= sims.size) "ask" else sims[simIdx + 1].handle.id
         scope.launch { LdApp.instance.repo.set(K.defaultSim, next) }
     }
+    val lastOutgoing = remember(st.recents) { st.recents.firstOrNull { it.type == CallLog.Calls.OUTGOING_TYPE } }
     val matches = remember(dial, st.contacts) { if (dial.length < 2) emptyList() else st.contacts.filter { Repo.matches(it, dial) }.take(3) }
     // live suggestions while typing: saved contacts first, then numbers from call history (local data only; tapping fills the number, never calls)
     val suggest = remember(dial, st.contacts, st.recents) {
@@ -805,7 +806,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             }
                         }
                     }
-                } else LdText(when { dial.isEmpty() -> "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f)
+                } else LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Aakhri: " + Repo.pretty(it.number) + " - call dabao" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 1)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
                     Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onAddContact(dial) }.padding(horizontal = 10.dp, vertical = 2.dp)) {
