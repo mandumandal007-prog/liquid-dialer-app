@@ -55,6 +55,7 @@ class AppState {
     var showOnboarding by mutableStateOf(false)
     var editContactRequest by mutableStateOf<Pair<Long?, String>?>(null) // contact editor asked from the call screen
     var numberChoiceRequest by mutableStateOf<Pair<Long, String>?>(null) // widget favorite multi-number: chooser (contactId, naam)
+    var numberChoiceCalls by mutableStateOf(false)
     var numberChoiceNonce by mutableStateOf(0L) // chooser list refresh trigger (contact click-time badla ho to)
 }
 
@@ -323,6 +324,11 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(i: Intent?) {
         i ?: return
+        if (i.action == com.mandu.liquiddialer.widget.FavWidgetModel.WIDGET_CALL) {
+            val id = i.getLongExtra("numberContactId", i.getLongExtra("chooseNumber", -1L))
+            if (id > 0) widgetTapCall(id, i.getStringExtra("number"), i.getStringExtra("numberName") ?: i.getStringExtra("chooseName") ?: "")
+            return
+        }
         val r = routeIntent(i)
         r.tab?.let { state.tab = it }
         r.editContact?.takeIf { it.isNotBlank() }?.let { num ->
@@ -340,19 +346,82 @@ class MainActivity : ComponentActivity() {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         when (res) {
                             is FillReval.Fill -> { state.dial = res.number; state.tab = "dialer" }
-                            FillReval.Choose -> state.numberChoiceRequest = cid to (r.fillContactName ?: "")
+                            FillReval.Choose -> { state.numberChoiceCalls = false; state.numberChoiceRequest = cid to (r.fillContactName ?: "") }
                             FillReval.Gone -> Toast.makeText(this@MainActivity, "Number ab uplabdh nahi (contact badal gaya)", Toast.LENGTH_LONG).show()
                         }
                     }
                 }
             }
         }
-        r.chooseNumberFor?.let { id -> state.numberChoiceRequest = id to (i.getStringExtra("chooseName") ?: "") }
+        r.chooseNumberFor?.let { id -> state.numberChoiceCalls = false; state.numberChoiceRequest = id to (i.getStringExtra("chooseName") ?: "") }
         r.call?.let { call(it) }
     }
 
+    private var widgetBusy = false
+    private var widgetLastTap = -2000L
+    private var widgetPending: Triple<Long, String, String>? = null
+
+    /** Only invoked by a widget PendingIntent or a deliberate number/SIM picker selection.
+     * No permission grant callback resumes a call; the user must tap again. */
+    fun widgetTapCall(contactId: Long, carried: String?, name: String, account: PhoneAccountHandle? = null, deliberateSelection: Boolean = false, afterUndo: Boolean = false) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if ((!afterUndo && state.undoInfo != null) || widgetBusy || (!deliberateSelection && account == null && now - widgetLastTap < 1200L)) return
+        widgetLastTap = now
+        if (!has(Manifest.permission.READ_CONTACTS) || !has(Manifest.permission.CALL_PHONE)) {
+            if (!has(Manifest.permission.READ_CONTACTS)) askPermission(Manifest.permission.READ_CONTACTS)
+            else askPermission(Manifest.permission.CALL_PHONE)
+            Toast.makeText(this, "Permission dene ke baad widget dobara dabao; abhi call nahi lagi", Toast.LENGTH_LONG).show()
+            return
+        }
+        widgetBusy = true
+        lifecycleScope.launch {
+            try {
+                val phones = withContext(Dispatchers.IO) { try { Repo.phonesOf(this@MainActivity, contactId) } catch (_: Exception) { emptyList() } }
+                if (!has(Manifest.permission.READ_CONTACTS) || !has(Manifest.permission.CALL_PHONE)) return@launch
+                val valid = carried?.takeIf { n -> phones.any { ContactControls.k(it.first) == ContactControls.k(n) && ContactControls.k(n).isNotEmpty() } }
+                if (valid == null) {
+                    if (phones.isEmpty()) Toast.makeText(this@MainActivity, "Contact ya number ab uplabdh nahi; call nahi lagi", Toast.LENGTH_LONG).show()
+                    else {
+                        state.numberChoiceCalls = true
+                        state.numberChoiceNonce++
+                        state.numberChoiceRequest = contactId to name
+                    }
+                    return@launch
+                }
+                state.numberChoiceRequest = null
+                // Refresh accounts at the tap, not a startup snapshot. Existing pin/explicit selection rules apply.
+                val liveSims = withContext(Dispatchers.IO) { Repo.sims(this@MainActivity) }
+                if (account != null && liveSims.none { it.handle == account }) {
+                    Toast.makeText(this@MainActivity, "Chuni hui SIM ab uplabdh nahi; call nahi lagi", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                val stillCurrent = withContext(Dispatchers.IO) { try { Repo.phonesOf(this@MainActivity, contactId).any { ContactControls.k(it.first) == ContactControls.k(valid) } } catch (_: Exception) { false } }
+                if (!stillCurrent || !has(Manifest.permission.READ_CONTACTS) || !has(Manifest.permission.CALL_PHONE)) {
+                    Toast.makeText(this@MainActivity, "Contact/permission badal gayi; call nahi lagi", Toast.LENGTH_LONG).show()
+                    return@launch
+                }
+                state.sims = liveSims
+                widgetPending = Triple(contactId, valid, name)
+                call(valid, account, widgetOrigin = true, skipUndo = afterUndo)
+                if (state.pendingCall == null) widgetPending = null
+            } finally { widgetBusy = false }
+        }
+    }
+
+    fun cancelPendingWidgetCall() { widgetPending = null; state.pendingCall = null }
+
+    fun choosePendingSim(number: String, account: PhoneAccountHandle, video: Boolean) {
+        if (state.pendingCall != (number to video)) return
+        state.pendingCall = null
+        val pending = widgetPending
+        widgetPending = null
+        if (pending != null) widgetTapCall(pending.first, pending.second, pending.third, account)
+        else call(number, account, video)
+    }
+
     /** Place a real call, picking the SIM per settings. */
-    fun call(number: String, account: PhoneAccountHandle? = null, video: Boolean = false) {
+    fun call(number: String, account: PhoneAccountHandle? = null, video: Boolean = false, widgetOrigin: Boolean = false, skipUndo: Boolean = false) {
+        if (!widgetOrigin) widgetPending = null
         var n = number.trim()
         if (n.isEmpty()) return
         if (!has(Manifest.permission.CALL_PHONE)) { askPermission(Manifest.permission.CALL_PHONE); Toast.makeText(this, trNow("Call permission do"), Toast.LENGTH_SHORT).show(); return }
@@ -396,9 +465,14 @@ class MainActivity : ComponentActivity() {
             }
             return
         }
-        if (!video && s.undoCall && n.firstOrNull()?.let { it.isDigit() || it == '+' } == true) {
+        if (!skipUndo && !video && s.undoCall && n.firstOrNull()?.let { it.isDigit() || it == '+' } == true) {
             state.undoInfo = n to acc
-            val token = Runnable { state.undoInfo = null; if (!CallManager.place(this, n, acc, video)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show() }
+            val widgetAtTap = if (widgetOrigin) widgetPending else null
+            val token = Runnable {
+                state.undoInfo = null
+                if (widgetAtTap != null) widgetTapCall(widgetAtTap.first, widgetAtTap.second, widgetAtTap.third, acc, deliberateSelection = true, afterUndo = true)
+                else if (!CallManager.place(this, n, acc, video)) Toast.makeText(this, trNow("Call nahi lag paayi"), Toast.LENGTH_SHORT).show()
+            }
             undoRunnable = token
             handler.postDelayed(token, 3000)
             return
