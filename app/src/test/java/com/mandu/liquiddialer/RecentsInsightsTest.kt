@@ -1,6 +1,9 @@
 package com.mandu.liquiddialer
 
 import android.provider.CallLog
+import androidx.datastore.preferences.core.edit
+import com.mandu.liquiddialer.data.ldStore
+import kotlinx.coroutines.flow.first
 import com.mandu.liquiddialer.data.Recent
 import com.mandu.liquiddialer.data.Repo
 import org.junit.Assert.assertEquals
@@ -110,5 +113,117 @@ class HisabCsvTest {
     @org.junit.Test
     fun emptyWindowIsHeaderOnly() {
         assert(com.mandu.liquiddialer.data.Repo.recentsCsv(emptyList()) == "date,time,name,number,type,duration_sec\n")
+    }
+}
+
+/** Settings backup (appearance-only whitelist): round-trip + hostile/corrupt/unsupported input + capped URI read + atomic apply. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class SettingsBackupTest {
+
+    private val sb get() = com.mandu.liquiddialer.ui.SettingsBackup
+
+    private fun sample(): com.mandu.liquiddialer.data.LdSettings =
+        com.mandu.liquiddialer.data.LdSettings(
+            lang = "hindi", theme = "daylight", accent = 0xFF112233, blur = 10, motion = false,
+            fontScale = 1.1f, sortByLast = true, boldText = true, callAvatarShape = "squircle",
+            callBgStyle = "solid", gridScale = 0.8f, bottomScale = 1.2f, callCardScale = 1.3f,
+            dialerScale = 0.9f, showFavourites = false, keypadLetters = false, defaultTab = "dialer")
+
+    @Test
+    fun roundTripPreservesWhitelistedValues() {
+        val s = sample()
+        val res = sb.parse(sb.buildJson(s))
+        assert(res is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Ok) { "$res" }
+        val v = (res as com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Ok).values
+        org.junit.Assert.assertEquals("hindi", v["lang"])
+        org.junit.Assert.assertEquals("daylight", v["theme"])
+        org.junit.Assert.assertEquals(0xFF112233, v["accent"])
+        org.junit.Assert.assertEquals(10, v["blur"])
+        org.junit.Assert.assertEquals(false, v["motion"])
+        org.junit.Assert.assertEquals(1.1f, v["fontScale"] as Float, 0.001f)
+        org.junit.Assert.assertEquals(true, v["sortByLast"])
+        org.junit.Assert.assertEquals("squircle", v["callAvatarShape"])
+        org.junit.Assert.assertEquals("solid", v["callBgStyle"])
+        org.junit.Assert.assertEquals(0.8f, v["gridScale"] as Float, 0.001f)
+        org.junit.Assert.assertEquals(1.2f, v["bottomScale"] as Float, 0.001f)
+        org.junit.Assert.assertEquals("dialer", v["defaultTab"])
+        org.junit.Assert.assertEquals(s.layoutGrid, v["layoutGrid"])
+        org.junit.Assert.assertEquals(s.layoutBottom, v["layoutBottom"])
+    }
+
+    @Test
+    fun exportNeverContainsPersonalOrBehavioralKeys() {
+        val json = sb.buildJson(sample())
+        listOf("profileName", "profileNumber", "profilePhoto", "voicemail", "quickReplies", "speedDial",
+            "defaultSim", "blockUnknown", "blockPrivate", "blockedPrefixes", "autoRecord", "announceCaller",
+            "quietHours", "flipToMute", "swipeAnswer", "onboarded", "recentsSeenAt").forEach {
+            assert(!json.contains(it)) { "leaked $it" }
+        }
+    }
+
+    @Test
+    fun hostileAndCorruptFilesRejectedWithoutPartialParse() {
+        // corrupt JSON
+        assert(sb.parse("ye koi file nahi hai") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // wrong kind
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"other","version":1,"values":{}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // future version
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":99,"values":{"blur":10}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // type confusion: fontScale as string
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"fontScale":"bada"}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // out of range
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"blur":99}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"fontScale":9.9}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // bad enum
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"theme":"neon"}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // layout with unknown/missing ids
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"layoutGrid":"mute,keypad"}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"layoutGrid":"mute,keypad,record,hold,add,merge,hack"}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // bool as string
+        assert(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"motion":"true"}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        // oversize
+        val big = """{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"blur":10},"pad":"""" + "x".repeat(70 * 1024) + """"}"""
+        assert(sb.parse(big) is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+    }
+
+    @Test
+    fun unknownKeysIgnoredButWhitelistedApplied() {
+        val res = sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"blur":12,"kyaYeKeyHai":true,"blockUnknown":true}}""")
+        assert(res is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Ok) { "$res" }
+        val ok = res as com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Ok
+        org.junit.Assert.assertEquals(mapOf("blur" to 12), ok.values)   // blockUnknown jaisa dangerous key kabhi apply nahi hoga
+        org.junit.Assert.assertEquals(2, ok.ignoredKeys)
+    }
+
+    @Test
+    fun readCappedReadsFileUriAndRejectsOversize() {
+        val ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val small = java.io.File(ctx.cacheDir, "sb_test_small.json")
+        small.writeText("""{"app":"liquid-dialer"}""")
+        org.junit.Assert.assertEquals("""{"app":"liquid-dialer"}""", sb.readCapped(ctx, android.net.Uri.fromFile(small)))
+        val big = java.io.File(ctx.cacheDir, "sb_test_big.json")
+        big.writeText("x".repeat(80 * 1024))
+        assert(sb.readCapped(ctx, android.net.Uri.fromFile(big)) == null) { "oversize file null honi chahiye" }
+        small.delete(); big.delete()
+    }
+
+    @Test
+    fun applyRestoredTouchesOnlyWhitelistAndLeavesBehavioralPrefsUntouched() {
+        val ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val K = com.mandu.liquiddialer.data.K
+        kotlinx.coroutines.runBlocking {
+            ctx.ldStore.edit { p ->
+                p[K.voicemail] = "999"; p[K.blockUnknown] = true; p[K.blur] = 5; p[K.theme] = "midnight"
+            }
+            // map me "blockUnknown" jaise non-whitelist key ho to bhi applyRestored usse chhuta hi nahi
+            com.mandu.liquiddialer.ui.SettingsBackup.applyRestored(ctx, mapOf("blur" to 30, "theme" to "daylight", "blockUnknown" to false))
+            val p = ctx.ldStore.data.first()
+            org.junit.Assert.assertEquals(30, p[K.blur])
+            org.junit.Assert.assertEquals("daylight", p[K.theme])
+            org.junit.Assert.assertEquals("999", p[K.voicemail])
+            org.junit.Assert.assertEquals(true, p[K.blockUnknown])
+            ctx.ldStore.edit { it.clear() }
+        }
     }
 }
