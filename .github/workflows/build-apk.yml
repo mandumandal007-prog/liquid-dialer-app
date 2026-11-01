@@ -37,6 +37,7 @@ jobs:
           fi
 
       - name: Run unit tests
+        timeout-minutes: 30
         run: |
           chmod +x gradlew
           ./gradlew testDebugUnitTest --no-daemon
