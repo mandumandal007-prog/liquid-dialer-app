@@ -81,7 +81,7 @@ fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Bo
     Column {
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (icon != null) Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(p.accent.pct(.16f)), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
+            if (icon != null) Box(Modifier.size(38.dp).raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
             Column(Modifier.weight(1f)) {
                 LdText(title, 14f, FontWeight.SemiBold, maxLines = 2)
                 if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = 3, modifier = Modifier.padding(top = 3.dp))
