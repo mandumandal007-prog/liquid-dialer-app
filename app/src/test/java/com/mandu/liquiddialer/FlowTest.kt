@@ -246,7 +246,11 @@ class FlowTest {
         val suggest = rule.onNodeWithTag("dial_suggest", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val keypad = rule.onNodeWithTag("dial_keypad", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val call = rule.onNodeWithTag("call_btn", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-        val gapAbove = keypad.top - suggest.bottom
+        // The new user-requested save-contact action is real content between suggestions and keypad.
+        // Measure dead space after the last content row; keep the original40dp empty-gap limit.
+        val actions = rule.onAllNodesWithTag("dial_save_contact", useUnmergedTree = true).fetchSemanticsNodes()
+        val contentBottom = actions.firstOrNull()?.boundsInRoot?.bottom ?: suggest.bottom
+        val gapAbove = keypad.top - contentBottom
         val gapBelow = call.top - keypad.bottom
         println("GAPS above=${gapAbove / d}dp below=${gapBelow / d}dp")
         assertTrue("gap below number/chips too big: ${gapAbove / d}dp", gapAbove <= 40 * d)
