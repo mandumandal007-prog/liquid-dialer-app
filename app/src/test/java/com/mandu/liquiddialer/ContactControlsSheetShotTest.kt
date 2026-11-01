@@ -52,6 +52,7 @@ class ContactControlsSheetShotTest {
     fun tearDown() {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
         ctx.getSharedPreferences("contact_controls", android.content.Context.MODE_PRIVATE).edit().clear().apply()
+        ctx.getSharedPreferences("received_caller_names",0).edit().clear().apply()
         runBlocking { ctx.ldStore.edit { it[K.fontScale] = 1f }; Unit }
     }
 
@@ -141,4 +142,18 @@ class ContactControlsSheetShotTest {
         rule.onNodeWithText("sirf abhi loaded window", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "cc_controls_bigfont")
     }
+    @Test fun receivedNameClearDayNightShots() {
+        val ctx=ApplicationProvider.getApplicationContext<LdApp>()
+        com.mandu.liquiddialer.data.ReceivedNames.learn(ctx,num,"Rahul Network",1,1)
+        openDetails("daylight")
+        rule.mainClock.autoAdvance=true
+        rule.onNodeWithText("Rahul Network",useUnmergedTree=true).performScrollTo()
+        rule.waitForIdle();rule.mainClock.autoAdvance=false;settle(500)
+        saveShot(rule,"N201-clear-day")
+        seed("midnight");settle(1000)
+        saveShot(rule,"N201-clear-night")
+        rule.onNodeWithText("Yaad naam hatao",useUnmergedTree=true).performClick();settle(500)
+        org.junit.Assert.assertNull(com.mandu.liquiddialer.data.ReceivedNames.get(ctx,num))
+    }
+
 }
