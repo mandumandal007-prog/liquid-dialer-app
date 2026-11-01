@@ -22,6 +22,7 @@ object FakeCall {
         setf(details, Call.Details::class.java, "mHandle", Uri.parse("tel:$number"))
         setf(details, Call.Details::class.java, "mHandlePresentation", 1)
         setf(details, Call.Details::class.java, "mCallerDisplayName", name)
+        setf(details, Call.Details::class.java, "mCallerDisplayNamePresentation", 1)
         setf(details, Call.Details::class.java, "mState", state)
         setf(details, Call.Details::class.java, "mConnectTimeMillis", connectMillis)
         setf(details, Call.Details::class.java, "mConnectTimeMillisElapsed", connectMillis)
