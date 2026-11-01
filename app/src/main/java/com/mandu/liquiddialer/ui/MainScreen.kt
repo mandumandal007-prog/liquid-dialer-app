@@ -855,15 +855,15 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                     }
                 } else LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Pichhla: " + Repo.pretty(it.number) + " - call button se bharo" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 2)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
-                    Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onAddContact(dial) }.padding(horizontal = 10.dp, vertical = 2.dp)) {
-                            LdText("+ Contact me add karo", 12f, FontWeight.SemiBold, p.accent)
+                    Row(Modifier.fillMaxWidth().padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1.4f).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).background(p.accent.pct(.12f)).clickable { onAddContact(dial) }.testTag("dial_save_contact").padding(horizontal = 10.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+                            LdText("Contact save karo", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
-                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").padding(horizontal = 10.dp, vertical = 2.dp)) {
-                            LdText("+ Pause (,)", 12f, FontWeight.SemiBold, p.accent)
+                        Box(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").padding(horizontal = 10.dp, vertical = 2.dp)) {
+                            LdText("+ Pause (,)", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
-                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp)) {
-                            LdText("Meet call", 12f, FontWeight.SemiBold, p.accent)
+                        Box(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp)) {
+                            LdText("Meet call", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
                     }
                 }
