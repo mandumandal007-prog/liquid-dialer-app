@@ -49,10 +49,25 @@ class SimDispatchTest {
     fun staleHandlePickerPeGirtaHai() {
         // remembered/default handle cached list me NAHI -> chooseSim null (picker), kabhi galat SIM nahi
         val sims = listOf("simX", "simY")
-        assertEquals(null, CallPrep.chooseSim(null, "simGaya", null, sims) { it })
-        assertEquals(null, CallPrep.chooseSim(null, null, "simGaya", sims) { it })
-        assertEquals("simX", CallPrep.chooseSim(null, "simX", null, sims) { it })
-        assertEquals("simY", CallPrep.chooseSim(null, null, "simY", sims) { it })
-        assertEquals("simX", CallPrep.chooseSim(null, "simGaya", null, listOf("simX")) { it }) // single SIM auto
+        assertEquals(null, CallPrep.chooseSim(null, null, "simGaya", null, sims) { it })
+        assertEquals(null, CallPrep.chooseSim(null, null, null, "simGaya", sims) { it })
+        assertEquals("simX", CallPrep.chooseSim(null, null, "simX", null, sims) { it })
+        assertEquals("simY", CallPrep.chooseSim(null, null, null, "simY", sims) { it })
+        assertEquals("simX", CallPrep.chooseSim(null, null, "simGaya", null, listOf("simX")) { it }) // single SIM auto
+    }
+
+    @Test
+    fun perNumberPinSimKaayam() {
+        val sims = listOf("simX", "simY")
+        // pin maujood -> wahi SIM, default/remembered ke bawajood
+        assertEquals("simY", CallPrep.chooseSim(null, "simY", "simX", "simX", sims) { it })
+        assertEquals("simX", CallPrep.chooseSim(null, "simX", null, "simY", sims) { it })
+        // pin ki SIM phone me ab nahi (nikali/slot badla) -> null (picker), doosri SIM pe silent reroute NAHI
+        assertEquals(null, CallPrep.chooseSim(null, "simGaya", "simX", "simY", sims) { it })
+        assertEquals(null, CallPrep.chooseSim(null, "simGaya", null, null, sims) { it })
+        // explicit picker choice hamesha jeet-ti hai, pin ke upar bhi
+        assertEquals("simX", CallPrep.chooseSim("simX", "simY", null, null, sims) { it })
+        // pin nahi set -> purana order (default -> remembered -> single)
+        assertEquals("simX", CallPrep.chooseSim(null, null, "simX", "simY", sims) { it })
     }
 }
