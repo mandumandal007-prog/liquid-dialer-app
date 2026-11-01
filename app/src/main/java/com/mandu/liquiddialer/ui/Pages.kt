@@ -735,6 +735,14 @@ private fun StatsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onIns
             Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 10.dp, vertical = 8.dp).testTag("insights_sheet_open")) {
                 LdText("Quick insights", 12.5f, FontWeight.SemiBold, p.accent)
             }
+            // load hui window ka CSV export - poori history ka dawa nahi; share sheet se WhatsApp/Excel kahi bhi
+            val ctx = LocalContext.current
+            Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable {
+                try { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, Repo.recentsCsv(st.recents)), "Hisab CSV")) }
+                catch (e: Exception) { Toast.makeText(ctx, "Koi app nahi mila", Toast.LENGTH_SHORT).show() }
+            }.padding(horizontal = 10.dp, vertical = 8.dp).testTag("hisab_csv_share")) {
+                LdText("CSV share karo", 12.5f, FontWeight.SemiBold, p.accent)
+            }
         }
 
         SecTitle("Aaj")
