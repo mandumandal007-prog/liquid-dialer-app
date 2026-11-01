@@ -54,6 +54,8 @@ class AppState {
     var birthdays by mutableStateOf<List<com.mandu.liquiddialer.data.Repo.Birthday>?>(null) // null = abhi load nahi hua
     var showOnboarding by mutableStateOf(false)
     var editContactRequest by mutableStateOf<Pair<Long?, String>?>(null) // contact editor asked from the call screen
+    var numberChoiceRequest by mutableStateOf<Pair<Long, String>?>(null) // widget favorite multi-number: chooser (contactId, naam)
+    var numberChoiceNonce by mutableStateOf(0L) // chooser list refresh trigger (contact click-time badla ho to)
 }
 
 val RUNTIME_PERMS: List<Pair<String, String>> = buildList {
@@ -172,6 +174,7 @@ class MainActivity : ComponentActivity() {
         if (sNow.appLock) window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
         else window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         refreshDefault()
+        com.mandu.liquiddialer.widget.FavWidgetProvider.refresh(this)
         state.permsTick++
         reload()
         // provider write main thread par nahi - startup jank rokne ke liye background me
@@ -273,19 +276,79 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    /** Intent -> kya karna hai (pure, seedha unit-testable). fill SIRF dialer me number bharta hai;
+     *  call sirf ACTION_CALL/CALLBACK par - widget intents kabhi call produce nahi karte. */
+    internal data class IntentRoute(
+        val tab: String? = null,
+        val fill: String? = null,
+        val call: String? = null,
+        val editContact: String? = null,
+        val chooseNumberFor: Long? = null,
+        val fillContactId: Long? = null,
+        val fillContactName: String? = null,
+    )
+
+    /** Purane (stale) widget tap ka number aaj bhi valid hai ya nahi (pure). */
+    internal sealed class FillReval {
+        data class Fill(val number: String) : FillReval()
+        object Choose : FillReval()
+        object Gone : FillReval()
+    }
+
+    companion object {
+        /** Carried number ab bhi contact ka hai tabhi fill; hata diya gaya to KABHI doosra number
+         *  silently substitute nahi - chooser (current choice) ya no-fill feedback. */
+        internal fun revalidateFill(carried: String, phones: List<Pair<String, Boolean>>): FillReval {
+            if (phones.isEmpty()) return FillReval.Gone
+            return if (phones.any { Repo.key(it.first) == Repo.key(carried) }) FillReval.Fill(carried) else FillReval.Choose
+        }
+
+        internal fun routeIntent(i: Intent): IntentRoute {
+            val number = i.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: i.getStringExtra("number")
+            val tabExtra = i.getStringExtra("tab")
+            val choose = i.getLongExtra("chooseNumber", -1L).takeIf { it > 0 }
+            val edit = i.getStringExtra("editContact")
+            val fillId = i.getLongExtra("numberContactId", -1L).takeIf { it > 0 }
+            val fillName = i.getStringExtra("numberName")
+            return when (i.action) {
+                Intent.ACTION_DIAL -> IntentRoute(tab = "dialer", fill = number, editContact = edit, chooseNumberFor = choose, fillContactId = fillId, fillContactName = fillName)
+                Intent.ACTION_VIEW -> if (number != null) IntentRoute(tab = "dialer", fill = number, editContact = edit, chooseNumberFor = choose, fillContactId = fillId, fillContactName = fillName)
+                    else IntentRoute(tab = tabExtra, editContact = edit, chooseNumberFor = choose)
+                Intent.ACTION_CALL, "com.mandu.liquiddialer.CALLBACK" -> IntentRoute(tab = tabExtra, call = number, editContact = edit, chooseNumberFor = choose)
+                Intent.ACTION_CALL_BUTTON -> IntentRoute(tab = tabExtra ?: "recents", editContact = edit, chooseNumberFor = choose)
+                else -> IntentRoute(tab = tabExtra, editContact = edit, chooseNumberFor = choose)
+            }
+        }
+    }
+
     private fun handleIntent(i: Intent?) {
         i ?: return
-        i.getStringExtra("tab")?.let { state.tab = it }
-        i.getStringExtra("editContact")?.takeIf { it.isNotBlank() }?.let { num ->
+        val r = routeIntent(i)
+        r.tab?.let { state.tab = it }
+        r.editContact?.takeIf { it.isNotBlank() }?.let { num ->
             state.editContactRequest = try { Repo.contactIdFor(this, num) } catch (_: Exception) { null } to num
             i.removeExtra("editContact")
         }
-        val number = i.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: i.getStringExtra("number")
-        when (i.action) {
-            Intent.ACTION_DIAL, Intent.ACTION_VIEW -> if (number != null) { state.dial = number; state.tab = "dialer" } else if (i.action == Intent.ACTION_DIAL) state.tab = "dialer"
-            Intent.ACTION_CALL, "com.mandu.liquiddialer.CALLBACK" -> if (number != null) call(number)
-            Intent.ACTION_CALL_BUTTON -> state.tab = "recents"
+        r.fill?.let { num ->
+            val cid = r.fillContactId
+            if (cid == null) state.dial = num
+            else {
+                // Purana widget tap: number fill karne se PEHLE live revalidate (deleted/badla hua contact par purana number nahi bharna)
+                LdApp.instance.scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    val phones = try { Repo.phonesOf(this@MainActivity, cid) } catch (_: Exception) { emptyList() }
+                    val res = revalidateFill(num, phones)
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        when (res) {
+                            is FillReval.Fill -> { state.dial = res.number; state.tab = "dialer" }
+                            FillReval.Choose -> state.numberChoiceRequest = cid to (r.fillContactName ?: "")
+                            FillReval.Gone -> Toast.makeText(this@MainActivity, "Number ab uplabdh nahi (contact badal gaya)", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            }
         }
+        r.chooseNumberFor?.let { id -> state.numberChoiceRequest = id to (i.getStringExtra("chooseName") ?: "") }
+        r.call?.let { call(it) }
     }
 
     /** Place a real call, picking the SIM per settings. */
