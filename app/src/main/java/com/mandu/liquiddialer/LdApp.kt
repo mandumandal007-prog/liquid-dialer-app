@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 
 class LdApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    internal val widgetRefreshMutex = kotlinx.coroutines.sync.Mutex()
+    internal val widgetRefreshGeneration = java.util.concurrent.atomic.AtomicLong()
     lateinit var repo: SettingsRepo
 
     override fun onCreate() {
