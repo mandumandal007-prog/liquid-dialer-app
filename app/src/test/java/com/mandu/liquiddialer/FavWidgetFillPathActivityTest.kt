@@ -10,50 +10,58 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.robolectric.Robolectric
+import androidx.compose.ui.test.junit4.AndroidComposeTestRule
+import androidx.test.ext.junit.rules.ActivityScenarioRule
+import org.junit.Rule
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Real cold/warm activity fill path for widget taps. CI-only: is 2GB local sandbox me
- *  Compose cold-activity hang hota hai (resource constraint); CI runner pe poori suite ke saath chalti hai.
- *  Local verification = routeIntent pure tests (FavWidgetTest) + RemoteViews pipeline (FavWidgetExecTest). */
+/** Real cold/warm activity path with Compose-managed animation clock and lifecycle cleanup.
+ * Raw ActivityController.setup drains infinite Choreographer frames and never becomes idle. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h1440dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class FavWidgetFillPathActivityTest {
+    private val cold = Intent(ApplicationProvider.getApplicationContext<LdApp>(), MainActivity::class.java)
+        .setAction(Intent.ACTION_DIAL).putExtra("number", "+91 98765 43210")
+    @get:Rule val rule = AndroidComposeTestRule(ActivityScenarioRule<MainActivity>(cold)) { r ->
+        var activity: MainActivity? = null
+        r.scenario.onActivity { activity = it }
+        activity!!
+    }
 
     @Test fun coldDialFillAndWarmNewIntentAndChooserExtra() = runBlocking {
         val app = ApplicationProvider.getApplicationContext<LdApp>()
         app.ldStore.edit { p -> p[K.onboarded] = true }
 
         // Cold: widget person tap -> number fill, dialer tab, kabhi call nahi
-        val cold = Intent(app, MainActivity::class.java)
-            .setAction(Intent.ACTION_DIAL).putExtra("number", "+91 98765 43210")
-        val controller = Robolectric.buildActivity(MainActivity::class.java, cold).setup()
-        val act = controller.get()
+        rule.mainClock.autoAdvance = false
+        rule.mainClock.advanceTimeBy(1000)
+        rule.waitForIdle()
+        val act = rule.activity
         assertEquals("+91 98765 43210", act.state.dial)
         assertEquals("dialer", act.state.tab)
         assertNull("fill kabhi call nahi karta", act.state.pendingCall)
         assertNull(act.state.confirmNumber)
 
         // Warm: naya tap naya number bharta hai (singleTask -> onNewIntent)
-        controller.newIntent(Intent(app, MainActivity::class.java)
-            .setAction(Intent.ACTION_DIAL).putExtra("number", "5550001111"))
+        rule.runOnUiThread { org.robolectric.util.ReflectionHelpers.callInstanceMethod<Unit>(act, "onNewIntent", org.robolectric.util.ReflectionHelpers.ClassParameter.from(Intent::class.java, Intent(app, MainActivity::class.java)
+            .setAction(Intent.ACTION_DIAL).putExtra("number", "5550001111"))) }
         assertEquals("5550001111", act.state.dial)
         assertEquals("dialer", act.state.tab)
         assertNull(act.state.pendingCall)
 
         // Warm hint: contacts tab, dial pad untouched
-        controller.newIntent(Intent(app, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN).putExtra("tab", "contacts"))
+        rule.runOnUiThread { org.robolectric.util.ReflectionHelpers.callInstanceMethod<Unit>(act, "onNewIntent", org.robolectric.util.ReflectionHelpers.ClassParameter.from(Intent::class.java, Intent(app, MainActivity::class.java)
+            .setAction(Intent.ACTION_MAIN).putExtra("tab", "contacts"))) }
         assertEquals("contacts", act.state.tab)
         assertEquals("5550001111", act.state.dial)
         assertNull(act.state.pendingCall)
 
         // Warm chooser: multi-number favorite -> numberChoiceRequest set, koi fill nahi
-        controller.newIntent(Intent(app, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN).putExtra("chooseNumber", 11L).putExtra("chooseName", "Rahul Sharma"))
+        rule.runOnUiThread { org.robolectric.util.ReflectionHelpers.callInstanceMethod<Unit>(act, "onNewIntent", org.robolectric.util.ReflectionHelpers.ClassParameter.from(Intent::class.java, Intent(app, MainActivity::class.java)
+            .setAction(Intent.ACTION_MAIN).putExtra("chooseNumber", 11L).putExtra("chooseName", "Rahul Sharma"))) }
         assertEquals(11L to "Rahul Sharma", act.state.numberChoiceRequest)
         assertEquals("5550001111", act.state.dial)
         assertNull(act.state.pendingCall)
