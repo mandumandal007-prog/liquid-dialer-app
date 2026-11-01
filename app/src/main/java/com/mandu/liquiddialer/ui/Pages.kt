@@ -738,8 +738,16 @@ private fun StatsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onIns
             // load hui window ka CSV export - poori history ka dawa nahi; share sheet se WhatsApp/Excel kahi bhi
             val ctx = LocalContext.current
             Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable {
-                try { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, Repo.recentsCsv(st.recents)), "Hisab CSV")) }
-                catch (e: Exception) { Toast.makeText(ctx, "Koi app nahi mila", Toast.LENGTH_SHORT).show() }
+                // sirf load hui window export hoti hai (upar "Load hui N calls" label); chooser hi khulta hai - khud kisi app ko kabhi nahi bhejta
+                // (empty/permission states yahan pahunchte hi nahi: StatsPage unpe alag EmptyState dikhata hai aur button render hi nahi hota)
+                try {
+                    val f = java.io.File(ctx.cacheDir, "hisab_calls.csv")
+                    f.writeText(Repo.recentsCsv(st.recents))
+                    val uri = FileProvider.getUriForFile(ctx, "com.mandu.liquiddialer.files", f)
+                    ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/csv")
+                        .putExtra(Intent.EXTRA_STREAM, uri).putExtra(Intent.EXTRA_SUBJECT, "Hisab calls CSV")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Hisab CSV share karo"))
+                } catch (e: Exception) { Toast.makeText(ctx, "Share nahi hua", Toast.LENGTH_SHORT).show() }
             }.padding(horizontal = 10.dp, vertical = 8.dp).testTag("hisab_csv_share")) {
                 LdText("CSV share karo", 12.5f, FontWeight.SemiBold, p.accent)
             }
