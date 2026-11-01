@@ -35,8 +35,13 @@ class FavWidgetCallUiTest {
     private val tm get() = app.getSystemService(TelecomManager::class.java)
     private fun settle() { rule.mainClock.autoAdvance = false; rule.mainClock.advanceTimeBy(400); rule.waitForIdle() }
     private fun await(check: () -> Boolean) {
-        repeat(30) { if(check()) return; Thread.sleep(100); settle() }
-        assertTrue("awaited widget outcome",check())
+        repeat(30) {
+            org.robolectric.shadows.ShadowLooper.idleMainLooper()
+            if(check()) return
+            Thread.sleep(100); settle()
+        }
+        val st=rule.activity.state
+        assertTrue("awaited widget outcome: chooser=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, calls=${st.numberChoiceCalls}, undo=${st.undoInfo}, onboarding=${st.showOnboarding}; tree=" + rule.onRoot(useUnmergedTree=true).printToString(),check())
     }
     @Before fun seed() = runBlocking {
         app.ldStore.edit { it[K.onboarded]=true; it[K.undoCall]=false; it[K.simMemory]=false; it[K.theme]="daylight" }
@@ -107,6 +112,7 @@ class FavWidgetCallUiTest {
     }
     private fun openCallChooser() {
         tap(null)
+        await { rule.activity.state.numberChoiceRequest?.first==11L }
         await { rule.onAllNodesWithTag("chooser_num",useUnmergedTree=true).fetchSemanticsNodes().size==2 }
     }
     @Test fun permissionRevokedAfterChooserOpensNeverCalls() {
