@@ -806,7 +806,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             }
                         }
                     }
-                } else LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Aakhri: " + Repo.pretty(it.number) + " - call dabao" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 1)
+                } else LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Pichhla: " + Repo.pretty(it.number) + " - call button se bharo" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 1)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
                     Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onAddContact(dial) }.padding(horizontal = 10.dp, vertical = 2.dp)) {
