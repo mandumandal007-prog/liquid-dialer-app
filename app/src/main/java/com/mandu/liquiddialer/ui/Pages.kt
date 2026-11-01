@@ -114,7 +114,8 @@ fun TimeRow(title: String, mins: Int, last: Boolean = false, onChange: (Int) -> 
 @Composable
 fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, editContactId: Long?, editPrefill: String, onOpenNumber: (String) -> Unit, onInsights: () -> Unit = {}) {
     when {
-        page == "settings" -> SettingsPage(st, act, onBack, onOpen)
+        page == "settings" -> SettingsGroupsPage(onBack,onOpen)
+        page.startsWith("settings:") -> SettingsPage(st, act, onBack, onOpen, page.removePrefix("settings:"))
         page == "appearance" -> AppearancePage(onBack)
         page == "volume" -> VolumePage(onBack)
         page == "profile" -> ProfilePage(onBack)
@@ -134,8 +135,39 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     }
 }
 
+internal data class SettingsGroup(val id:String,val title:String,val summary:String)
+internal val SETTINGS_GROUPS=listOf(
+    SettingsGroup("display","Display","Theme, language, recents aur keypad"),
+    SettingsGroup("calls","Calls","SIM, call screen, confirm aur undo"),
+    SettingsGroup("sounds","Sounds & vibration","Ringtone, vibration aur caller announcement"),
+    SettingsGroup("privacy","Privacy & lock","App lock aur dobara lock hone ka time"),
+    SettingsGroup("default","Default app","Phone app aur permissions"),
+    SettingsGroup("volume","Volume","Ring, media aur call volume"),
+    SettingsGroup("identity","Caller pehchan","Pichli call aur contact labels"),
+    SettingsGroup("blocking","Blocking","Blocked numbers aur spam series"),
+    SettingsGroup("quiet","Quiet hours","Silent time aur favourite exceptions"),
+    SettingsGroup("recording","Recording","Recording controls aur saved recordings"),
+    SettingsGroup("speed","Speed dial & voicemail","Shortcut numbers aur voicemail"),
+    SettingsGroup("accessibility","Accessibility","TTY aur hearing aid system settings"),
+    SettingsGroup("notifications","Notifications","Missed call, birthday aur summary alerts"),
+    SettingsGroup("backup","Backup","Contacts aur appearance backup/restore"),
+    SettingsGroup("about","About","App version aur jankari")
+)
+
 @Composable
-private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit) {
+private fun SettingsGroupsPage(onBack:()->Unit,onOpen:(String)->Unit) {
+    PageFrame("Settings",onBack) {
+        LdText("Group kholo, phir uski settings chuno",13f,color=LocalLd.current.muted,modifier=Modifier.padding(bottom=12.dp))
+        GlassCard {
+            SETTINGS_GROUPS.forEachIndexed { i,g ->
+                SRow(g.title,g.summary,LdIcons.Settings,last=i==SETTINGS_GROUPS.lastIndex) { onOpen("settings:"+g.id) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, group: String) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
@@ -202,8 +234,9 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             dismissButton = { TextButton(onClick = { SettingsBackup.pendingRestore.value = null }) { LdText("Cancel", 14f, color = LocalLd.current.muted) } })
     }
 
-    PageFrame("Settings", onBack) {
-        // profile card
+    PageFrame(SETTINGS_GROUPS.firstOrNull { it.id==group }?.title ?: "Settings", onBack) {
+        if(group=="display") {
+        // Profile and calling-card entry points stay under Display.
         Row(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(26.dp)).clickable { onOpen("profile") }.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Avatar(s.profileName.ifBlank { "You" }, s.profilePhoto.ifBlank { null }, 58.dp, 19f, seed = "me")
@@ -216,6 +249,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Swipe se tab badlo", "Recents aur Contacts ke beech ungli ghumao", s.tabSwipe) { save(K.tabSwipe, it) }
         }
 
+        }
+        if(group=="default") {
         SecTitle("Default app")
         GlassCard {
             SRow(if (st.isDefault) "Default phone app ✓" else "Default phone app banao", if (st.isDefault) "Liquid Dialer hi calls sambhal raha hai" else "Incoming call screen, block aur call controls ke liye zaroori",
@@ -223,6 +258,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Permissions", "${RUNTIME_PERMS.count { act.has(it.first) }}/${RUNTIME_PERMS.size} mili hui".also { tick }, LdIcons.Check, last = true) { onOpen("permissions") }
         }
 
+        }
+        if(group=="privacy") {
         SecTitle("Privacy & lock")
         GlassCard {
             // Device ka EXISTING credential (fingerprint ya PIN/pattern/password); koi app PIN nahi.
@@ -243,6 +280,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             }
         }
 
+        }
+        if(group=="display") {
         SecTitle("Display")
         GlassCard {
             SRow("Theme & appearance", "${paletteFor(s.theme, p.accent, true).name.let { if (s.theme == "auto") "Auto (system)" else it }} · blur ${s.blur}px", LdIcons.Palette) { onOpen("appearance") }
@@ -264,6 +303,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             Segmented(listOf("First Last", "Last, First"), if (s.lastNameFirst) 1 else 0) { save(K.lastNameFirst, it == 1) }
         }
 
+        }
+        if(group=="calls") {
         SecTitle("Calls")
         GlassCard {
             val sims = st.sims
@@ -296,6 +337,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("System call settings", "SIM, carrier aur advanced options", LdIcons.Settings, last = true) { open(Intent(TelecomManager.ACTION_SHOW_CALL_SETTINGS)) }
         }
 
+        }
+        if(group=="sounds") {
         SecTitle("Sounds & vibration")
         GlassCard {
             SRow("Ringtone", "Phone ki ringtone chuno", LdIcons.Volume) {
@@ -319,17 +362,23 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Sirf favourite pe flash", "Flash sirf starred contacts pe", s.flashOnlyFav, last = true) { save(K.flashOnlyFav, it) }
         }
 
+        }
+        if(group=="volume") {
         SecTitle("Volume")
         GlassCard {
             SRow("Volume & boost", "Ring, media, call volume ek jagah + media loudness boost", LdIcons.Volume, last = true) { onOpen("volume") }
         }
 
+        }
+        if(group=="identity") {
         SecTitle("Caller pehchan")
         GlassCard {
             SwitchRow("Pichli call ki jankari", "Incoming screen pe pichli call ka time", s.showLastCall) { save(K.showLastCall, it) }
             SwitchRow("Contact ka label", "Mobile/Work aur Favourite badge incoming pe", s.showContactType, last = true) { save(K.showContactType, it) }
         }
 
+        }
+        if(group=="blocking") {
         SecTitle("Blocking")
         GlassCard {
             SRow("Blocked numbers", "${st.blocked.size} blocked", LdIcons.Block) { onOpen("blocked") }
@@ -340,6 +389,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
                 SRow("Screening role nahi mila", "Blocking abhi kaam nahi karegi — tap karke role do", LdIcons.Info, last = true) { act.requestScreeningRole() }
         }
 
+        }
+        if(group=="quiet") {
         SecTitle("Quiet hours")
         GlassCard {
             SwitchRow("Quiet hours", "Is time me incoming call silent (Android 10+, call screening role chahiye; call reject nahi hogi, log me rahegi)", s.quietHours, last = !s.quietHours) { save(K.quietHours, it); if (it) act.requestScreeningRole() }
@@ -352,6 +403,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             }
         }
 
+        }
+        if(group=="recording") {
         SecTitle("Recording")
         GlassCard {
             SwitchRow("Sirf unknown numbers record", "Auto-record contacts ke bahar ke numbers ke liye", s.recordUnknownOnly) { save(K.recordUnknownOnly, it) }
@@ -362,6 +415,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Storage", "Android/data/${ctx.packageName}/files/Music/LiquidDialer", LdIcons.Info, last = true)
         }
 
+        }
+        if(group=="speed") {
         SecTitle("Speed dial & voicemail")
         GlassCard {
             SRow("Speed dial", "${s.speedDial.size} set · Dialer pe 2-9 long-press", LdIcons.Dialpad) { onOpen("speeddial") }
@@ -369,12 +424,16 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Voicemail call karo", null, LdIcons.Phone, last = true) { act.voicemail() }
         }
 
+        }
+        if(group=="accessibility") {
         SecTitle("Accessibility")
         GlassCard {
             SRow("TTY mode", "System accessibility screen", LdIcons.Info) { open(Intent(TelecomManager.ACTION_SHOW_CALL_ACCESSIBILITY_SETTINGS)) }
             SRow("Hearing aid (HAC)", "System accessibility screen", LdIcons.Volume, last = true) { open(Intent(TelecomManager.ACTION_SHOW_CALL_ACCESSIBILITY_SETTINGS)) }
         }
 
+        }
+        if(group=="notifications") {
         SecTitle("Notifications")
         GlassCard {
             SwitchRow("Missed call alert", "Call back, Message aur Block button ke saath", s.missedAlerts) { save(K.missedAlerts, it) }
@@ -389,6 +448,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             }
         }
 
+        }
+        if(group=="backup") {
         SecTitle("Backup")
         GlassCard {
             SRow("Contacts export (VCF)", "Saare contacts ek file me", LdIcons.ArrowLeft) { exportVcf.launch("contacts-${SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())}.vcf") }
@@ -397,6 +458,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Settings restore", "Backup file se appearance settings wapas lao", LdIcons.Plus, last = true) { restoreSettings.launch(arrayOf("application/json", "text/plain", "*/*")) }
         }
 
+        }
+        if(group=="about") {
         SecTitle("About")
         GlassCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -407,7 +470,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             }
             LdText("Asli phone app: calls, contacts, call log, block, recording, notes. Frosted glass design.", 11.5f, color = p.muted, maxLines = 4, modifier = Modifier.padding(top = 8.dp))
         }
-        LdText("Made for Mandu", 11f, color = p.muted, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 18.dp))
+        LdText("Made for Mandu", 11f, color = p.muted, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 18.dp))        }
+
     }
 
     when (sheet) {
