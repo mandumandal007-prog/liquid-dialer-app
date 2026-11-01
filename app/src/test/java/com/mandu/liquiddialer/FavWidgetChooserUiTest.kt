@@ -79,7 +79,7 @@ class FavWidgetChooserUiTest {
     /** Click ke baad IO->Main coroutine real-time leti hai; virtual clock kaafi nahi. */
     internal fun awaitNodes(tag: String, count: Int) {
         var tries = 0
-        while (tries++ < 20 && rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size != count) {
+        while (tries++ < 30 && rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size != count) {
             org.robolectric.shadows.ShadowLooper.idleMainLooper()
             Thread.sleep(150)
             rule.mainClock.autoAdvance = false
@@ -88,13 +88,16 @@ class FavWidgetChooserUiTest {
         }
     }
 
-    private fun openChooser(id: Long = 11L, name: String = "Rahul Sharma") {
+    private fun openChooser(id: Long = 11L, name: String = "Rahul Sharma", expectNumbers: Int = 2) {
         val act = rule.activity
         act.state.showOnboarding = false
         org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>())
             .grantPermissions(android.Manifest.permission.READ_CONTACTS)
         act.state.numberChoiceRequest = id to name
         settle()
+        // produceState ka IO real-time chalta hai: fixed settle busy CI JVM par race karta hai (run 194 flake) - content ka poll karo
+        if (expectNumbers > 0) awaitNodes("chooser_num", expectNumbers)
+        else awaitNodes("chooser_missing", 1)
     }
 
     @Test fun chooserShowsBothNumbersAndFillsOnlySelected() {
@@ -186,7 +189,7 @@ class FavWidgetChooserUiTest {
 
     @Test fun deletedContactShowsSafeFeedback() {
         settle(2500)
-        openChooser(id = 99L, name = "Deleted Person")
+        openChooser(id = 99L, name = "Deleted Person", expectNumbers = 0)
         rule.onNodeWithTag("chooser_missing", useUnmergedTree = true).assertExists()
         rule.onAllNodesWithTag("chooser_num", useUnmergedTree = true).assertCountEquals(0)
         saveDialogShot("W8-chooser-missing-day", 0xFFF4F6FA)
