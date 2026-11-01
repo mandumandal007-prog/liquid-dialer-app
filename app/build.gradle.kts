@@ -59,7 +59,7 @@ tasks.withType<Test>().configureEach {
     val ci = System.getenv("CI") == "true"
     maxHeapSize = if (ci) "2g" else "512m"
     forkEvery = 20
-    maxParallelForks = if (ci) 2 else 1
+    maxParallelForks = 1  // serial: parallel forks pe CI CPU contention se AppNotIdle cascade (run 196: 4 failures; serial run 195: 0 failures)
 }
 
 dependencies {
