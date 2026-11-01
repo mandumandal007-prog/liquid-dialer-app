@@ -58,3 +58,34 @@ class RecentsInsightsTest {
         assertEquals(2, Repo.unseenMissed(list, 0L))
     }
 }
+
+
+class HisabCsvTest {
+    private fun r(id: Long, number: String, name: String?, type: Int, date: Long, dur: Long) =
+        com.mandu.liquiddialer.data.Recent(id, number, name, type, date, dur, null, null)
+
+    @org.junit.Test
+    fun headerAndTypes() {
+        val csv = com.mandu.liquiddialer.data.Repo.recentsCsv(listOf(
+            r(1, "+91 98765 43210", "Rahul Sharma", 2, 1762000000000L, 245),
+            r(2, "+91 90000 11111", null, 3, 1762000060000L, 0),
+        ))
+        val lines = csv.trim().split("\n")
+        assert(lines[0] == "date,time,name,number,type,duration_sec") { lines[0] }
+        assert(lines[1].endsWith(",Rahul Sharma,+91 98765 43210,Outgoing,245")) { lines[1] }
+        assert(lines[2].endsWith(",,+91 90000 11111,Missed,0")) { lines[2] }
+        assert(lines[1].matches(Regex("""\d{4}-\d{2}-\d{2},\d{2}:\d{2},.*"""))) { lines[1] }
+    }
+
+    @org.junit.Test
+    fun commasInNameAreQuoted() {
+        val csv = com.mandu.liquiddialer.data.Repo.recentsCsv(listOf(
+            r(1, "123", "Mandal, Chandradev", 1, 1762000000000L, 5)))
+        assert(csv.contains("\"Mandal, Chandradev\"")) { csv }
+    }
+
+    @org.junit.Test
+    fun emptyWindowIsHeaderOnly() {
+        assert(com.mandu.liquiddialer.data.Repo.recentsCsv(emptyList()) == "date,time,name,number,type,duration_sec\n")
+    }
+}
