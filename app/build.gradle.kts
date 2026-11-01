@@ -56,8 +56,10 @@ android {
 
 // Robolectric suite hygiene: CI ko bada heap, har jagah bounded fork (sandbox accumulation cap)
 tasks.withType<Test>().configureEach {
-    maxHeapSize = if (System.getenv("CI") == "true") "2g" else "512m"
-    forkEvery = 12
+    val ci = System.getenv("CI") == "true"
+    maxHeapSize = if (ci) "2g" else "512m"
+    forkEvery = 20
+    maxParallelForks = if (ci) 2 else 1
 }
 
 dependencies {
