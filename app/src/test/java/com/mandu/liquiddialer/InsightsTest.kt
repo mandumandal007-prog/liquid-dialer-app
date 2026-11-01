@@ -90,11 +90,20 @@ class InsightsSheetShotTest {
             Recent(3, "+91 91234 56789", "Priya Verma", CallLog.Calls.MISSED_TYPE, noon - 7 * 3_600_000, 0, null, null),
         )
         settle()
-        rule.onNodeWithTag("insights_open", useUnmergedTree = true).performClick()
+        // Hisab ab poora stats page kholta hai; sheet page ke "Quick insights" se khulti hai
+        rule.onNodeWithTag("insights_open", useUnmergedTree = true).performTouchInput { click(center) }
+        settle()
+        rule.onNodeWithTag("stats_aaj", useUnmergedTree = true).assertExists()
+        // "Quick insights" page ke top ke paas hai (scroll ke baghair dikhta hai) - REAL touch se kholo
+        val bn = rule.onNodeWithTag("insights_sheet_open", useUnmergedTree = true).fetchSemanticsNode()
+        val bb = bn.boundsInRoot
+        assert(bb.width > 1f && bb.height > 1f) { "insights_sheet_open ke bounds zero hain: $bb" }
+        rule.onNodeWithTag("insights_sheet_open", useUnmergedTree = true).performTouchInput { click(center) }
         settle()
         rule.onNodeWithText("Call insights", substring = true, useUnmergedTree = true).assertExists()
         // window label: 3 calls < limit 300 -> sirf loaded window ka dawa, poori coverage ka nahi
-        rule.onNodeWithText("Load hui 3 calls ka hisaab", substring = true, useUnmergedTree = true).assertExists()
+        // (stats page ka coverage caption same text rakhta hai, isliye sheet ke TAG se assert karo)
+        rule.onNodeWithTag("insights_window", useUnmergedTree = true).assertTextContains("Load hui 3 calls ka hisaab", substring = true)
         rule.onNodeWithText("sabse zyada calls (2)", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("missed calls", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "47-insights-sheet")
