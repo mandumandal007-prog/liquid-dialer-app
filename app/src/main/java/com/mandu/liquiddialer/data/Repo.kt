@@ -251,6 +251,25 @@ object Repo {
         ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup._ID), null, null, null)?.use { if (it.moveToFirst()) it.getLong(0) else null }
     } catch (e: Exception) { null }
 
+    // ---------------- Hisab CSV export (load hui window ka data, koi server nahi) ----------------
+    fun csvType(t: Int) = when (t) {
+        1 -> "Incoming"; 2 -> "Outgoing"; 3 -> "Missed"; 5 -> "Rejected"; 6 -> "Blocked"; else -> "Other"
+    }
+    private fun csvCell(v: String) = if (v.any { it == ',' || it == '"' || it == '\n' }) "\"" + v.replace("\"", "\"\"") + "\"" else v
+    fun recentsCsv(recents: List<Recent>): String {
+        val df = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val tf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
+        val sb = StringBuilder("date,time,name,number,type,duration_sec\n")
+        recents.forEach { r ->
+            val d = java.util.Date(r.date)
+            sb.append(df.format(d)).append(',').append(tf.format(d)).append(',')
+                .append(csvCell(r.name ?: "")).append(',')
+                .append(csvCell(r.number)).append(',')
+                .append(csvType(r.type)).append(',').append(r.duration).append('\n')
+        }
+        return sb.toString()
+    }
+
     // ---------------- T9 ----------------
     private val t9 = mapOf('a' to '2','b' to '2','c' to '2','d' to '3','e' to '3','f' to '3','g' to '4','h' to '4','i' to '4','j' to '5','k' to '5','l' to '5',
         'm' to '6','n' to '6','o' to '6','p' to '7','q' to '7','r' to '7','s' to '7','t' to '8','u' to '8','v' to '8','w' to '9','x' to '9','y' to '9','z' to '9')
