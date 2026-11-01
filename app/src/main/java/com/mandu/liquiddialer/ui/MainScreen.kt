@@ -112,7 +112,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 // recents dikhte hi missed-seen mark karo (tab badge isi se clear hota hai)
                 LaunchedEffect(st.tab, st.recents) { if (st.tab == "recents") { val nowMs = System.currentTimeMillis(); if (s.recentsSeenAt < nowMs) LdApp.instance.scope.launch { LdApp.instance.repo.setRecentsSeen(nowMs) } } }
                 LaunchedEffect(st.tab) { if (st.tab in tabKeys) { val i = tabKeys.indexOf(st.tab); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) } }
-                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = 90.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), userScrollEnabled = s.tabSwipe) { page ->
+                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
                         "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
@@ -461,7 +461,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val contactHits = remember(st.contacts, query) { if (query.isBlank()) emptyList() else st.contacts.filter { Repo.matches(it, query) }.take(8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(Modifier.fillMaxSize().testTag("main_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 90.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -698,7 +698,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val railEntries = remember(list, s.lastNameFirst) { AlphaIndex.indexOf(list.map { if (s.lastNameFirst) it.altName else it.name }, headItems = 1) }
     val showRail = hasPerm && query.isBlank() && railEntries.size >= 4
     Box(Modifier.fillMaxSize()) {
-    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(Modifier.fillMaxSize().testTag("main_list"), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 90.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
