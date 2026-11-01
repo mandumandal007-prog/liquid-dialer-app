@@ -20,7 +20,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Slider
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -159,7 +161,46 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             ctx.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, "text/x-vcard").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
         } catch (e: Exception) { Toast.makeText(ctx, trNow("Phone me VCF import karne wala app nahi mila"), Toast.LENGTH_LONG).show() }
     }
+    // Appearance settings backup/restore - sirf whitelisted display settings; restore pe pehle preview+confirm, phir ek atomic apply
+    val pendingRestore by SettingsBackup.pendingRestore.collectAsState()
+    val exportSettings = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) LdApp.instance.scope.launch(Dispatchers.IO) {
+            val ok = try {
+                ctx.contentResolver.openOutputStream(uri)?.use { it.write(SettingsBackup.buildJson(LdApp.settings.value).toByteArray(Charsets.UTF_8)) } != null
+            } catch (e: Exception) { false }
+            withContext(Dispatchers.Main) { Toast.makeText(ctx, if (ok) trNow("Settings backup save ho gaya") else trNow("Backup save nahi hua"), Toast.LENGTH_LONG).show() }
+        }
+    }
+    val restoreSettings = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        // uri == null = user ne picker cancel kiya: kuch nahi hota
+        if (uri != null) LdApp.instance.scope.launch(Dispatchers.IO) {
+            val text = SettingsBackup.readCapped(ctx, uri)
+            val res = if (text == null) SettingsBackup.ParseResult.Err("file padhi nahi ja saki (bahut badi ya kharab)") else SettingsBackup.parse(text)
+            withContext(Dispatchers.Main) {
+                when (res) {
+                    is SettingsBackup.ParseResult.Err -> Toast.makeText(ctx, trNow("Backup file theek nahi hai") + ": " + res.why, Toast.LENGTH_LONG).show()
+                    is SettingsBackup.ParseResult.Ok -> SettingsBackup.pendingRestore.value = res.values
+                }
+            }
+        }
+    }
     fun open(i: Intent) { try { ctx.startActivity(i) } catch (_: Exception) { act.openAppSettings() } }
+
+    // Restore preview + explicit confirmation: bina user ke "Restore" dabaye kuch apply nahi hota
+    pendingRestore?.let { vals ->
+        AlertDialog(onDismissRequest = { SettingsBackup.pendingRestore.value = null },
+            title = { LdText("Settings restore karein?", 17f, FontWeight.Bold) },
+            text = { LdText("${vals.size} appearance/layout settings apply hongi. Call behavior, blocking, recording, app lock, contacts aur personal data - kuch nahi badlega.", 13f, color = LocalLd.current.muted, maxLines = 6, modifier = Modifier.testTag("restore_preview_text")) },
+            confirmButton = { TextButton(onClick = {
+                SettingsBackup.pendingRestore.value = null
+                LdApp.instance.scope.launch(Dispatchers.IO) {
+                    // success toast sirf apply ke poora hone par; fail pe error toast (koi jhootha success nahi)
+                    val ok = try { SettingsBackup.applyRestored(ctx, vals); true } catch (e: Exception) { false }
+                    withContext(Dispatchers.Main) { Toast.makeText(ctx, if (ok) "${vals.size} " + trNow("settings restore ho gayi") else trNow("Settings restore nahi hui"), Toast.LENGTH_LONG).show() }
+                }
+            }) { LdText("Restore", 14f, FontWeight.SemiBold, LocalLd.current.accent) } },
+            dismissButton = { TextButton(onClick = { SettingsBackup.pendingRestore.value = null }) { LdText("Cancel", 14f, color = LocalLd.current.muted) } })
+    }
 
     PageFrame("Settings", onBack) {
         // profile card
@@ -351,7 +392,9 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         SecTitle("Backup")
         GlassCard {
             SRow("Contacts export (VCF)", "Saare contacts ek file me", LdIcons.ArrowLeft) { exportVcf.launch("contacts-${SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())}.vcf") }
-            SRow("Contacts import (VCF)", "VCF file chuno", LdIcons.Plus, last = true) { importVcf.launch(arrayOf("text/x-vcard", "text/vcard", "text/directory", "*/*")) }
+            SRow("Contacts import (VCF)", "VCF file chuno", LdIcons.Plus) { importVcf.launch(arrayOf("text/x-vcard", "text/vcard", "text/directory", "*/*")) }
+            SRow("Settings backup", "Sirf appearance/layout settings (JSON file)", LdIcons.ArrowLeft) { exportSettings.launch("liquid-dialer-settings-${SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())}.json") }
+            SRow("Settings restore", "Backup file se appearance settings wapas lao", LdIcons.Plus, last = true) { restoreSettings.launch(arrayOf("application/json", "text/plain", "*/*")) }
         }
 
         SecTitle("About")
