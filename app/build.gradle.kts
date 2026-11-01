@@ -58,7 +58,7 @@ android {
 tasks.withType<Test>().configureEach {
     val ci = System.getenv("CI") == "true"
     maxHeapSize = if (ci) "2g" else "512m"
-    forkEvery = 20
+    forkEvery = 1
     maxParallelForks = 1
     // Fresh JVM per class contains cross-class static/looper leakage; cause is still under test.
     testLogging {
