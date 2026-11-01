@@ -58,6 +58,7 @@ class BirthdayRemindShotTest {
         }
         rule.onNodeWithTag("drawer_open").performClick(); settle()
         rule.onNodeWithText("Settings", useUnmergedTree = true).performClick(); settle(1800)
+        openSettingsGroup(rule,"Notifications")
 
         // Settings ek scrolling column hai: row actually viewport me aane tak scroll
         var shown = false
