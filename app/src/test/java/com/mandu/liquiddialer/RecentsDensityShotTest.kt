@@ -144,4 +144,55 @@ class RecentsDensityShotTest {
         assertTrue("hard mode me compact kam rows nahi dikhana chahiye ($defCount -> $compactCount)", compactCount >= defCount)
         Unit
     }
+
+    /** User-like DARK fixture (midnight theme): stats strip + Aaj/Kal day groups, scroll 0.
+     *  05:44 user feedback ke baad density verification dark mode me bhi chahiye thi.
+     *  Full-visible rows (call buttons pura viewport ke andar, chrome se no overlap) print hoti hain
+     *  taaki before/after layout compare exact ho, andaj se nahi. */
+    @Test
+    fun darkUserLikeScroll0() = runBlocking {
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        ctx.ldStore.edit { it[K.theme] = "midnight" }
+        waitFlag { LdApp.settings.value.theme == "midnight" }
+        settle(2500)
+        val act = rule.activity
+        act.state.showOnboarding = false
+        act.state.isDefault = true
+        act.state.contacts = emptyList()
+        val noon = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 12); set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        val day = 24 * 60 * 60_000L
+        act.state.recents = listOf(
+            Recent(1L, "+91 90000 00001", "Railways", 2, noon - 5 * 60_000L, 60, null, null),
+            Recent(2L, "+91 90000 00002", "Father", 1, noon - 40 * 60_000L, 95, null, null),
+            Recent(3L, "+91 90000 00003", "Railways", 2, noon - 90 * 60_000L, 30, null, null),
+            Recent(4L, "+91 90000 00004", "Jio Balance Check", 2, noon - 3 * 60 * 60_000L, 0, null, null),
+            Recent(5L, "+91 90000 00005", "Father", 1, noon - day, 145, null, null),
+            Recent(6L, "+91 90000 00006", "Railways", 2, noon - day - 2 * 60 * 60_000L, 75, null, null),
+            Recent(7L, "+91 90000 00007", "Jio Balance Check", 2, noon - day - 5 * 60 * 60_000L, 0, null, null),
+            Recent(8L, "+91 90000 00008", "Mummy", 1, noon - 2 * day, 200, null, null)
+        )
+        settle()
+        waitRows(1)
+        settle(600)
+        saveShot(rule, "22-dark-userlike-scroll0")
+        val root = rule.onRoot().fetchSemanticsNode().boundsInRoot
+        val chrome = (rule.onAllNodesWithTag("bottom_bar", useUnmergedTree = true).fetchSemanticsNodes() +
+            rule.onAllNodesWithTag("dialer_fab", useUnmergedTree = true).fetchSemanticsNodes() +
+            rule.onAllNodesWithTag("top_bar", useUnmergedTree = true).fetchSemanticsNodes()).map { it.boundsInRoot }
+        // Bounds-based regression floor, NOT a pixel-visibility proof: a row clipped at the
+        // list viewport edge can still have button bounds inside root and clear of chrome,
+        // so this count can exceed fully-drawn rows by about one (visually 4->6 on this
+        // fixture; this metric reads 5->7). It guards the density gain relative to the
+        // pre-fix layout (5 with band 24dp) - keep the floor at 6 so a layout regression
+        // that eats rows again fails here.
+        val buttonsClear = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
+            .count { n -> val b = n.boundsInRoot
+                b.top >= 0 && b.bottom <= root.height && chrome.all { c -> !b.overlaps(c) } }
+        println("DARK-USERLIKE buttonsClearOfChrome=$buttonsClear")
+        assertTrue("dark user-like fixture: density gain regressed (buttonsClearOfChrome=$buttonsClear < 6)", buttonsClear >= 6)
+        Unit
+    }
 }
