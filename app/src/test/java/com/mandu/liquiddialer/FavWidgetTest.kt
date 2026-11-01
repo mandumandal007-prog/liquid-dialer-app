@@ -59,10 +59,10 @@ class FavWidgetTest {
         assertEquals("Bittu", FavWidgetModel.labelFor(slots[1]))
     }
 
-    @Test fun personTapIsFillOnlyDialNeverCall() {
+    @Test fun personTapUsesValidatedWidgetCallAction() {
         val slot = FavWidgetModel.Slot.Person(c(1, "Asha", "+91 98765 43210"), "+91 98765 43210")
         val i = FavWidgetModel.rawIntent(ctx, slot)
-        assertEquals(Intent.ACTION_DIAL, i.action)
+        assertEquals(FavWidgetModel.WIDGET_CALL, i.action)
         assertEquals("+91 98765 43210", i.getStringExtra("number"))
         assertNotEquals(Intent.ACTION_CALL, i.action)
         assertEquals(ComponentName(ctx, MainActivity::class.java), i.component)
@@ -190,9 +190,9 @@ class FavWidgetTest {
         assertEquals(7L, i.getLongExtra("numberContactId", -1))
         assertEquals("Asha", i.getStringExtra("numberName"))
         val r = MainActivity.routeIntent(i)
-        assertEquals(7L, r.fillContactId)
-        assertEquals("+91 111", r.fill)
-        assertNull(r.call)
+        assertEquals(FavWidgetModel.WIDGET_CALL, i.action)
+        assertNull("dedicated widget action bypasses generic fill route", r.fill)
+        assertNull("dedicated action needs live validation, not generic call route", r.call)
         // Bina contactId wala normal DIAL (system share etc.) direct fill jaisa pehle tha
         val r2 = MainActivity.routeIntent(Intent(Intent.ACTION_DIAL).putExtra("number", "555"))
         assertNull(r2.fillContactId)
