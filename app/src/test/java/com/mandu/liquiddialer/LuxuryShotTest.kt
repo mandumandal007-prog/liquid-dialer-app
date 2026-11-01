@@ -122,6 +122,17 @@ class LuxuryShotTest {
     }
 
     @Test
+    fun redialHintDark() {
+        // empty dial pe aakhri outgoing number ka hint dikhe (redial discoverability); tap kabhi auto-call nahi karta
+        boot("midnight")
+        rule.activity.state.tab = "dialer"
+        settle()
+        rule.onNodeWithText("Aakhri:", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("91234 56789", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule, "L10-redial-hint-dark")
+    }
+
+    @Test
     fun blockedDark() {
         boot("midnight")
         openDrawer()
