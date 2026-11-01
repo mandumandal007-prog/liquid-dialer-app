@@ -62,6 +62,7 @@ class QuietHoursShotTest {
             println("NO-SETTINGS. TEXTS=" + texts.take(60).joinToString(" | "))
         }
         rule.onNodeWithText("Settings", useUnmergedTree = true).performClick(); settle(1800)
+        openSettingsGroup(rule,if(target=="Spam series block") "Blocking" else "Quiet hours")
         // Settings page is one scrolling Column: nodes exist off-screen, so loop until actually displayed
         var shown = false
         repeat(40) {
