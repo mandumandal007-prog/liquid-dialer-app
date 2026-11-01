@@ -34,7 +34,7 @@ class FavWidgetChooserUiTest {
 
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
-    internal class FakeDetailProvider(var phones: List<Pair<String, Int>> = listOf("+91 90000 11111" to 2, "+91 90000 22222" to 2)) : ContentProvider() {
+    internal open class FakeDetailProvider(var phones: List<Pair<String, Int>> = listOf("+91 90000 11111" to 2, "+91 90000 22222" to 2)) : ContentProvider() {
         override fun onCreate() = true
         override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
             val id = selectionArgs?.firstOrNull()?.toLongOrNull()
@@ -61,7 +61,15 @@ class FavWidgetChooserUiTest {
         override fun getType(uri: Uri): String? = null
     }
 
-    internal val fakeProvider = FakeDetailProvider()
+    private val queryTrace = java.util.concurrent.CopyOnWriteArrayList<String>()
+    internal val fakeProvider = object : FakeDetailProvider() {
+        override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
+            queryTrace.add("start ${uri.path} ids=${selectionArgs?.toList()} thread=${Thread.currentThread().name}")
+            return super.query(uri, projection, selection, selectionArgs, sortOrder).also {
+                queryTrace.add("done ${uri.path} rows=${it?.count}")
+            }
+        }
+    }
 
     @Before fun seed() = runBlocking {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
@@ -86,6 +94,9 @@ class FavWidgetChooserUiTest {
             rule.mainClock.advanceTimeBy(200)
             rule.waitForIdle()
         }
+        val st = rule.activity.state
+        assertEquals("await $tag; request=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, onboarding=${st.showOnboarding}, settings=${LdApp.settings.value}, queries=$queryTrace; tree=" + rule.onAllNodes(isRoot(), useUnmergedTree = true).printToString(),
+            count, rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 
     private fun openChooser(id: Long = 11L, name: String = "Rahul Sharma", expectNumbers: Int = 2) {
@@ -93,6 +104,8 @@ class FavWidgetChooserUiTest {
         act.state.showOnboarding = false
         org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>())
             .grantPermissions(android.Manifest.permission.READ_CONTACTS)
+        if (expectNumbers > 0) assertEquals("provider fixture before chooser", expectNumbers,
+            com.mandu.liquiddialer.data.Repo.contactDetail(act, id)?.phones?.size)
         act.state.numberChoiceRequest = id to name
         settle()
         // produceState ka IO real-time chalta hai: fixed settle busy CI JVM par race karta hai (run 194 flake) - content ka poll karo
