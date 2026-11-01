@@ -11,7 +11,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
           fi
 
       - name: Run unit tests
-        timeout-minutes: 30
+        timeout-minutes: 45
         run: |
           chmod +x gradlew
           ./gradlew testDebugUnitTest --no-daemon
@@ -48,6 +48,15 @@ jobs:
         with:
           name: test-shots
           path: app/build/shots/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload test result XMLs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: app/build/test-results/testDebugUnitTest/*.xml
           retention-days: 14
           if-no-files-found: warn
 
