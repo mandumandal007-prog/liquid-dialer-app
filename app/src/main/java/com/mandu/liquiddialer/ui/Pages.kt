@@ -78,7 +78,7 @@ fun PageFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScop
 
 /** .srow inside a .card */
 @Composable
-fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Boolean = false, trailing: @Composable (() -> Unit)? = null, onClick: (() -> Unit)? = null) {
+fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Boolean = false, subMaxLines: Int = 3, trailing: @Composable (() -> Unit)? = null, onClick: (() -> Unit)? = null) {
     val p = LocalLd.current
     Column {
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
@@ -86,7 +86,7 @@ fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Bo
             if (icon != null) Box(Modifier.size(38.dp).raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
             Column(Modifier.weight(1f)) {
                 LdText(title, 14f, FontWeight.SemiBold, maxLines = 2)
-                if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = 3, modifier = Modifier.padding(top = 3.dp))
+                if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = subMaxLines, modifier = Modifier.padding(top = 3.dp))
             }
             if (trailing != null) trailing() else if (onClick != null) LdIcon(LdIcons.Chevron, 16.dp, p.muted.copy(alpha = .5f))
         }
@@ -95,8 +95,8 @@ fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Bo
 }
 
 @Composable
-fun SwitchRow(title: String, sub: String?, checked: Boolean, last: Boolean = false, onChange: (Boolean) -> Unit) =
-    SRow(title, sub, last = last, trailing = { LdSwitch(checked, onChange) }, onClick = { onChange(!checked) })
+fun SwitchRow(title: String, sub: String?, checked: Boolean, last: Boolean = false, subMaxLines: Int = 3, onChange: (Boolean) -> Unit) =
+    SRow(title, sub, last = last, subMaxLines = subMaxLines, trailing = { LdSwitch(checked, onChange) }, onClick = { onChange(!checked) })
 
 @Composable
 fun TimeRow(title: String, mins: Int, last: Boolean = false, onChange: (Int) -> Unit) {
