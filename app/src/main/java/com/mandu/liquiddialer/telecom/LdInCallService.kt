@@ -33,7 +33,7 @@ class LdInCallService : InCallService() {
 
     private val cb = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) { onCallChanged(call, state) }
-        override fun onDetailsChanged(call: Call, details: Call.Details) { watchVideo(call); CallManager.bump(); CallNotifier.update(this@LdInCallService) }
+        override fun onDetailsChanged(call: Call, details: Call.Details) { com.mandu.liquiddialer.data.ReceivedNames.observe(this@LdInCallService, call); watchVideo(call); CallManager.bump(); CallNotifier.update(this@LdInCallService) }
         override fun onConferenceableCallsChanged(call: Call, c: MutableList<Call>) { CallManager.bump() }
         override fun onChildrenChanged(call: Call, children: MutableList<Call>) { CallManager.bump() }
         override fun onParentChanged(call: Call, parent: Call?) { CallManager.bump() }
@@ -103,6 +103,7 @@ class LdInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
+        com.mandu.liquiddialer.data.ReceivedNames.observe(this,call)
         CallManager.service = this
         com.mandu.liquiddialer.media.BoostService.pauseForCall(this)
         call.registerCallback(cb)
