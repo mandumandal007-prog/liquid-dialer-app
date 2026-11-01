@@ -23,6 +23,9 @@ import com.mandu.liquiddialer.MainActivity
 import com.mandu.liquiddialer.R
 import com.mandu.liquiddialer.data.Contact
 import com.mandu.liquiddialer.data.Repo
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -125,11 +128,25 @@ class FavWidgetProvider : AppWidgetProvider() {
 
         /** App ke andar favorites/contact badalne par refresh (process pehle se zinda hai).
          *  Koi widget nahi to turant no-op. */
-        fun refresh(ctx: Context) {
-            val mgr = try { AppWidgetManager.getInstance(ctx) } catch (_: Exception) { return }
-            val ids = try { mgr.getAppWidgetIds(ComponentName(ctx, FavWidgetProvider::class.java)) } catch (_: Exception) { return }
-            if (ids.isEmpty()) return
-            ids.forEach { updateOne(ctx, mgr, it) }
+        fun refresh(ctx: Context): Job {
+            val appCtx = ctx.applicationContext
+            // Include widget-manager binder lookup in background work, not only contacts/rendering.
+            val app = LdApp.instance
+            val generation = app.widgetRefreshGeneration.incrementAndGet()
+            // Application lifetime: refreshing a home-screen widget must survive Activity destruction.
+            return app.scope.launch(Dispatchers.IO) {
+              app.widgetRefreshMutex.withLock {
+                if (generation != app.widgetRefreshGeneration.get()) return@withLock
+                val mgr = try { AppWidgetManager.getInstance(appCtx) } catch (_: Exception) { return@withLock }
+                val ids = try { mgr.getAppWidgetIds(ComponentName(appCtx, FavWidgetProvider::class.java)) } catch (_: Exception) { return@withLock }
+                for (id in ids) {
+                    val rv = try { buildViews(appCtx,id) } catch (_: Exception) { continue }
+                    coroutineContext.ensureActive()
+                    if (generation != app.widgetRefreshGeneration.get()) return@withLock
+                    try { mgr.updateAppWidget(id,rv) } catch (_: Exception) { }
+                }
+              }
+            }
         }
 
         fun updateOne(ctx: Context, mgr: AppWidgetManager, appWidgetId: Int) {
