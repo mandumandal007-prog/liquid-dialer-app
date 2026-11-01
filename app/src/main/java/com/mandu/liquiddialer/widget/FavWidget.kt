@@ -28,9 +28,10 @@ import kotlinx.coroutines.launch
 
 /** Favorites widget ka slot-selection + tap-intent logic (pure, seedha testable).
  *  Number wahi hota hai jo app ka contacts tab choose karta hai (super-primary preference),
- *  aur tap sirf dialer me number BHARTA hai - kabhi call nahi karta. */
+ *  aur tap live validation ke baad user-initiated call request karta hai. */
 object FavWidgetModel {
     const val MAX_SLOTS = 4
+    const val WIDGET_CALL = "com.mandu.liquiddialer.WIDGET_TAP_CALL"
 
     sealed class Slot {
         /** number pakka resolved (single number ya explicit primary) - tap seedha fill karta hai. */
@@ -59,15 +60,15 @@ object FavWidgetModel {
         return if (phones.size == 1) phones[0].first else null
     }
 
-    /** Fill-only tap: ACTION_DIAL (dialer me number bharta hai). Hint/permission slot: app ka contacts tab. */
+    /** User tap: dedicated validated call action. Hint/permission slot: app ka contacts tab. */
     fun rawIntent(ctx: Context, slot: Slot): Intent = when (slot) {
         is Slot.Person -> Intent(ctx, MainActivity::class.java)
-            .setAction(Intent.ACTION_DIAL)
+            .setAction(WIDGET_CALL)
             .putExtra("number", slot.number)
             .putExtra("numberContactId", slot.contact.id)
             .putExtra("numberName", slot.contact.name)
         is Slot.Chooser -> Intent(ctx, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN)
+            .setAction(WIDGET_CALL)
             .putExtra("chooseNumber", slot.contact.id)
             .putExtra("chooseName", slot.contact.name)
         else -> Intent(ctx, MainActivity::class.java)
@@ -98,8 +99,10 @@ class FavWidgetProvider : AppWidgetProvider() {
      *  poora na ho (warna receiver return karte hi cold process mar sakta hai).
      *  Unit test me broadcast ke bahar goAsync null deta hai -> wahi kaam inline chalta hai. */
     override fun onReceive(ctx: Context, intent: Intent) {
-        if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
-            val ids = intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
+        if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            val ids = if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED)
+                AppWidgetManager.getInstance(ctx).getAppWidgetIds(ComponentName(ctx, FavWidgetProvider::class.java))
+                else intent.getIntArrayExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS)
             if (ids != null) {
                 val pr = goAsync()
                 val appCtx = ctx.applicationContext
