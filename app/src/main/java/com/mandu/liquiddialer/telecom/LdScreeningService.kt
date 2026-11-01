@@ -18,7 +18,9 @@ class LdScreeningService : CallScreeningService() {
         // Contacts permission ke bina favourite check nahi ho sakta: bypass ON hai to silence mat karo (favourite miss na ho)
         val favUnchecked = s.quietAllowFav && n.isNotBlank() && !hasContacts
         val fav = n.isNotBlank() && hasContacts && Repo.contactStarred(this, n)
-        val silence = !block && !favUnchecked && QuietHours.shouldSilence(s.quietHours, android.os.Build.VERSION.SDK_INT, incoming, nowMin, s.quietStart, s.quietEnd, s.quietAllowFav, fav)
+        // Per-number quiet bypass (user ne Number sheet me khud on kiya ho) - app ka apna prefs, contacts permission nahi chahiye
+        val contactBypass = n.isNotBlank() && com.mandu.liquiddialer.data.ContactControls.quietAllow(this, n)
+        val silence = !block && !favUnchecked && !contactBypass && QuietHours.shouldSilence(s.quietHours, android.os.Build.VERSION.SDK_INT, incoming, nowMin, s.quietStart, s.quietEnd, s.quietAllowFav, fav)
         val r = CallResponse.Builder()
         if (block) r.setDisallowCall(true).setRejectCall(true).setSkipNotification(false).setSkipCallLog(false)
         if (silence) r.setSilenceCall(true)
