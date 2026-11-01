@@ -124,6 +124,7 @@ class AppLockUiTest {
         rule.onNodeWithTag("drawer_open").performClick(); settle()
         waitFor { rule.onAllNodesWithText("Settings", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Settings", useUnmergedTree = true).performClick(); settle(1800)
+        rule.onAllNodesWithText("Privacy & lock",useUnmergedTree=true).onLast().performClick();settle(1000)
         // section top ke paas hai; bounded swipe (break wala) agar zaroorat ho
         var shown = false
         for (i in 1..8) {
@@ -173,6 +174,7 @@ class AppLockUiTest {
         rule.onNodeWithTag("drawer_open").performClick(); settle()
         waitFor { rule.onAllNodesWithText("Settings", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithText("Settings", useUnmergedTree = true).performClick(); settle(1800)
+        rule.onAllNodesWithText("Privacy & lock",useUnmergedTree=true).onLast().performClick();settle(1000)
         var shown2 = false
         for (i in 1..8) {
             val nodes = rule.onAllNodesWithText("App lock", substring = false, useUnmergedTree = true).fetchSemanticsNodes()
