@@ -79,6 +79,19 @@ object Repo {
         return out.values.toList()
     }
 
+    /** Ek contact ke saare numbers + super-primary flags (widget canonical resolution ke liye). */
+    fun phonesOf(ctx: Context, contactId: Long): List<Pair<String, Boolean>> {
+        val out = mutableListOf<Pair<String, Boolean>>()
+        try {
+            ctx.contentResolver.query(CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(CommonDataKinds.Phone.NUMBER, CommonDataKinds.Phone.IS_SUPER_PRIMARY),
+                "${CommonDataKinds.Phone.CONTACT_ID}=?", arrayOf("$contactId"), null)?.use { c ->
+                while (c.moveToNext()) out.add((c.getString(0) ?: "") to (c.getInt(1) == 1))
+            }
+        } catch (e: Exception) { }
+        return out.filter { it.first.isNotBlank() }
+    }
+
     data class ContactDetail(
         val id: Long, val rawId: Long, val lookupKey: String, val name: String,
         val phones: List<Pair<String, Int>>, val emails: List<String>, val starred: Boolean, val photo: String?,
@@ -191,7 +204,8 @@ object Repo {
     fun setStarred(ctx: Context, contactId: Long, starred: Boolean) {
         try {
             val v = ContentValues().apply { put(ContactsContract.Contacts.STARRED, if (starred) 1 else 0) }
-            ctx.contentResolver.update(ContactsContract.Contacts.CONTENT_URI, v, "${ContactsContract.Contacts._ID}=?", arrayOf("$contactId"))
+            val n = ctx.contentResolver.update(ContactsContract.Contacts.CONTENT_URI, v, "${ContactsContract.Contacts._ID}=?", arrayOf("$contactId"))
+            if (n > 0) com.mandu.liquiddialer.widget.FavWidgetProvider.refresh(ctx)
         } catch (e: Exception) { }
     }
 
