@@ -277,6 +277,49 @@ fun MainScreen(st: AppState, act: MainActivity) {
             if (pc != null) Sheet(onDismiss = { st.pendingCall = null }) {
                 SimPickSheet { h -> st.pendingCall = null; act.call(pc.first, h, video = pc.second) }
             }
+            // ===== widget favorite: multi-number chooser - selection SIRF dialer fill karta hai (kabhi call nahi); cancel/dismiss no-op =====
+            val nc = st.numberChoiceRequest
+            if (nc != null) key(nc.first) {
+                val ncx = LocalContext.current
+                val ph by produceState<List<Pair<String, Int>>?>(initialValue = null, nc.first, st.numberChoiceNonce) {
+                    value = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Repo.contactDetail(ncx, nc.first)?.phones } } catch (_: Exception) { null } ?: emptyList()
+                }
+                androidx.compose.material3.AlertDialog(onDismissRequest = { st.numberChoiceRequest = null },
+                    title = { LdText("Kaunsa number?", 17f, FontWeight.Bold, modifier = Modifier.testTag("chooser_title")) },
+                    text = {
+                        Column {
+                            if (nc.second.isNotBlank()) LdText(nc.second, 13f, color = p.muted, maxLines = 1)
+                            Spacer(Modifier.height(6.dp))
+                            val list = ph
+                            if (list == null) LdText("Numbers load ho rahe hain...", 13f, color = p.muted, modifier = Modifier.testTag("chooser_loading"))
+                            else if (list.isEmpty()) LdText("Contact mila nahi, number nahi, ya contacts permission nahi hai.", 13f, color = p.muted, maxLines = 3, modifier = Modifier.testTag("chooser_missing"))
+                            else list.forEach { (num, _) ->
+                                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable {
+                                    // Click-time revalidation: dialog khulne ke BAAD permission revoke / contact edit ho sakta hai.
+                                    // Number ab bhi isi contact ka hai tabhi fill; warna list refresh + feedback, stale fill kabhi nahi.
+                                    val cid = nc.first; val numC = num
+                                    LdApp.instance.scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                        val stillValid = try {
+                                            androidx.core.content.ContextCompat.checkSelfPermission(ncx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED &&
+                                                Repo.phonesOf(ncx, cid).any { Repo.key(it.first) == Repo.key(numC) }
+                                        } catch (_: Exception) { false }
+                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                            if (stillValid) { st.numberChoiceRequest = null; st.dial = numC; st.tab = "dialer" }
+                                            else {
+                                                st.numberChoiceNonce++
+                                                Toast.makeText(ncx, "Contact ya number badal gaya - nayi list", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
+                                }.padding(vertical = 12.dp, horizontal = 8.dp).testTag("chooser_num")) {
+                                    LdText(num, 15f, FontWeight.SemiBold, p.accent)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = { },
+                    dismissButton = { androidx.compose.material3.TextButton(onClick = { st.numberChoiceRequest = null }) { LdText("Band karo", 14f, color = p.muted, modifier = Modifier.testTag("chooser_cancel")) } })
+            }
             // NAYA: insights sheet - SIRF loaded recents ka hisaab; label coverage ka dawa nahi karta (provider partial/capped ho sakta hai)
             if (showInsights) {
                 val ins = remember(st.recents) { Repo.insights(st.recents) }
