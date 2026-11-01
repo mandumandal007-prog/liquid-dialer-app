@@ -166,6 +166,20 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             LdText("Ye hisaab sirf abhi loaded window ka hai, poori history ka nahi",
                 10.5f, color = p.muted, maxLines = 3, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp).testTag("cc_scope"))
         }
+        var learnedTick by remember(number) { mutableStateOf(0) }
+        val learned = remember(number, learnedTick) { com.mandu.liquiddialer.data.ReceivedNames.display(ctx, number) }
+        if (learned != null) {
+            LdText("Phone se mila naam (verified nahi)", 11.5f, color = p.muted, maxLines = 3,
+                modifier = Modifier.fillMaxWidth().padding(8.dp).testTag("learned_name_scope"))
+            SheetRow(LdIcons.Edit, "Yaad naam hatao", learned) {
+            com.mandu.liquiddialer.data.ReceivedNames.dismiss(ctx, number)
+            learnedTick++
+            act.state.recents = act.state.recents.map { r -> if (com.mandu.liquiddialer.data.ContactControls.k(r.number) == com.mandu.liquiddialer.data.ContactControls.k(number)) r.copy(name = null) else r }
+            com.mandu.liquiddialer.telecom.CallManager.bump()
+            act.reload()
+            Toast.makeText(ctx, "Yaad kiya naam hata diya", Toast.LENGTH_SHORT).show()
+            }
+        }
         SheetRow(LdIcons.Edit, "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
         if (remindOpen) {
