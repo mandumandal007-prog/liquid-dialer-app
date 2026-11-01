@@ -158,4 +158,22 @@ class FavWidgetCallUiTest {
         assertTrue(shadowOf(tm).allOutgoingCalls.isEmpty())
     }
 
+    @Test fun completedChoiceCannotReplayAfterIoAndClockAdvanceButNewTapCanCallLater() {
+        openCallChooser()
+        rule.runOnUiThread { rule.activity.widgetTapCall(11,n,"Rahul",deliberateSelection=true) }
+        await { shadowOf(tm).allOutgoingCalls.size==1 }
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofSeconds(2));settle()
+        rule.runOnUiThread { rule.activity.widgetTapCall(11,n,"Rahul",deliberateSelection=true) }
+        Thread.sleep(200);settle()
+        assertEquals(1,shadowOf(tm).allOutgoingCalls.size)
+        tap();await { shadowOf(tm).allOutgoingCalls.size==2 }
+    }
+    @Test fun currentSimSelectionRemainsUsableImmediatelyAfterStalePinChooser() {
+        ContactControls.setSimPin(app,n,"removed")
+        tap();await { rule.activity.state.pendingCall!=null }
+        rule.runOnUiThread { rule.activity.choosePendingSim(n,sim,false) }
+        await { shadowOf(tm).allOutgoingCalls.size==1 }
+        assertEquals(sim,shadowOf(tm).onlyOutgoingCall.phoneAccount)
+    }
+
 }
