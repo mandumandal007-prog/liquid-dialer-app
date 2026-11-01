@@ -127,9 +127,20 @@ class LuxuryShotTest {
         boot("midnight")
         rule.activity.state.tab = "dialer"
         settle()
-        rule.onNodeWithText("Aakhri:", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Pichhla:", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("call button se bharo", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("91234 56789", substring = true, useUnmergedTree = true).assertIsDisplayed()
         saveShot(rule, "L10-redial-hint-dark")
+    }
+
+    @Test
+    fun hisabDark() {
+        boot("midnight")
+        openDrawer()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        settle()
+        rule.onNodeWithText("CSV share karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule, "L11-hisab-dark")
     }
 
     @Test
