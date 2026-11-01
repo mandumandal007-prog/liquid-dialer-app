@@ -254,6 +254,7 @@ class ScreenshotTest {
         // Volume page (light, boost off)
         rule.onNodeWithTag("drawer_open").performClick(); settle()
         rule.onNodeWithText("Settings", useUnmergedTree = true).performClick(); settle(1800)
+        openSettingsGroup(rule,"Volume")
         var volOpened = false
         repeat(15) {
             if (rule.onAllNodesWithText("Volume & boost", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
