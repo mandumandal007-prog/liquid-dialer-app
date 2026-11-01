@@ -55,7 +55,7 @@ fun Sheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
                 .onSizeChanged { sheetH = it.height }
                 .graphicsLayer { translationY = size.height * y + dragY.value }
                 .liquid(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-                .background(p.bg2.copy(alpha = if (p.isLight) .55f else .72f))
+                .background(p.bg2.copy(alpha = if (p.isLight) .99f else .98f))
                 .clickable(remember { MutableInteractionSource() }, null) {}
                 .navigationBarsPadding().imePadding()
                 .heightIn(max = (LocalConfiguration.current.screenHeightDp * .88f).dp)
@@ -112,9 +112,9 @@ fun PrimaryButton(text: String, enabled: Boolean = true, danger: Boolean = false
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .97f)
     Box(modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.alpha(if (enabled) 1f else .5f)
-        .shadow(10.dp, RoundedCornerShape(16.dp), ambientColor = c.pct(.4f), spotColor = c.pct(.4f)).clip(RoundedCornerShape(16.dp))
+        .shadow(16.dp, RoundedCornerShape(16.dp), ambientColor = c.pct(.45f), spotColor = c.pct(.45f)).clip(RoundedCornerShape(16.dp))
         .background(Brush.linearGradient(listOf(mix(c, Color.White, .86f), c)))
-        .border(1.dp, Color.White.copy(alpha = .25f), RoundedCornerShape(16.dp))
+        .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = .38f), Color.White.copy(alpha = .12f))), RoundedCornerShape(16.dp))
         .clickable(src, null, enabled = enabled, onClick = onClick).padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
         LdText(text, 14.5f, FontWeight.Bold, Color.White)
     }
@@ -123,7 +123,7 @@ fun PrimaryButton(text: String, enabled: Boolean = true, danger: Boolean = false
 @Composable
 fun GhostButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val p = LocalLd.current
-    Box(modifier.fillMaxWidth().glass(p, RoundedCornerShape(16.dp), 4.dp).clickable(onClick = onClick).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+    Box(modifier.fillMaxWidth().glass(p, RoundedCornerShape(16.dp), 4.dp).premiumRing(p, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
         LdText(text, 14f, FontWeight.SemiBold, p.accent)
     }
 }
@@ -156,7 +156,8 @@ fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: B
                     var pressed by remember { mutableStateOf(false) }
                     val sc by animateFloatAsState(if (pressed) .93f else 1f, tween(120), label = "k")
                     Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(keySize)
-                        .glass(p, CircleShape, 8.dp, .30f)
+                        .raisedGlass(p, CircleShape, 14.dp)
+                        .premiumRing(p, CircleShape)
                         .background(if (pressed) p.glass2 else Color.Transparent)
                         .pointerInput(d) {
                             detectTapGestures(
