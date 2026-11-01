@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -120,6 +121,50 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
         }
         SheetRow(LdIcons.Chevron, "Number share karo") {
             ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "$name: $number"), "Share"))
+        }
+
+        // ---- Is number ke controls: SAB default OFF, sirf user ke deliberately on karne par ----
+        var simPinOpen by remember { mutableStateOf(false) }
+        var pinTick by remember { mutableStateOf(0) }
+        val pinnedSim = remember(pinTick) { com.mandu.liquiddialer.data.ContactControls.simPin(ctx, number) }
+        if (st.sims.size > 1 || pinnedSim != null) {
+            val pinLabel = pinnedSim?.let { pid ->
+                st.sims.firstOrNull { it.handle.id == pid }?.let { "SIM ${it.slot} · ${it.label}" }
+                    ?: "Pinned SIM ab is phone me nahi - dobara chuno ya Auto karo"
+            } ?: "Auto (default ya pichli SIM)"
+            SheetRow(LdIcons.Sim, "SIM pin karo", pinLabel) { simPinOpen = !simPinOpen }
+            if (simPinOpen) {
+                SheetRow(LdIcons.Check, "Auto", "Default SIM ya pichli use wali") {
+                    com.mandu.liquiddialer.data.ContactControls.setSimPin(ctx, number, null)
+                    pinTick++; simPinOpen = false
+                }
+                st.sims.forEach { sim ->
+                    SheetRow(LdIcons.Sim, "SIM ${sim.slot} se hamesha", sim.label) {
+                        com.mandu.liquiddialer.data.ContactControls.setSimPin(ctx, number, sim.handle.id)
+                        pinTick++; simPinOpen = false
+                        Toast.makeText(ctx, trNow("SIM pin ho gayi") + ": SIM ${sim.slot}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+        var quietBypass by remember { mutableStateOf(com.mandu.liquiddialer.data.ContactControls.quietAllow(ctx, number)) }
+        SwitchRow("Quiet hours me bajne do", "Is number ki call quiet hours me bhi ring karegi", quietBypass) {
+            quietBypass = it; com.mandu.liquiddialer.data.ContactControls.setQuietAllow(ctx, number, it)
+        }
+        var recOn by remember { mutableStateOf(com.mandu.liquiddialer.data.ContactControls.recordAlways(ctx, number)) }
+        SwitchRow("Is number ki recording", "Global OFF ho tab bhi is number ki call record. Recording phone/Android pe nirbhar; ho sakta hai dono awaazein na record hon", recOn, subMaxLines = Int.MAX_VALUE) {
+            recOn = it; com.mandu.liquiddialer.data.ContactControls.setRecordAlways(ctx, number, it)
+        }
+        var annOn by remember { mutableStateOf(com.mandu.liquiddialer.data.ContactControls.announceAlways(ctx, number)) }
+        SwitchRow("Is number ka naam bolo", "Global announce OFF ho tab bhi ring pe is number ka naam", annOn) {
+            annOn = it; com.mandu.liquiddialer.data.ContactControls.setAnnounceAlways(ctx, number, it)
+        }
+        val ccHist = remember(number, st.recents) { st.recents.filter { Repo.key(it.number) == Repo.key(number) } }
+        if (ccHist.isNotEmpty()) {
+            LdText("Load hui recents me: ${ccHist.size} calls · ${fmtDur(ccHist.sumOf { it.duration })} kul baat",
+                11.5f, color = p.muted, maxLines = 3, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp).testTag("cc_stats"))
+            LdText("Ye hisaab sirf abhi loaded window ka hai, poori history ka nahi",
+                10.5f, color = p.muted, maxLines = 3, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp).testTag("cc_scope"))
         }
         SheetRow(LdIcons.Edit, "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
