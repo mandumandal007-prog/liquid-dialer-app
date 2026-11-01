@@ -171,6 +171,7 @@ class LuxuryShotTest {
         openDrawer()
         rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
         settle()
+        openSettingsGroup(rule,"Backup")
         rule.mainClock.autoAdvance = true
         rule.onNodeWithText("Settings restore", substring = true, useUnmergedTree = true).performScrollTo()
         rule.waitForIdle()
@@ -188,6 +189,7 @@ class LuxuryShotTest {
         openDrawer()
         rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
         settle()
+        openSettingsGroup(rule,"Backup")
         rule.mainClock.autoAdvance = true
         rule.onNodeWithText("Settings restore", substring = true, useUnmergedTree = true).performScrollTo()
         rule.waitForIdle()
@@ -214,6 +216,7 @@ class LuxuryShotTest {
         openDrawer()
         rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
         settle()
+        openSettingsGroup(rule,"Speed dial & voicemail")
         rule.mainClock.autoAdvance = true
         rule.onNodeWithText("Voicemail number", substring = true, useUnmergedTree = true).performScrollTo()
         rule.waitForIdle()
@@ -329,6 +332,7 @@ class SettingsRestoreUiTest {
         settle()
         rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
         settle()
+        openSettingsGroup(rule,"Backup")
     }
 
     @Test
