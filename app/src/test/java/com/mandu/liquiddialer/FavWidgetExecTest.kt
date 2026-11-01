@@ -60,10 +60,11 @@ class FavWidgetExecTest {
     private fun visibilityOf(v: View, id: Int): Int = v.findViewById<View>(id).visibility
 
     /** Fake contacts provider: controlled Phone rows (Repo.contacts projection order). */
-    private class FakePhonesProvider(private val rows: List<Array<Any?>>) : ContentProvider() {
+    private class FakePhonesProvider(private val rows: List<Array<Any?>>, private val onQuery: (() -> Unit)? = null) : ContentProvider() {
         override fun onCreate() = true
         override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
             if (uri != ContactsContract.CommonDataKinds.Phone.CONTENT_URI) return null
+            onQuery?.invoke()
             val cols = projection ?: arrayOf()
             val mc = MatrixCursor(cols)
             val onlyId = selectionArgs?.firstOrNull()?.toLongOrNull()
@@ -203,6 +204,67 @@ class FavWidgetExecTest {
         assertEquals(FavWidgetModel.WIDGET_CALL,started.action)
         assertEquals(1L,started.getLongExtra("numberContactId",-1))
         assertEquals(wid,mgr.getAppWidgetIds(ComponentName(ctx,FavWidgetProvider::class.java)).single())
+    }
+
+    @Test fun resumeRefreshKeepsSlowProviderOffMainAndReturnsBeforeQueryCompletes() {
+        shadowOf(app).grantPermissions(android.Manifest.permission.READ_CONTACTS)
+        val entered=java.util.concurrent.CountDownLatch(1)
+        val release=java.util.concurrent.CountDownLatch(1)
+        val finished=java.util.concurrent.CountDownLatch(1)
+        val offMain=java.util.concurrent.atomic.AtomicBoolean(false)
+        val provider=FakePhonesProvider(listOf(row(1,"Asha","9876543210",1,1))) {
+            offMain.set(android.os.Looper.myLooper()!=android.os.Looper.getMainLooper())
+            entered.countDown()
+            release.await(5,java.util.concurrent.TimeUnit.SECONDS)
+            finished.countDown()
+        }
+        val mgr=AppWidgetManager.getInstance(ctx)
+        val sh=shadowOf(mgr)
+        val wid=sh.createWidget(FavWidgetProvider::class.java,R.layout.widget_fav)
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY,provider)
+        // refresh is invoked on the UI thread, as onResume does. Slow provider stays gated until return.
+        val job=FavWidgetProvider.refresh(ctx)
+        try {
+            assertTrue(entered.await(3,java.util.concurrent.TimeUnit.SECONDS))
+            assertEquals(1L,finished.count)
+            assertTrue(offMain.get())
+        } finally {
+            release.countDown()
+            kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeout(5000) { job.join() } }
+        }
+        assertEquals(0L,finished.count)
+        assertEquals(listOf("Asha"),texts(sh.getViewFor(wid)))
+    }
+
+    @Test fun overlappingRefreshCannotLeaveOldLabels() = checkOverlappingRefresh(false)
+    @Test fun cancelledQueryCannotPublishAfterNewRefresh() = checkOverlappingRefresh(true)
+    private fun checkOverlappingRefresh(cancelOld: Boolean) {
+        shadowOf(app).grantPermissions(android.Manifest.permission.READ_CONTACTS)
+        val mgr=AppWidgetManager.getInstance(ctx)
+        val sh=shadowOf(mgr)
+        val wid=sh.createWidget(FavWidgetProvider::class.java,R.layout.widget_fav)
+        seedPhones(listOf(row(1,"Initial","9876543210",1,1)))
+        kotlinx.coroutines.runBlocking { FavWidgetProvider.refresh(ctx).join() }
+        assertEquals(listOf("Initial"),texts(sh.getViewFor(wid)))
+        val entered=java.util.concurrent.CountDownLatch(1)
+        val release=java.util.concurrent.CountDownLatch(1)
+        ShadowContentResolver.registerProviderInternal(ContactsContract.AUTHORITY,
+            FakePhonesProvider(listOf(row(1,"Old","9876543210",1,1))) {
+                entered.countDown(); release.await(5,java.util.concurrent.TimeUnit.SECONDS)
+            })
+        val old=FavWidgetProvider.refresh(ctx)
+        var latest:kotlinx.coroutines.Job?=null
+        try {
+            assertTrue(entered.await(3,java.util.concurrent.TimeUnit.SECONDS))
+            seedPhones(listOf(row(1,"Latest","9876543210",1,1)))
+            latest=FavWidgetProvider.refresh(ctx)
+            if(cancelOld) old.cancel()
+        } finally {
+            release.countDown()
+            kotlinx.coroutines.runBlocking { kotlinx.coroutines.withTimeout(5000) { old.join(); latest?.join() } }
+        }
+        assertEquals(listOf("Latest"),texts(sh.getViewFor(wid)))
+        assertEquals(cancelOld,old.isCancelled)
     }
 
 }
