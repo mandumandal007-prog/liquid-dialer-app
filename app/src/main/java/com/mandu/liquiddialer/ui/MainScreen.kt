@@ -274,8 +274,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== SIM picker for outgoing =====
             val pc = st.pendingCall
-            if (pc != null) Sheet(onDismiss = { st.pendingCall = null }) {
-                SimPickSheet { h -> st.pendingCall = null; act.call(pc.first, h, video = pc.second) }
+            if (pc != null) Sheet(onDismiss = { act.cancelPendingWidgetCall() }) {
+                SimPickSheet { h -> act.choosePendingSim(pc.first, h, pc.second) }
             }
             // ===== widget favorite: multi-number chooser - selection SIRF dialer fill karta hai (kabhi call nahi); cancel/dismiss no-op =====
             val nc = st.numberChoiceRequest
@@ -285,7 +285,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     value = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Repo.contactDetail(ncx, nc.first)?.phones } } catch (_: Exception) { null } ?: emptyList()
                 }
                 androidx.compose.material3.AlertDialog(onDismissRequest = { st.numberChoiceRequest = null },
-                    title = { LdText("Kaunsa number?", 17f, FontWeight.Bold, modifier = Modifier.testTag("chooser_title")) },
+                    title = { LdText(if (st.numberChoiceCalls) "Kis number par call karein?" else "Kaunsa number?", 17f, FontWeight.Bold, modifier = Modifier.testTag("chooser_title")) },
                     text = {
                         Column {
                             if (nc.second.isNotBlank()) LdText(nc.second, 13f, color = p.muted, maxLines = 1)
@@ -298,6 +298,10 @@ fun MainScreen(st: AppState, act: MainActivity) {
                                     // Click-time revalidation: dialog khulne ke BAAD permission revoke / contact edit ho sakta hai.
                                     // Number ab bhi isi contact ka hai tabhi fill; warna list refresh + feedback, stale fill kabhi nahi.
                                     val cid = nc.first; val numC = num
+                                    if (st.numberChoiceCalls) {
+                                        act.widgetTapCall(cid, numC, nc.second, deliberateSelection = true)
+                                        return@clickable
+                                    }
                                     LdApp.instance.scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                         val stillValid = try {
                                             androidx.core.content.ContextCompat.checkSelfPermission(ncx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED &&
