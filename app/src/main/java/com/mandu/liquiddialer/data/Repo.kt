@@ -316,12 +316,17 @@ object Repo {
     // ---------------- call log ----------------
     fun recents(ctx: Context, limit: Int = 300): List<Recent> {
         val out = mutableListOf<Recent>()
+        // This load only: avoid repeated provider work for repeated call-log numbers.
+        // Keep exact provider strings separate and cache misses too. Next reload resolves afresh.
+        val receivedNames = HashMap<String, String?>()
         try {
             val proj = arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME, CallLog.Calls.TYPE, CallLog.Calls.DATE,
                 CallLog.Calls.DURATION, CallLog.Calls.PHONE_ACCOUNT_ID, CallLog.Calls.CACHED_PHOTO_URI)
             ctx.contentResolver.query(CallLog.Calls.CONTENT_URI, proj, null, null, CallLog.Calls.DATE + " DESC")?.use { c ->
                 while (c.moveToNext() && out.size < limit) {
-                    out += Recent(c.getLong(0), c.getString(1) ?: "", ReceivedNames.display(ctx, c.getString(1) ?: "") ?: c.getString(2)?.takeIf { it.isNotBlank() }, c.getInt(3), c.getLong(4), c.getLong(5), c.getString(6), c.getString(7))
+                    val number = c.getString(1) ?: ""
+                    if (!receivedNames.containsKey(number)) receivedNames[number] = ReceivedNames.display(ctx, number)
+                    out += Recent(c.getLong(0), number, receivedNames[number] ?: c.getString(2)?.takeIf { it.isNotBlank() }, c.getInt(3), c.getLong(4), c.getLong(5), c.getString(6), c.getString(7))
                 }
             }
         } catch (e: Exception) { }
