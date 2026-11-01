@@ -164,7 +164,11 @@ object Repo {
                 .withSelection("${ContactsContract.Contacts._ID}=?", arrayOf("${existing.id}"))
                 .withValue(ContactsContract.Contacts.STARRED, if (starred) 1 else 0).build()
         }
-        return try { ctx.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops); true } catch (e: Exception) { false }
+        return try {
+            ctx.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            phones.forEach { ReceivedNames.clear(ctx,it.first) }
+            true
+        } catch (e: Exception) { false }
     }
 
     fun deleteContact(ctx: Context, contactId: Long, lookupKey: String): Boolean = try {
@@ -317,7 +321,7 @@ object Repo {
                 CallLog.Calls.DURATION, CallLog.Calls.PHONE_ACCOUNT_ID, CallLog.Calls.CACHED_PHOTO_URI)
             ctx.contentResolver.query(CallLog.Calls.CONTENT_URI, proj, null, null, CallLog.Calls.DATE + " DESC")?.use { c ->
                 while (c.moveToNext() && out.size < limit) {
-                    out += Recent(c.getLong(0), c.getString(1) ?: "", c.getString(2)?.takeIf { it.isNotBlank() }, c.getInt(3), c.getLong(4), c.getLong(5), c.getString(6), c.getString(7))
+                    out += Recent(c.getLong(0), c.getString(1) ?: "", ReceivedNames.display(ctx, c.getString(1) ?: "") ?: c.getString(2)?.takeIf { it.isNotBlank() }, c.getInt(3), c.getLong(4), c.getLong(5), c.getString(6), c.getString(7))
                 }
             }
         } catch (e: Exception) { }
