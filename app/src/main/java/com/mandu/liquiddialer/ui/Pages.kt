@@ -110,7 +110,7 @@ fun TimeRow(title: String, mins: Int, last: Boolean = false, onChange: (Int) -> 
 }
 
 @Composable
-fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, editContactId: Long?, editPrefill: String, onOpenNumber: (String) -> Unit) {
+fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, editContactId: Long?, editPrefill: String, onOpenNumber: (String) -> Unit, onInsights: () -> Unit = {}) {
     when {
         page == "settings" -> SettingsPage(st, act, onBack, onOpen)
         page == "appearance" -> AppearancePage(onBack)
@@ -121,7 +121,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "recordings" -> RecordingsPage(onBack)
         page == "notes" -> NotesPage(null, onBack)
         page.startsWith("notes:") -> NotesPage(page.removePrefix("notes:"), onBack)
-        page == "stats" -> StatsPage(st, onBack)
+        page == "stats" -> StatsPage(st, act, onBack, onInsights)
         page == "blocked" -> BlockedPage(st, act, onBack)
         page == "series" -> SeriesPage(onBack)
         page == "speeddial" -> SpeedDialPage(st, onBack)
@@ -696,38 +696,162 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
 }
 
 @Composable
-private fun StatsPage(st: AppState, onBack: () -> Unit) {
+private fun StatsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onInsights: () -> Unit = {}) {
     val p = LocalLd.current
-    PageFrame("Call stats", onBack) {
-        val now = System.currentTimeMillis()
-        listOf("Aaj" to 1, "Pichhle 7 din" to 7, "Pichhle 30 din" to 30).forEach { (label, days) ->
-            val list = st.recents.filter { now - it.date <= days * 86400000L }
-            val inc = list.filter { it.type == android.provider.CallLog.Calls.INCOMING_TYPE }
-            val out = list.filter { it.type == android.provider.CallLog.Calls.OUTGOING_TYPE }
-            val missed = list.filter { it.type == android.provider.CallLog.Calls.MISSED_TYPE || it.type == android.provider.CallLog.Calls.REJECTED_TYPE }
-            SecTitle(label)
-            GlassCard {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Stat("Incoming", "${inc.size}", fmtDur(inc.sumOf { it.duration }))
-                    Stat("Outgoing", "${out.size}", fmtDur(out.sumOf { it.duration }))
-                    Stat("Missed", "${missed.size}", "", p.danger)
+    val s by LdApp.settings.collectAsState()
+    PageFrame("Hisab", onBack) {
+        if (st.recents.isEmpty()) {
+            Spacer(Modifier.height(70.dp))
+            // empty array ka matlab zaroori nahi "history khaali": permission bhi missing ho sakti hai - alag batao
+            Box(Modifier.testTag("stats_empty")) {
+                when {
+                    !act.has(android.Manifest.permission.READ_CALL_LOG) ->
+                        EmptyState(LdIcons.Phone, "Call log ka access nahi", "Hisab dikhane ke liye call log permission chahiye", "Access do") { act.askPermission(android.Manifest.permission.READ_CALL_LOG) }
+                    st.recentsError ->
+                        EmptyState(LdIcons.Phone, "Call log load nahi ho paya", "Thodi der me phir kholo; permission check kar lena")
+                    !st.recentsLoaded ->
+                        EmptyState(LdIcons.Phone, "Hisab taiyaar ho raha hai", "Call log padha ja raha hai, ek second")
+                    else ->
+                        EmptyState(LdIcons.Phone, "Koi call history nahi", "Jab calls aayengi, yahan load hui records ka hisaab dikhega")
                 }
-                Spacer(Modifier.height(10.dp))
-                LdText("Kul baat: ${fmtDur(list.sumOf { it.duration })}", 13f, FontWeight.SemiBold, p.accent)
+            }
+            return@PageFrame
+        }
+        val limit = s.recentLimit
+        // Coverage ka IMANDAAR label: sirf load hui window ka hisaab, poori history ka dawa nahi
+        val windowLabel = if (st.recents.size >= limit) "Aakhri ${st.recents.size} calls ka hisaab (limit: $limit)"
+            else "Load hui ${st.recents.size} calls ka hisaab"
+        LdText(windowLabel, 12f, color = p.muted, maxLines = 2, modifier = Modifier.testTag("stats_coverage").padding(start = 6.dp, end = 6.dp, bottom = 2.dp))
+        val buckets = remember(st.recents, limit) { Repo.weekBuckets(st.recents, System.currentTimeMillis(), limit) }
+        val covered = buckets.filter { it.covered }
+        val today = buckets.last()
+        val notes = buildList {
+            if (buckets.any { it.partial }) add("* sabse purana din adhoora ho sakta hai (limit laga hua)")
+            if (buckets.any { !it.covered }) add("\u00B7 wale din window ke bahar hain - unhe 0 calls NAHI maana")
+        }
+        if (notes.isNotEmpty()) LdText(notes.joinToString("\n"), 11f, color = p.muted, maxLines = 3, modifier = Modifier.testTag("stats_notes").padding(start = 6.dp, end = 6.dp, top = 2.dp))
+
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
+            Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 10.dp, vertical = 8.dp).testTag("insights_sheet_open")) {
+                LdText("Quick insights", 12.5f, FontWeight.SemiBold, p.accent)
             }
         }
-        SecTitle("Sabse zyada baat (30 din)")
-        GlassCard {
-            val top = st.recents.filter { now - it.date <= 30 * 86400000L }.groupBy { Repo.key(it.number) }
-                .map { (_, v) -> v.first() to v.sumOf { it.duration } }.sortedByDescending { it.second }.take(5)
-            if (top.isEmpty()) LdText("Abhi data nahi", 13f, color = p.muted)
+
+        SecTitle("Aaj")
+        GlassCard(Modifier.testTag("stats_aaj")) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Stat("Incoming", "${today.incoming}", "")
+                Stat("Outgoing", "${today.outgoing}", "")
+                Stat("Missed", "${today.missed}", "", p.danger)
+            }
+            if (today.rejected > 0 || today.blocked > 0) {
+                Spacer(Modifier.height(8.dp))
+                LdText("Rejected: ${today.rejected}    Blocked: ${today.blocked}", 11.5f, color = p.muted, maxLines = 2)
+            }
+            Spacer(Modifier.height(10.dp))
+            LdText("Kul baat aaj: ${fmtDurU(today.talkSecs)}", 13f, FontWeight.SemiBold, p.accent)
+            LdText(if (today.partial) "* aaj ka hisaab adhoora ho sakta hai (limit laga hua)" else "sirf load hui records ka hisaab",
+                10.5f, color = p.muted, maxLines = 2, modifier = Modifier.testTag("stats_aaj_cue").padding(top = 3.dp))
+        }
+
+        SecTitle("Pichhle 7 din (calendar)")
+        GlassCard(Modifier.testTag("stats_chart")) {
+            val maxTotal = maxOf(1, buckets.maxOf { it.total })
+            Row(Modifier.fillMaxWidth().height(126.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                buckets.forEach { b ->
+                    Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        LdText(if (!b.covered) "\u00B7" else "${b.total}${if (b.partial) "*" else ""}", 10.5f, FontWeight.Bold, if (b.covered) p.text else p.muted, maxLines = 1)
+                        Box(Modifier.weight(1f).fillMaxWidth().padding(top = 3.dp), contentAlignment = Alignment.BottomCenter) {
+                            when {
+                                // window ke bahar: khokhla dabba (data nahi), KABHI zero bar nahi
+                                !b.covered -> Box(Modifier.fillMaxWidth().height(16.dp).clip(RoundedCornerShape(5.dp)).border(1.dp, p.stroke, RoundedCornerShape(5.dp)))
+                                // covered par koi call nahi: patli baseline = loaded window me 0 records is din
+                                // (recents query bina filter ke DATE DESC contiguous hai, isliye covered din ka
+                                // 0 = window me sach me koi record nahi; provider ke apne cap ka dawa nahi)
+                                b.total == 0 -> Box(Modifier.fillMaxWidth(.55f).height(2.dp).clip(RoundedCornerShape(1.dp)).background(p.muted))
+                                // fillMaxHeight FRACTION: bar area jo bhi mile (bade font pe chhoti), proportion hamesha sahi
+                                else -> Box(Modifier.fillMaxWidth().fillMaxHeight((b.total.toFloat() / maxTotal).coerceAtLeast(0.06f)).clip(RoundedCornerShape(5.dp)).background(Brush.verticalGradient(listOf(p.accent2, p.accent))))
+                            }
+                        }
+                        LdText(b.weekdayLabel, 9f, color = p.muted, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+                        LdText(b.dateLabel, 9f, color = p.muted, maxLines = 1)
+                    }
+                }
+            }
+        }
+
+        SecTitle("7 din ka breakdown")
+        GlassCard(Modifier.testTag("stats_breakdown")) {
+            LdText(if (covered.any { it.partial }) "sirf load hui window ka (* din adhoora ho sakta hai)" else "sirf load hui window ka",
+                11f, color = p.muted, maxLines = 2, modifier = Modifier.testTag("stats_breakdown_cue").padding(bottom = 6.dp))
+            BreakRow("Incoming", covered.sumOf { it.incoming }, p.ok)
+            BreakRow("Outgoing", covered.sumOf { it.outgoing }, p.accent)
+            BreakRow("Missed", covered.sumOf { it.missed }, p.danger)
+            val rej = covered.sumOf { it.rejected }; val blk = covered.sumOf { it.blocked }; val oth = covered.sumOf { it.other }
+            if (rej > 0) BreakRow("Rejected (kaati gayi)", rej, p.accent2)
+            if (blk > 0) BreakRow("Blocked", blk, p.muted)
+            if (oth > 0) BreakRow("Anya (voicemail / doosra device)", oth, p.muted)
+            Spacer(Modifier.height(8.dp))
+            LdText("Kul baat (answered calls): ${fmtDurU(covered.sumOf { it.talkSecs })}", 13f, FontWeight.SemiBold, p.accent)
+        }
+
+        SecTitle("Sabse zyada baat")
+        GlassCard(Modifier.testTag("stats_top")) {
+            LdText("load hui window se, sirf answered calls", 11f, color = p.muted, maxLines = 2, modifier = Modifier.padding(bottom = 6.dp))
+            val top = remember(st.recents) {
+                st.recents.filter { it.type == android.provider.CallLog.Calls.INCOMING_TYPE || it.type == android.provider.CallLog.Calls.OUTGOING_TYPE }
+                    .groupBy { Repo.key(it.number) }
+                    .map { (_, v) -> v.first() to v.sumOf { it.duration } }
+                    .sortedByDescending { it.second }.take(5)
+            }
+            if (top.isEmpty()) LdText("Is window me koi answered call nahi", 13f, color = p.muted)
             top.forEach { (r, d) ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     val nm = r.name ?: Repo.pretty(r.number)
-                    Avatar(nm, r.photo, 34.dp, 12f); LdText(nm, 13.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f)); LdText(fmtDur(d), 12.5f, FontWeight.Bold, p.accent)
+                    Avatar(nm, r.photo, 34.dp, 12f)
+                    Column(Modifier.weight(1f)) {
+                        LdText(nm, 13.5f, FontWeight.SemiBold, maxLines = 1)
+                        LdText(Repo.pretty(r.number), 11f, color = p.muted, maxLines = 1)
+                    }
+                    LdText(fmtDurU(d), 12.5f, FontWeight.Bold, p.accent)
                 }
             }
         }
+
+        SecTitle("Sabse lambi call")
+        GlassCard(Modifier.testTag("stats_longest")) {
+            LdText("load hui window se", 11f, color = p.muted, maxLines = 2, modifier = Modifier.padding(bottom = 6.dp))
+            val longest = remember(st.recents) {
+                st.recents.filter { (it.type == android.provider.CallLog.Calls.INCOMING_TYPE || it.type == android.provider.CallLog.Calls.OUTGOING_TYPE) && it.duration > 0 }
+                    .maxByOrNull { it.duration }
+            }
+            if (longest == null) LdText("Is window me koi answered call nahi", 13f, color = p.muted)
+            else {
+                val nm = longest.name ?: Repo.pretty(longest.number)
+                val dLbl = SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(longest.date))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Avatar(nm, longest.photo, 34.dp, 12f)
+                    Column(Modifier.weight(1f)) {
+                        LdText(nm, 13.5f, FontWeight.SemiBold, maxLines = 1)
+                        LdText(dLbl, 11f, color = p.muted, maxLines = 1)
+                    }
+                    LdText(fmtDurU(longest.duration), 13.5f, FontWeight.Bold, p.accent)
+                }
+            }
+        }
+
+    }
+}
+
+/** fmtDur ka clock-time bhrm todo: hamesha unit ke saath ("28:15 min", "1:30:00 hr"). */
+private fun fmtDurU(sec: Long): String = if (sec >= 3600) "${fmtDur(sec)} hr" else "${fmtDur(sec)} min"
+
+@Composable
+private fun BreakRow(label: String, count: Int, color: Color) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(Modifier.size(10.dp).clip(CircleShape).background(color))
+        LdText(label, 13f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        LdText("$count", 13f, FontWeight.Bold)
     }
 }
 
