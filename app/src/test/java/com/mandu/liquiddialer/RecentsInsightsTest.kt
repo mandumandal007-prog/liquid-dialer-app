@@ -72,8 +72,8 @@ class HisabCsvTest {
         ))
         val lines = csv.trim().split("\n")
         assert(lines[0] == "date,time,name,number,type,duration_sec") { lines[0] }
-        assert(lines[1].endsWith(",Rahul Sharma,+91 98765 43210,Outgoing,245")) { lines[1] }
-        assert(lines[2].endsWith(",,+91 90000 11111,Missed,0")) { lines[2] }
+        assert(lines[1].endsWith(",Rahul Sharma,\t+91 98765 43210,Outgoing,245")) { lines[1] }
+        assert(lines[2].endsWith(",,\t+91 90000 11111,Missed,0")) { lines[2] }
         assert(lines[1].matches(Regex("""\d{4}-\d{2}-\d{2},\d{2}:\d{2},.*"""))) { lines[1] }
     }
 
@@ -82,6 +82,29 @@ class HisabCsvTest {
         val csv = com.mandu.liquiddialer.data.Repo.recentsCsv(listOf(
             r(1, "123", "Mandal, Chandradev", 1, 1762000000000L, 5)))
         assert(csv.contains("\"Mandal, Chandradev\"")) { csv }
+    }
+
+    @org.junit.Test
+    fun formulaLikeCellsArePrefixedSoTheyStayLiteral() {
+        // =,+,-,@ se shuru cells Excel/Sheets me formula ban sakte hain - TAB prefix se text hi rehte hain
+        val csv = com.mandu.liquiddialer.data.Repo.recentsCsv(listOf(
+            r(1, "+91 91234 56789", "=cmd|calc", 1, 1762000000000L, 5),
+            r(2, "-1234", "@mention", 2, 1762000060000L, 0)))
+        assert(csv.contains("\t=cmd|calc")) { csv }
+        assert(csv.contains("\t+91 91234 56789")) { csv }
+        assert(csv.contains("\t-1234")) { csv }
+        assert(csv.contains("\t@mention")) { csv }
+    }
+
+    @org.junit.Test
+    fun plusAndLeadingZerosAndUnicodeAndNewlinesSurvive() {
+        val csv = com.mandu.liquiddialer.data.Repo.recentsCsv(listOf(
+            r(1, "+91 09876 54321", "Priya \u092a\u094d\u0930\u093f\u092f\u093e", 1, 1762000000000L, 5),
+            r(2, "0088 111 222", "Line1\nLine2", 2, 1762000060000L, 0)))
+        assert(csv.contains("\t+91 09876 54321")) { csv }          // + aur leading zero dono literal
+        assert(csv.contains("0088 111 222")) { csv }                // 0 se shuru: koi prefix nahi, as-is
+        assert(csv.contains("Priya \u092a\u094d\u0930\u093f\u092f\u093e")) { csv }  // unicode as-is
+        assert(csv.contains("\"Line1\nLine2\"")) { csv }          // newline wala cell quoted
     }
 
     @org.junit.Test
