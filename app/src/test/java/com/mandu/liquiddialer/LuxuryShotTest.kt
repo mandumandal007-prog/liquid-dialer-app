@@ -8,6 +8,7 @@ import com.mandu.liquiddialer.data.Contact
 import com.mandu.liquiddialer.data.K
 import com.mandu.liquiddialer.data.Recent
 import com.mandu.liquiddialer.data.ldStore
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
@@ -165,6 +166,40 @@ class LuxuryShotTest {
     }
 
     @Test
+    fun backupSectionDark() {
+        boot("midnight")
+        openDrawer()
+        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        settle()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Settings restore", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.onRoot().performTouchInput { swipeUp(startY = 1300f, endY = 950f) }
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle(400)
+        rule.onNodeWithText("Settings backup", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Settings restore", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule, "B1-backup-dark")
+    }
+    @Test
+    fun backupSectionLight() {
+        boot("daylight")
+        openDrawer()
+        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        settle()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Settings restore", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.onRoot().performTouchInput { swipeUp(startY = 1300f, endY = 950f) }
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle(400)
+        rule.onNodeWithText("Settings backup", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Settings restore", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule, "B1b-backup-light")
+    }
+    @Test
     fun blockedDark() {
         boot("midnight")
         openDrawer()
@@ -263,5 +298,101 @@ class HisabShareUiTest {
         rule.onNodeWithTag("stats_empty", useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("Call log ka access nahi", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onAllNodesWithTag("hisab_csv_share", useUnmergedTree = true).assertCountEquals(0)
+    }
+}
+
+/** Restore preview dialog: picker ke BAAD ka validated preview - cancel kuch nahi badalta, confirm sirf whitelist apply karta hai. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class SettingsRestoreUiTest {
+
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+
+    private fun settle(ms: Long = 1200) {
+        rule.mainClock.autoAdvance = false
+        rule.mainClock.advanceTimeBy(ms)
+        rule.waitForIdle()
+    }
+
+    private fun boot(theme: String, fontScale: Float = 1f) {
+        val ctx0 = ApplicationProvider.getApplicationContext<LdApp>()
+        runBlocking { ctx0.ldStore.edit { p -> p[K.onboarded] = true; p[K.profileName] = "Mandu Mandal"; p[K.profileNumber] = "+91 83888 80466"; p[K.theme] = theme; p[K.dialerScale] = 1f; p[K.blur] = 22; p[K.voicemail] = "777"; p[K.fontScale] = fontScale } }
+        settle(2500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG, android.Manifest.permission.READ_CONTACTS)
+        rule.activity.state.showOnboarding = false
+        rule.activity.state.isDefault = true
+        settle()
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = null
+        rule.onNodeWithTag("drawer_open", useUnmergedTree = true).performTouchInput { click(center) }
+        settle()
+        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        settle()
+    }
+
+    @Test
+    fun previewCancelLeavesPrefsUnchanged() {
+        boot("midnight")
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = mapOf("blur" to 5, "theme" to "daylight")
+        settle(600)
+        rule.onNodeWithTag("restore_preview_text", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Cancel", substring = true, useUnmergedTree = true).performClick()
+        settle(600)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        val prefs = runBlocking { ctx.ldStore.data.first() }
+        org.junit.Assert.assertEquals(22, prefs[K.blur])
+        org.junit.Assert.assertEquals("midnight", prefs[K.theme])
+        org.junit.Assert.assertEquals("777", prefs[K.voicemail])
+        rule.onAllNodesWithTag("restore_preview_text", useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun previewConfirmAppliesWhitelistOnly() {
+        boot("midnight")
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = mapOf("blur" to 5, "theme" to "daylight", "blockUnknown" to true)
+        settle(600)
+        rule.onNodeWithTag("restore_preview_text", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Restore", substring = true, useUnmergedTree = true).performClick()
+        settle(1500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        val prefs = runBlocking { ctx.ldStore.data.first() }
+        org.junit.Assert.assertEquals(5, prefs[K.blur])
+        org.junit.Assert.assertEquals("daylight", prefs[K.theme])
+        org.junit.Assert.assertEquals("777", prefs[K.voicemail])          // whitelist ke bahar - untouched
+        org.junit.Assert.assertNotEquals(true, prefs[K.blockUnknown])     // map me ho to bhi kabhi apply nahi
+        val toast = org.robolectric.shadows.ShadowToast.getTextOfLatestToast()
+        assert(toast != null && toast.endsWith("settings restore ho gayi")) { "toast=$toast" }
+    }
+
+    @Test
+    fun previewShotDark() {
+        boot("midnight")
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = mapOf("blur" to 5, "theme" to "daylight")
+        settle(600)
+        rule.onNodeWithTag("restore_preview_text", useUnmergedTree = true).assertIsDisplayed()
+        saveDialogShot("P1-restore-preview-dark", 0xFF141824)
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = null
+    }
+
+    @Test
+    fun previewShotLight() {
+        boot("daylight")
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = mapOf("blur" to 5, "theme" to "midnight")
+        settle(600)
+        rule.onNodeWithTag("restore_preview_text", useUnmergedTree = true).assertIsDisplayed()
+        saveDialogShot("P2-restore-preview-light", 0xFFF4F6FA)
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = null
+    }
+
+    @Test
+    @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi", fontScale = 1.3f)
+    fun previewShotBigfont() {
+        boot("midnight")
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = mapOf("blur" to 5, "theme" to "daylight")
+        settle(600)
+        rule.onNodeWithTag("restore_preview_text", useUnmergedTree = true).assertIsDisplayed()
+        saveDialogShot("P3-restore-preview-bigfont", 0xFF141824)
+        com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = null
     }
 }
