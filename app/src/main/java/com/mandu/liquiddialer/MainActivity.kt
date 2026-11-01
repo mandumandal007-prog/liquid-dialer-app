@@ -364,8 +364,14 @@ class MainActivity : ComponentActivity() {
         if (acc == null) {
             // SIM memory settings flow ke saath memory me rehti hai - dispatch pe runBlocking disk read NAHI
             val remembered = if (s.simMemory) s.simUse[Repo.key(n)] else null
-            acc = CallPrep.chooseSim(null, s.defaultSim, remembered, sims) { it.handle.id }?.handle
-            if (acc == null && CallPrep.needsSimPicker(sims.size)) { state.pendingCall = n to video; return }
+            // Per-number SIM pin (user ne Number sheet me khud set kiya) - memory/default se pehle, explicit pick ke baad
+            val pinned = com.mandu.liquiddialer.data.ContactControls.simPin(this, n)
+            acc = CallPrep.chooseSim(null, pinned, s.defaultSim, remembered, sims) { it.handle.id }?.handle
+            if (acc == null && (pinned != null || CallPrep.needsSimPicker(sims.size))) {
+                if (sims.isNotEmpty()) state.pendingCall = n to video
+                else Toast.makeText(this, trNow("Pinned SIM uplabdh nahi. Number details me SIM pin badlo."), Toast.LENGTH_LONG).show()
+                return
+            }
         }
         if (s.simMemory && acc != null) {
             val hid = acc.id
@@ -437,9 +443,13 @@ internal object CallPrep {
     fun applyPrefix(n: String, enabled: Boolean): String =
         if (enabled && n.length == 10 && n.all { it.isDigit() }) "+91$n" else n
 
-    /** SIM pick order: default SIM first, then remembered per-contact, then single-SIM; null = must ask. */
-    fun <T> chooseSim(explicit: T?, defaultId: String?, rememberedId: String?, sims: List<T>, idOf: (T) -> String): T? {
+    /** SIM pick order: explicit user choice SABSE pehle (kabhi override nahi), phir per-number pin,
+     *  phir default SIM, phir remembered, phir single-SIM; null = must ask.
+     *  Pin set hai par handle ab maujood nahi (SIM nikli/slot badla) -> null: picker khulega,
+     *  kisi doosri SIM par silent reroute KABHI nahi. */
+    fun <T> chooseSim(explicit: T?, pinnedId: String?, defaultId: String?, rememberedId: String?, sims: List<T>, idOf: (T) -> String): T? {
         if (explicit != null) return explicit
+        if (pinnedId != null) return sims.firstOrNull { idOf(it) == pinnedId }  // missing pin = ask, no fallback
         if (defaultId != null) sims.firstOrNull { idOf(it) == defaultId }?.let { return it }
         if (rememberedId != null) sims.firstOrNull { idOf(it) == rememberedId }?.let { return it }
         return if (sims.size == 1) sims[0] else null
