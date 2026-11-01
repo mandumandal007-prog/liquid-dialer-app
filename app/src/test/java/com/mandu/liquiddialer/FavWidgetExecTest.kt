@@ -183,4 +183,26 @@ class FavWidgetExecTest {
         assertEquals(0, h.flags and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
     }
 
+    @Test fun packageUpgradeRebindsExistingWidgetWithoutReAdd() {
+        shadowOf(app).grantPermissions(android.Manifest.permission.READ_CONTACTS)
+        seedPhones(listOf(row(1,"Asha Rani","9876543210",1,1)))
+        val mgr=AppWidgetManager.getInstance(ctx)
+        val sh=shadowOf(mgr)
+        val wid=sh.createWidget(FavWidgetProvider::class.java,R.layout.widget_fav)
+        // Simulate old RemoteViews installed on the same widget id with legacy fill intent.
+        val old=FavWidgetProvider.bindViews(ctx,wid,listOf(FavWidgetModel.Slot.Person(c(1,"Asha Rani","9876543210"),"9876543210")),0xFF3D7BFF.toInt())
+        val legacy=android.app.PendingIntent.getActivity(ctx,FavWidgetModel.requestCode(wid,0),
+            Intent(ctx,MainActivity::class.java).setAction(Intent.ACTION_DIAL).putExtra("number","9876543210"),
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        old.setOnClickPendingIntent(R.id.wslot1,legacy)
+        mgr.updateAppWidget(wid,old)
+        FavWidgetProvider().onReceive(ctx,Intent(Intent.ACTION_MY_PACKAGE_REPLACED))
+        sh.getViewFor(wid).findViewById<View>(R.id.wslot1).performClick()
+        val started=shadowOf(app).nextStartedActivity
+        assertNotNull(started)
+        assertEquals(FavWidgetModel.WIDGET_CALL,started.action)
+        assertEquals(1L,started.getLongExtra("numberContactId",-1))
+        assertEquals(wid,mgr.getAppWidgetIds(ComponentName(ctx,FavWidgetProvider::class.java)).single())
+    }
+
 }
