@@ -121,7 +121,10 @@ class LdInCallService : InCallService() {
             CallNotifier.update(this)
             if (s.incomingFull) launchUi()
             if (s.flipToMute) startFlip()
-            if (s.announceCaller && (!s.announceOnlyFav || Repo.contactStarred(this, number))) announce(CallManager.nameFor(this, call), s.announceRepeat.coerceIn(1, 3))
+            if (com.mandu.liquiddialer.data.ContactControls.shouldAnnounce(s.announceCaller, s.announceOnlyFav,
+                    number.isNotBlank() && Repo.contactStarred(this, number),
+                    number.isNotBlank() && com.mandu.liquiddialer.data.ContactControls.announceAlways(this, number)))
+                announce(CallManager.nameFor(this, call), s.announceRepeat.coerceIn(1, 3))
             if (s.flashOnRing && (!s.flashOnlyFav || Repo.contactStarred(this, number))) startFlash()
             if (s.ringVolumeMax) maxStream(android.media.AudioManager.STREAM_RING)
         } else {
@@ -179,8 +182,10 @@ class LdInCallService : InCallService() {
             answered += call
             if (wasOutgoing.contains(call) && s.vibrateAnswer) vibrate(80)
             if (wasOutgoing.contains(call) && s.autoSpeaker && !CallManager.hasBluetooth()) CallManager.setRoute(CallAudioState.ROUTE_SPEAKER)
-            val unknownOk = !s.recordUnknownOnly || !CallManager.isKnown(this, call)
-            if (s.autoRecord && unknownOk && !CallRecorder.isRecording()) {
+            val recNumber = CallManager.number(call)
+            val perNumberRec = recNumber.isNotBlank() && com.mandu.liquiddialer.data.ContactControls.recordAlways(this, recNumber)
+            if (com.mandu.liquiddialer.data.ContactControls.shouldAutoRecord(s.autoRecord, s.recordUnknownOnly,
+                    CallManager.isKnown(this, call), perNumberRec) && !CallRecorder.isRecording()) {
                 CallRecorder.start(this, CallManager.number(call), CallManager.nameFor(this, call))
             }
             if (s.callVolumeMax) maxStream(android.media.AudioManager.STREAM_VOICE_CALL)
