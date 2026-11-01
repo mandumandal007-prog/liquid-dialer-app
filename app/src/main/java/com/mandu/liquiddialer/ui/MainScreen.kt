@@ -671,7 +671,7 @@ fun CallMini(onClick: () -> Unit) {
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
     Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape).testTag("call_mini")
-        .background(Brush.linearGradient(listOf(p.accent.pct(.30f), p.accent.pct(.12f)))).border(1.dp, p.accent.pct(.45f), CircleShape)
+        .background(Brush.linearGradient(listOf(p.accent.pct(.30f), p.accent.pct(.12f)))).premiumRing(p, CircleShape)
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 20.dp, p.accent) }
 }
 
@@ -682,7 +682,7 @@ fun VideoMini(onClick: () -> Unit) {
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
     Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape)
-        .background(Brush.linearGradient(listOf(p.accent.pct(.14f), p.accent.pct(.06f)))).border(1.dp, p.accent.pct(.25f), CircleShape)
+        .background(Brush.linearGradient(listOf(p.accent.pct(.14f), p.accent.pct(.06f)))).premiumRing(p, CircleShape)
         .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, 20.dp, p.accent) }
 }
 
@@ -887,7 +887,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
     val p = LocalLd.current
     val w = LocalConfiguration.current.screenWidthDp
     Column(Modifier.fillMaxHeight().width(minOf(w * .86f, 340f).dp).liquid(RoundedCornerShape(topEnd = 30.dp, bottomEnd = 30.dp), 24.dp)
-        .background(p.bg2.copy(alpha = if (p.isLight) .4f else .55f))
+        .background(p.bg2.copy(alpha = if (p.isLight) .85f else .78f))
         .clickable(remember { MutableInteractionSource() }, null) {}
         .systemBarsPadding().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -905,7 +905,9 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         fun item(ic: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                LdIcon(ic, 20.dp, p.muted); LdText(label, 14f, FontWeight.Medium, modifier = Modifier.weight(1f)); LdIcon(LdIcons.Chevron, 16.dp, p.muted.copy(alpha = .45f))
+                // Luxury: har drawer icon ko tinted glass chip me - ek jaisa premium container
+                Box(Modifier.size(34.dp).raisedGlass(p, RoundedCornerShape(11.dp), 6.dp).premiumRing(p, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) { LdIcon(ic, 18.dp, p.accent) }
+                LdText(label, 14f, FontWeight.Medium, modifier = Modifier.weight(1f)); LdIcon(LdIcons.Chevron, 16.dp, p.muted.copy(alpha = .45f))
             }
         }
         item(LdIcons.Settings, "Settings") { onOpen("settings") }
