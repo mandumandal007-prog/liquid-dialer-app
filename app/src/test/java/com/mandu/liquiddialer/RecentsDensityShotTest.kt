@@ -92,6 +92,10 @@ class RecentsDensityShotTest {
         }
         settle()
         val defCount = waitRows()
+        val defTops = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
+            .map { it.boundsInRoot.top }.sorted()
+        assertTrue("kam se kam 2 rows chahiye pitch naapne ke liye", defTops.size >= 2)
+        val defPitch = defTops[1] - defTops[0]
         saveShot(rule, "20-recents-density-default")
 
         ctx.ldStore.edit { it[K.recentsCompact] = true }
@@ -99,10 +103,17 @@ class RecentsDensityShotTest {
         waitFlag { LdApp.settings.value.recentsCompact }
         settle()
         val compactCount = waitRows(defCount)
+        val compTops = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
+            .map { it.boundsInRoot.top }.sorted()
+        val compPitch = compTops[1] - compTops[0]
         saveShot(rule, "20-recents-density-compact")
 
-        println("DENSITY default=$defCount compact=$compactCount")
-        assertTrue("compact mode me zyada rows dikhni chahiye ($defCount -> $compactCount)", compactCount > defCount)
+        println("DENSITY default=$defCount compact=$compactCount pitch=$defPitch->$compPitch")
+        // Compact ka asli guarantee = chhoti row pitch (vertical padding 6dp -> 3dp).
+        // Row COUNT viewport boundary par luck hai (full-height list me dono 8 compose ho
+        // sakte hain), isliye count ab sirf non-decreasing hona chahiye.
+        assertTrue("compact rows tight honi chahiye (pitch $defPitch -> $compPitch)", compPitch < defPitch)
+        assertTrue("compact mode me kam rows nahi dikhni chahiye ($defCount -> $compactCount)", compactCount >= defCount)
         Unit
     }
 
@@ -182,17 +193,28 @@ class RecentsDensityShotTest {
         val chrome = (rule.onAllNodesWithTag("bottom_bar", useUnmergedTree = true).fetchSemanticsNodes() +
             rule.onAllNodesWithTag("dialer_fab", useUnmergedTree = true).fetchSemanticsNodes() +
             rule.onAllNodesWithTag("top_bar", useUnmergedTree = true).fetchSemanticsNodes()).map { it.boundsInRoot }
-        // Bounds-based regression floor, NOT a pixel-visibility proof: a row clipped at the
-        // list viewport edge can still have button bounds inside root and clear of chrome,
-        // so this count can exceed fully-drawn rows by about one (visually 4->6 on this
-        // fixture; this metric reads 5->7). It guards the density gain relative to the
-        // pre-fix layout (5 with band 24dp) - keep the floor at 6 so a layout regression
-        // that eats rows again fails here.
-        val buttonsClear = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
+        // Bounds-based regression floor, NOT a pixel-visibility proof. Rows ab floating
+        // bottom bar ke peeche BHI dikhti hain (full-viewport list, user request 06:17) -
+        // isliye chrome-exclusion nahi, sirf viewport ke andar count. Reachability alag se
+        // neeche scroll-clear check se guarded hai.
+        val buttonsInViewport = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
             .count { n -> val b = n.boundsInRoot
-                b.top >= 0 && b.bottom <= root.height && chrome.all { c -> !b.overlaps(c) } }
-        println("DARK-USERLIKE buttonsClearOfChrome=$buttonsClear")
-        assertTrue("dark user-like fixture: density gain regressed (buttonsClearOfChrome=$buttonsClear < 6)", buttonsClear >= 6)
+                b.top >= 0 && b.bottom <= root.height }
+        println("DARK-USERLIKE buttonsInViewport=$buttonsInViewport")
+        assertTrue("dark user-like fixture: density regressed (buttonsInViewport=$buttonsInViewport < 6)", buttonsInViewport >= 6)
+        // Reachability: list ke end tak scroll karne par last call button bottom chrome se clear.
+        rule.onAllNodesWithTag("main_list", useUnmergedTree = true)[0].performTouchInput {
+            repeat(10) { swipeUp(durationMillis = 200); advanceEventTime(100) }
+        }
+        settle(1000)
+        val chromeAfter = (rule.onAllNodesWithTag("bottom_bar", useUnmergedTree = true).fetchSemanticsNodes() +
+            rule.onAllNodesWithTag("dialer_fab", useUnmergedTree = true).fetchSemanticsNodes()).map { it.boundsInRoot }
+        val lastBtn = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
+            .maxByOrNull { it.boundsInRoot.top }
+        assertTrue("scroll-end par last call button hona chahiye", lastBtn != null)
+        val lb = lastBtn!!.boundsInRoot
+        assertTrue("scroll-end last call button bottom chrome se clear nahi (btn=$lb chrome=$chromeAfter)",
+            chromeAfter.all { c -> !lb.overlaps(c) })
         Unit
     }
 }
