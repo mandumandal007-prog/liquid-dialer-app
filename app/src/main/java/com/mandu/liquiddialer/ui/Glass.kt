@@ -96,11 +96,11 @@ fun Modifier.glass(p: LdPalette, shape: Shape, shadow: Dp = 8.dp, highlight: Flo
 
 /** Floating glass with real backdrop blur (haze) when a source exists — top bar, nav, banner, drawer, sheet. */
 @Composable
-fun Modifier.liquid(shape: Shape, shadow: Dp = 16.dp): Modifier {
+fun Modifier.liquid(shape: Shape, shadow: Dp = 16.dp, blur: Boolean = true): Modifier {
     val p = LocalLd.current
     val haze = LocalHaze.current
     var m = this.shadow(shadow, shape, clip = false, ambientColor = Color.Black.copy(alpha = .3f), spotColor = Color.Black.copy(alpha = .45f)).clip(shape)
-    if (haze != null) {
+    if (blur && haze != null) {
         m = m.hazeChild(haze, HazeStyle(
             backgroundColor = p.bg,
             tint = HazeTint(p.glass2.copy(alpha = (p.glass2.alpha + .04f).coerceAtMost(1f))),
