@@ -440,6 +440,61 @@ fun insights(recents: List<Recent>): Insights {
     )
 }
 
+// ---- week analytics (Sirf LOADED recents ka hisaab - device timezone ke calendar days) ----
+
+data class DayBucket(
+    val dayStartMs: Long,
+    val dateLabel: String,          // "31"
+    val weekdayLabel: String,       // "Shani" jaise short din
+    val incoming: Int, val outgoing: Int, val missed: Int, val rejected: Int, val blocked: Int, val other: Int,
+    val talkSecs: Long,             // sirf incoming+outgoing ki duration
+    val covered: Boolean,           // load hui window is din tak pahunchti hai
+    val partial: Boolean,           // limit ki wajah se window ka sabse purana din (adhoora ho sakta hai)
+) {
+    val total: Int get() = incoming + outgoing + missed + rejected + blocked + other
+}
+
+/** Pichhle 7 CALENDAR din (aaj samet), device timezone ke hisaab se.
+ *  covered: oldest loaded entry us din ke andar/usse pehle hai (limit se pehle ka sara log window me hai).
+ *  partial: oldest entry usi din ke beech padi AUR load limit lag chuki hai - wo din adhoora ho sakta hai.
+ *  Window se bahar ke din covered=false - unhe "0 calls" KABHI mat dikhao. */
+fun weekBuckets(recents: List<Recent>, nowMs: Long, limit: Int): List<DayBucket> {
+    val tzCal = java.util.Calendar.getInstance()
+    tzCal.timeInMillis = nowMs
+    tzCal.set(java.util.Calendar.HOUR_OF_DAY, 0); tzCal.set(java.util.Calendar.MINUTE, 0)
+    tzCal.set(java.util.Calendar.SECOND, 0); tzCal.set(java.util.Calendar.MILLISECOND, 0)
+    val todayStart = tzCal.timeInMillis
+    val oldest = recents.minOfOrNull { it.date }
+    val limitHit = recents.size >= limit
+    val dateFmt = SimpleDateFormat("d", Locale.getDefault())
+    val wdFmt = SimpleDateFormat("EEE", Locale.getDefault())
+    return (6 downTo 0).map { back ->
+        val c = java.util.Calendar.getInstance()
+        c.timeInMillis = todayStart
+        c.add(java.util.Calendar.DAY_OF_YEAR, -back)
+        val dayStart = c.timeInMillis
+        c.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        val dayEnd = c.timeInMillis
+        val items = recents.filter { it.date >= dayStart && it.date < dayEnd }
+        val covered = oldest != null && oldest < dayEnd
+        val partial = limitHit && oldest != null && oldest >= dayStart && oldest < dayEnd
+        DayBucket(
+            dayStartMs = dayStart,
+            dateLabel = dateFmt.format(Date(dayStart)),
+            weekdayLabel = wdFmt.format(Date(dayStart)),
+            incoming = items.count { it.type == CallLog.Calls.INCOMING_TYPE },
+            outgoing = items.count { it.type == CallLog.Calls.OUTGOING_TYPE },
+            missed = items.count { it.type == CallLog.Calls.MISSED_TYPE },
+            rejected = items.count { it.type == CallLog.Calls.REJECTED_TYPE },
+            blocked = items.count { it.type == CallLog.Calls.BLOCKED_TYPE },
+            other = items.count { it.type != CallLog.Calls.INCOMING_TYPE && it.type != CallLog.Calls.OUTGOING_TYPE && it.type != CallLog.Calls.MISSED_TYPE && it.type != CallLog.Calls.REJECTED_TYPE && it.type != CallLog.Calls.BLOCKED_TYPE },
+            talkSecs = items.filter { it.type == CallLog.Calls.INCOMING_TYPE || it.type == CallLog.Calls.OUTGOING_TYPE }.sumOf { it.duration },
+            covered = covered,
+            partial = partial,
+        )
+    }
+}
+
 // ---- duplicate contacts (SIRF detection - merge/delete kuch nahi hota) ----
 
 data class DupGroup(val numberKey: String, val pretty: String, val contacts: List<Contact>, val count: Int)
