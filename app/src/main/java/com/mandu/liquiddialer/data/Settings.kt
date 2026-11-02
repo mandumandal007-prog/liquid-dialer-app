@@ -80,7 +80,8 @@ data class LdSettings(
     val minuteBeep: Int = 0,                 // 0=off else har N minute pe beep
     val callVolumeMax: Boolean = false,      // opt-in: call connect pe volume system max
     val ringVolumeMax: Boolean = false,      // opt-in: ring pe volume system max
-    val groupByDay: Boolean = true,          // recents me din ke headers
+    val groupByDay: Boolean = true,           // recents me din ke headers
+    val showTodayStats: Boolean = false,      // daily strip opt-in from drawer
     val hapticKeys: Boolean = false,         // keypad tap pe haptic
     val recordUnknownOnly: Boolean = false,  // sirf unknown numbers record
     val exactTime: Boolean = true,           // recents me exact samay vs relative
@@ -184,6 +185,7 @@ object K {
     val callVolumeMax = booleanPreferencesKey("callVolumeMax")
     val ringVolumeMax = booleanPreferencesKey("ringVolumeMax")
     val groupByDay = booleanPreferencesKey("groupByDay")
+    val showTodayStats = booleanPreferencesKey("show_today_stats")
     val hapticKeys = booleanPreferencesKey("hapticKeys")
     val recordUnknownOnly = booleanPreferencesKey("recordUnknownOnly")
     val exactTime = booleanPreferencesKey("exactTime")
@@ -283,6 +285,7 @@ fun Preferences.toSettings(): LdSettings {
         callVolumeMax = this[K.callVolumeMax] ?: false,
         ringVolumeMax = this[K.ringVolumeMax] ?: false,
         groupByDay = this[K.groupByDay] ?: true,
+        showTodayStats = this[K.showTodayStats] ?: false,
         hapticKeys = this[K.hapticKeys] ?: false,
         recordUnknownOnly = this[K.recordUnknownOnly] ?: false,
         exactTime = this[K.exactTime] ?: true,
