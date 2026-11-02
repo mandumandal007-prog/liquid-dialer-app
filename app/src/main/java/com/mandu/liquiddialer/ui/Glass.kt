@@ -83,16 +83,8 @@ fun BlobBackground(modifier: Modifier = Modifier, strong: Boolean = false) {
 }
 
 /** .glass painted (gradient glass2->glass, 1px stroke, inset top highlight, soft shadow). */
-fun Modifier.glass(p: LdPalette, shape: Shape, shadow: Dp = 8.dp, highlight: Float = .26f): Modifier = this
-    .shadow(shadow, shape, clip = false, ambientColor = Color.Black.copy(alpha = if (p.isLight) .10f else .22f), spotColor = Color.Black.copy(alpha = if (p.isLight) .12f else .30f))
-    .clip(shape)
-    .background(Brush.linearGradient(listOf(p.glass2, p.glass), start = Offset(0f, 0f), end = Offset.Infinite))
-    .drawWithContent {
-        drawContent()
-        // inset 0 1px 0 rgba(255,255,255,.26)
-        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = highlight), (2.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent))
-    }
-    .border(1.dp, p.stroke, shape)
+fun Modifier.glass(p: LdPalette, shape: Shape, shadow: Dp = 8.dp, highlight: Float = .26f): Modifier =
+    this.raisedGlass(p, shape, shadow)
 
 /** Floating glass with real backdrop blur (haze) when a source exists — top bar, nav, banner, drawer, sheet. */
 @Composable
@@ -120,19 +112,19 @@ fun Modifier.liquid(shape: Shape, shadow: Dp = 16.dp, blur: Boolean = true): Mod
 
 /** Gemini-style raised glass: soft BADA shadow + top-light->bottom-shade gradient = 3D depth (user ref: Gemini overlay panels). Sab static - shadow cached layer, koi per-frame cost nahi. */
 fun Modifier.raisedGlass(p: LdPalette, shape: Shape, elevation: Dp = 14.dp): Modifier = this
-    .shadow(elevation, shape, clip = false,
+    .shadow(elevation * when(p.glassDepth) { 0 -> 0f; 1 -> .5f; else -> 1f }, shape, clip = false,
         ambientColor = Color.Black.copy(alpha = if (p.isLight) .16f else .38f),
         spotColor = p.accent.copy(alpha = if (p.isLight) .12f else .25f))
     .clip(shape)
     .background(Brush.verticalGradient(listOf(
-        if (p.isLight) Color.White.copy(alpha = .98f) else p.glass2.copy(alpha = (p.glass2.alpha + .12f).coerceAtMost(1f)),
-        if (p.isLight) p.glass2.copy(alpha = (p.glass2.alpha + .20f).coerceAtMost(1f)) else p.glass
+        if (p.isLight) Color.White.copy(alpha = listOf(.58f,.82f,.98f)[p.glassFrost.coerceIn(0,2)]) else mix(p.bg2, p.accent, .94f).copy(alpha = listOf(.74f,.88f,.98f)[p.glassFrost.coerceIn(0,2)]),
+        if (p.isLight) p.bg2.copy(alpha = listOf(.52f,.78f,.98f)[p.glassFrost.coerceIn(0,2)]) else p.bg2.copy(alpha = listOf(.68f,.85f,.98f)[p.glassFrost.coerceIn(0,2)])
     )))
     .drawWithContent {
         drawContent()
-        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = if (p.isLight) .55f else .32f), (2.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent))
+        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = if (p.glassDepth==0) .12f else if (p.isLight) .55f else .32f), (2.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent))
         // bottom ki halki shade - 3D depth ka doosra half
-        drawRect(Brush.verticalGradient(1f - (3.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent, 1f to Color.Black.copy(alpha = if (p.isLight) .05f else .16f)))
+        drawRect(Brush.verticalGradient(1f - (3.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent, 1f to Color.Black.copy(alpha = if (p.glassDepth==0) 0f else if (p.isLight) .05f else .16f)))
     }
     .border(1.dp, if (p.isLight) Color.White.copy(alpha = .75f) else p.stroke, shape)
 
@@ -146,7 +138,8 @@ fun Modifier.premiumRing(p: LdPalette, shape: Shape): Modifier = this
 @Composable
 fun pressScale(src: MutableInteractionSource, pressed: Float = .92f): Float {
     val isP by src.collectIsPressedAsState()
-    val s by animateFloatAsState(if (isP) pressed else 1f, tween(140), label = "press")
+    val motion = LocalLd.current.motion
+    val s by animateFloatAsState(if (isP && motion) pressed else 1f, tween(if(motion) 140 else 0), label = "press")
     return s
 }
 
@@ -236,7 +229,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
             Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                 .then(if (on) Modifier.background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .85f), p.accent))) else Modifier)
                 .clickable { onSelect(i) }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-                LdText(o, 13f, FontWeight.SemiBold, if (on) Color.White else p.muted)
+                LdText(o, 13f, FontWeight.SemiBold, if (on) Color.White else p.muted, maxLines=2)
             }
         }
     }
