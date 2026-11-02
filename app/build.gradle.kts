@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId = "com.mandu.liquiddialer"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 33
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = "1.0." + (System.getenv("VERSION_CODE") ?: "0")
         vectorDrawables { useSupportLibrary = true }

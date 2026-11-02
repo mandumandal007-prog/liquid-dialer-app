@@ -423,6 +423,9 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                 if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
             }
             "notes" -> BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") }
+            "summary" -> BtnSpec(LdIcons.Note, "Summarise", enabled = s.callSummary) {
+                openSheet("notes")
+            }
             else -> null
         }
     }

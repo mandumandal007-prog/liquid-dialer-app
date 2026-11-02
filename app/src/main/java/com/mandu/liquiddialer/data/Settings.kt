@@ -11,8 +11,8 @@ val Context.ldStore by preferencesDataStore(name = "ld_settings")
 
 data class LdSettings(
     val lang: String = "hinglish",
-    val theme: String = "midnight",
-    val accent: Long = 0xFF5B8CFF,
+    val theme: String = "daylight",
+    val accent: Long = 0xFF2E7D32,
     val blur: Int = 22,
     val glassDepth: Int = 2, // 0=flat,1=soft,2=sculpted
     val glassFrost: Int = 1, // 0=clear,1=balanced,2=milky
@@ -105,7 +105,7 @@ data class LdSettings(
 )
 
 const val DEFAULT_GRID = "mute,keypad,record,hold,add,merge,!audio"
-const val DEFAULT_BOTTOM = "speaker,end,notes"
+const val DEFAULT_BOTTOM = "speaker,end,summary,notes"
 
 val DEFAULT_REPLIES = listOf(
     "Abhi baat nahi kar sakta, baad mein call karta hoon.",

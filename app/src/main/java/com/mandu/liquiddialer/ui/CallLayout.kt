@@ -32,16 +32,16 @@ import kotlinx.coroutines.launch
 data class BtnSpec(val icon: ImageVector, val label: String, val on: Boolean = false, val enabled: Boolean = true, val flat: Boolean = false, val onClick: () -> Unit)
 
 val GRID_IDS = listOf("mute", "keypad", "record", "hold", "add", "merge", "audio")
-val BOTTOM_IDS = listOf("speaker", "end", "notes")
+val BOTTOM_IDS = listOf("speaker", "end", "summary", "notes")
 
 fun btnName(id: String) = when (id) {
     "mute" -> "Mute"; "keypad" -> "Keypad"; "record" -> "Record"; "hold" -> "Hold"; "add" -> "Add call"
-    "merge" -> "Merge / Swap"; "audio" -> "Audio route"; "speaker" -> "Speaker"; "end" -> "End (Cut)"; "notes" -> "Notes"; else -> id
+    "merge" -> "Merge / Swap"; "audio" -> "Audio route"; "speaker" -> "Speaker"; "end" -> "End (Cut)"; "summary" -> "Summarise"; "notes" -> "Notes"; else -> id
 }
 
 fun btnIcon(id: String): ImageVector = when (id) {
     "mute" -> LdIcons.Mic; "keypad" -> LdIcons.Dialpad; "record" -> LdIcons.Record; "hold" -> LdIcons.Pause; "add" -> LdIcons.Plus
-    "merge" -> LdIcons.Merge; "audio" -> LdIcons.Bluetooth; "speaker" -> LdIcons.Volume; "end" -> LdIcons.PhoneOff; else -> LdIcons.Edit
+    "merge" -> LdIcons.Merge; "audio" -> LdIcons.Bluetooth; "speaker" -> LdIcons.Volume; "end" -> LdIcons.PhoneOff; "summary" -> LdIcons.Note; else -> LdIcons.Edit
 }
 
 /** "a,b,!c" -> [(a,true),(b,true),(c,false)], always containing every known id exactly once. */
