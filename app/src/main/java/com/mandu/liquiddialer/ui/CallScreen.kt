@@ -70,7 +70,7 @@ fun nowTicker(): Long {
 
 /** Call screen background: "blobs" (default), "photo" (caller photo, blurred), "solid" (flat). */
 @Composable
-fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo: String? = null) {
+fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo: String? = null, custom: Boolean = false) {
     val p = LocalLd.current
     Box(modifier.fillMaxSize()) {
         when (style) {
@@ -78,8 +78,8 @@ fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo
             "photo" -> {
                 val bmp = rememberPhoto(photo)
                 if (bmp != null) {
-                    Image(bmp, null, Modifier.fillMaxSize().then(if (Build.VERSION.SDK_INT >= 31) Modifier.blur(70.dp, BlurredEdgeTreatment.Unbounded) else Modifier), contentScale = ContentScale.Crop, alpha = .6f)
-                    Box(Modifier.fillMaxSize().background(p.bg.copy(alpha = .62f)))
+                    Image(bmp, null, Modifier.fillMaxSize().then(if (!custom && Build.VERSION.SDK_INT >= 31) Modifier.blur(70.dp, BlurredEdgeTreatment.Unbounded) else Modifier), contentScale = ContentScale.Crop, alpha = .6f)
+                    Box(Modifier.fillMaxSize().background(p.bg.copy(alpha = if(custom) .82f else .62f)))
                 } else {
                     BlobBackground(strong = true)
                     Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.28f), .62f to Color.Transparent, center = Offset(540f, 0f), radius = 1400f)))
@@ -161,7 +161,8 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     }
 
     Box(Modifier.fillMaxSize()) {
-        CallBackground(Modifier.haze(haze), s.callBgStyle, call?.let { CallManager.photoFor(it) })
+        val customPhoto = call?.let { com.mandu.liquiddialer.data.CallPhotos.get(ctx, CallManager.number(it)) }
+        CallBackground(Modifier.haze(haze), if(customPhoto != null) "photo" else s.callBgStyle, customPhoto ?: call?.let { CallManager.photoFor(it) }, custom = customPhoto != null)
         CompositionLocalProvider(LocalHaze provides haze) {
             if (call == null) {
                 CallEndedScreen(lastEnded)
