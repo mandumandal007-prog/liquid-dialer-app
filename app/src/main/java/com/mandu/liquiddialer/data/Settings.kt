@@ -52,7 +52,8 @@ data class LdSettings(
     val dialerScale: Float = 1f,         // dialer keypad ka size
     val callAvatarShape: String = "circle",   // "circle" | "squircle"
     val callShowNumber: Boolean = true,
-    val callBgStyle: String = "blobs",   // "blobs" | "photo" | "solid"
+    val callBgStyle: String = "blobs",
+    val callPhotoBlur: Int = 0, // 0 clear,1 light,2 soft; cached bitmap blur on Android8+
     val showFavourites: Boolean = true,
     // ---- v1.0.52: calling & caller-pehchan pack ----
     val flashOnRing: Boolean = false,        // opt-in: torch blink while ringing
@@ -157,6 +158,7 @@ object K {
     val dialerScale = floatPreferencesKey("dialerScale")
     val callAvatarShape = stringPreferencesKey("callAvatarShape")
     val callShowNumber = booleanPreferencesKey("callShowNumber")
+    val callPhotoBlur = intPreferencesKey("callPhotoBlur")
     val callBgStyle = stringPreferencesKey("callBgStyle")
     val showFavourites = booleanPreferencesKey("showFavourites")
     val flashOnRing = booleanPreferencesKey("flashOnRing")
@@ -301,6 +303,7 @@ fun Preferences.toSettings(): LdSettings {
         volBoost = this[K.volBoost] ?: false,
         volBoostGain = (this[K.volBoostGain] ?: 25).coerceIn(0, 100),
         boostAck = this[K.boostAck] ?: false,
+        callPhotoBlur = (this[K.callPhotoBlur] ?: 0).coerceIn(0,2),
         callBgStyle = this[K.callBgStyle] ?: "blobs",
         simUse = simUseMapOf(this),
         appLock = this[K.appLock] ?: false,
