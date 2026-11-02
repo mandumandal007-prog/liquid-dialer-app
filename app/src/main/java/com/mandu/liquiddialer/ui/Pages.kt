@@ -81,7 +81,7 @@ fun PageFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScop
 fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Boolean = false, subMaxLines: Int = 3, trailing: @Composable (() -> Unit)? = null, onClick: (() -> Unit)? = null) {
     val p = LocalLd.current
     Column {
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
+        Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.buttonGlass(p,RoundedCornerShape(16.dp)).clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) Box(Modifier.size(38.dp).raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
             Column(Modifier.weight(1f)) {
@@ -104,9 +104,9 @@ fun TimeRow(title: String, mins: Int, last: Boolean = false, onChange: (Int) -> 
     fun step(d: Int) = onChange(((mins + d) % 1440 + 1440) % 1440)
     SRow(title, com.mandu.liquiddialer.telecom.QuietHours.fmt(mins) + " baje", last = last, trailing = {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(Modifier.size(34.dp).clip(CircleShape).background(p.accent.pct(.14f)).clickable { step(-30) }.testTag(title + "_minus"), contentAlignment = Alignment.Center) { LdText("\u2212", 16f, FontWeight.Bold, p.accent) }
+            Box(Modifier.size(34.dp).buttonGlass(p,CircleShape,p.accent).clickable { step(-30) }.testTag(title + "_minus"), contentAlignment = Alignment.Center) { LdText("\u2212", 16f, FontWeight.Bold, p.accent) }
             LdText(com.mandu.liquiddialer.telecom.QuietHours.fmt(mins), 14f, FontWeight.Bold, p.accent, Modifier.testTag(title + "_value"))
-            Box(Modifier.size(34.dp).clip(CircleShape).background(p.accent.pct(.14f)).clickable { step(30) }.testTag(title + "_plus"), contentAlignment = Alignment.Center) { LdText("+", 16f, FontWeight.Bold, p.accent) }
+            Box(Modifier.size(34.dp).buttonGlass(p,CircleShape,p.accent).clickable { step(30) }.testTag(title + "_plus"), contentAlignment = Alignment.Center) { LdText("+", 16f, FontWeight.Bold, p.accent) }
         }
     })
 }
@@ -628,10 +628,10 @@ private fun ProfilePage(onBack: () -> Unit) {
             }
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { pickPhoto() }.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { pickPhoto() }.padding(horizontal = 10.dp, vertical = 6.dp)) {
                     LdText(if (busy) "Photo set ho rahi hai…" else if (s.profilePhoto.isBlank()) "Gallery se photo chuno" else "Photo badlo", 13f, FontWeight.SemiBold, p.accent)
                 }
-                if (s.profilePhoto.isNotBlank()) Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable {
+                if (s.profilePhoto.isNotBlank()) Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable {
                     java.io.File(ctx.filesDir, "profile.png").delete(); save(K.profilePhoto, "")
                 }.padding(horizontal = 10.dp, vertical = 6.dp)) { LdText("Photo hatao", 13f, FontWeight.SemiBold, p.danger) }
             }
@@ -720,13 +720,13 @@ private fun ContactEditor(contactId: Long?, prefill: String, act: MainActivity, 
                 Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdField(n, { v -> phones[i] = v to t }, "Phone number", phone = true, modifier = Modifier.weight(1f))
                     val label = PHONE_TYPES.firstOrNull { it.first == t }?.second ?: "Other"
-                    Box(Modifier.padding(top = 2.dp).glass(p, RoundedCornerShape(14.dp), 2.dp).clickable {
+                    Box(Modifier.padding(top = 2.dp).buttonGlass(p, RoundedCornerShape(14.dp)).clickable {
                         val idx = PHONE_TYPES.indexOfFirst { it.first == t }; phones[i] = n to PHONE_TYPES[(idx + 1) % PHONE_TYPES.size].first
                     }.padding(horizontal = 12.dp, vertical = 12.dp)) { LdText(label, 12.5f, FontWeight.SemiBold, p.accent) }
-                    if (phones.size > 1) Box(Modifier.padding(top = 6.dp).size(34.dp).clip(CircleShape).clickable { phones.removeAt(i) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 16.dp, p.muted) }
+                    if (phones.size > 1) Box(Modifier.padding(top = 6.dp).size(34.dp).buttonGlass(p,CircleShape).clickable { phones.removeAt(i) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 16.dp, p.muted) }
                 }
             }
-            Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { phones.add("" to ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE) }.padding(8.dp)) {
+            Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { phones.add("" to ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE) }.padding(8.dp)) {
                 LdText("+ Aur number", 13f, FontWeight.SemiBold, p.accent)
             }
             LdText("Email", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(top = 6.dp, bottom = 8.dp))
@@ -810,7 +810,7 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
                         LdText(n.name.ifBlank { Repo.pretty(n.number) }, 13.5f, FontWeight.Bold)
                         LdText(df.format(Date(n.time)), 11f, color = p.muted)
                     }
-                    Box(Modifier.size(32.dp).clip(CircleShape).clickable { Repo.deleteNote(ctx, n.id); notes = if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number) },
+                    Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).clickable { Repo.deleteNote(ctx, n.id); notes = if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number) },
                         contentAlignment = Alignment.Center) { LdIcon(LdIcons.Trash, 16.dp, p.muted) }
                 }
                 Spacer(Modifier.height(6.dp))
@@ -857,12 +857,12 @@ private fun StatsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onIns
         if (notes.isNotEmpty()) LdText(notes.joinToString("\n"), 11f, color = p.muted, maxLines = 3, modifier = Modifier.testTag("stats_notes").padding(start = 6.dp, end = 6.dp, top = 2.dp))
 
         Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
-            Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 10.dp, vertical = 8.dp).testTag("insights_sheet_open")) {
+            Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 10.dp, vertical = 8.dp).testTag("insights_sheet_open")) {
                 LdText("Quick insights", 12.5f, FontWeight.SemiBold, p.accent)
             }
             // load hui window ka CSV export - poori history ka dawa nahi; share sheet se WhatsApp/Excel kahi bhi
             val ctx = LocalContext.current
-            Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable {
+            Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable {
                 // sirf load hui window export hoti hai (upar "Load hui N calls" label); chooser hi khulta hai - khud kisi app ko kabhi nahi bhejta
                 // (empty/permission states yahan pahunchte hi nahi: StatsPage unpe alag EmptyState dikhata hai aur button render hi nahi hota)
                 try {
@@ -1027,7 +1027,7 @@ private fun BlockedPage(st: AppState, act: MainActivity, onBack: () -> Unit) {
                 GlassRow(onClick = {}) {
                     Avatar(Repo.lookupName(ctx, b)?.first ?: b, null, seed = b)
                     Column(Modifier.weight(1f)) { LdText(Repo.lookupName(ctx, b)?.first ?: Repo.pretty(b), 14.5f, FontWeight.SemiBold); LdText(Repo.pretty(b), 11.5f, color = p.muted) }
-                    Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { Repo.unblock(ctx, b); list = Repo.blocked(ctx); act.reload() }.padding(8.dp)) {
+                    Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { Repo.unblock(ctx, b); list = Repo.blocked(ctx); act.reload() }.padding(8.dp)) {
                         LdText("Unblock", 12.5f, FontWeight.SemiBold, p.accent)
                     }
                 }
@@ -1058,7 +1058,7 @@ private fun SeriesPage(onBack: () -> Unit) {
         s.blockedPrefixes.forEachIndexed { i, pre ->
             GlassRow(onClick = {}) {
                 Column(Modifier.weight(1f)) { LdText(pre + "\u2026", 14.5f, FontWeight.SemiBold); LdText("Isse shuru hone wale number reject", 11.5f, color = p.muted) }
-                Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { LdApp.instance.scope.launch { LdApp.instance.repo.setBlockedPrefixes(s.blockedPrefixes.filterIndexed { j, _ -> j != i }) } }.padding(8.dp)) {
+                Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { LdApp.instance.scope.launch { LdApp.instance.repo.setBlockedPrefixes(s.blockedPrefixes.filterIndexed { j, _ -> j != i }) } }.padding(8.dp)) {
                     LdText("Hatao", 12.5f, FontWeight.SemiBold, p.accent)
                 }
             }
@@ -1079,7 +1079,7 @@ private fun SpeedDialPage(st: AppState, onBack: () -> Unit) {
                 val n = s.speedDial[k]
                 val nm = n?.let { num -> st.contacts.firstOrNull { Repo.key(it.number) == Repo.key(num) }?.name }
                 SRow("$k  ·  " + (nm ?: n?.let { Repo.pretty(it) } ?: "Set karo"), if (nm != null) Repo.pretty(n) else null, last = k == 9,
-                    trailing = { if (n != null) Box(Modifier.clip(CircleShape).clickable { LdApp.instance.scope.launch { LdApp.instance.repo.setSpeedDial(s.speedDial - k) } }.padding(6.dp)) { LdIcon(LdIcons.X, 16.dp, p.muted) } else LdIcon(LdIcons.Plus, 16.dp, p.accent) }) { editing = k }
+                    trailing = { if (n != null) Box(Modifier.buttonGlass(p,CircleShape).clickable { LdApp.instance.scope.launch { LdApp.instance.repo.setSpeedDial(s.speedDial - k) } }.padding(6.dp)) { LdIcon(LdIcons.X, 16.dp, p.muted) } else LdIcon(LdIcons.Plus, 16.dp, p.accent) }) { editing = k }
             }
         }
     }
@@ -1107,7 +1107,7 @@ private fun RepliesPage(onBack: () -> Unit) {
         GlassCard {
             s.quickReplies.forEachIndexed { i, r ->
                 SRow(r, last = i == s.quickReplies.lastIndex, trailing = {
-                    Box(Modifier.clip(CircleShape).clickable { LdApp.instance.scope.launch { LdApp.instance.repo.setReplies(s.quickReplies.filterIndexed { j, _ -> j != i }) } }.padding(6.dp)) { LdIcon(LdIcons.Trash, 16.dp, p.muted) }
+                    Box(Modifier.buttonGlass(p,CircleShape).clickable { LdApp.instance.scope.launch { LdApp.instance.repo.setReplies(s.quickReplies.filterIndexed { j, _ -> j != i }) } }.padding(6.dp)) { LdIcon(LdIcons.Trash, 16.dp, p.muted) }
                 })
             }
         }
