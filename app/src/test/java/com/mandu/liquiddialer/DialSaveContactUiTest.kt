@@ -29,9 +29,19 @@ class DialSaveContactUiTest {
         runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.theme]="midnight"}}
         settle();saveShot(rule,"N201-dial-save-night")
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).performClick();settle()
+        val launch=org.robolectric.Shadows.shadowOf(rule.activity).nextStartedActivity
+        org.junit.Assert.assertEquals(android.content.Intent.ACTION_CHOOSER,launch.action)
+        val target=launch.getParcelableExtra<android.content.Intent>(android.content.Intent.EXTRA_INTENT)!!
+        org.junit.Assert.assertEquals(android.content.Intent.ACTION_INSERT,target.action)
+        org.junit.Assert.assertEquals(android.provider.ContactsContract.Contacts.CONTENT_TYPE,target.type)
+        org.junit.Assert.assertEquals("9876543210",target.getStringExtra(android.provider.ContactsContract.Intents.Insert.PHONE))
+        org.junit.Assert.assertNull(target.component)
         rule.onNodeWithText("Naya contact",useUnmergedTree=true).assertExists()
         rule.onNodeWithText("9876543210",useUnmergedTree=true).assertExists()
         rule.onNodeWithText("Save",useUnmergedTree=true).assertExists()
+        saveShot(rule,"G220-editor-night")
+        runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.theme]="daylight";it[K.fontScale]=1.3f}}
+        settle();saveShot(rule,"G220-editor-day-large")
         // No name entered, no Save tap. Opening this editor alone must not create a contact.
         org.junit.Assert.assertTrue(rule.activity.state.contacts.isEmpty())
     }
