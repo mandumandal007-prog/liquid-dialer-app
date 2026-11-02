@@ -36,7 +36,7 @@ object SettingsBackup {
         "callBgStyle" to setOf("blobs", "photo", "solid"),
         "defaultTab" to setOf("recents", "dialer"),
     )
-    private val INT_RANGES = mapOf("blur" to (0..40), "glassDepth" to (0..2), "glassFrost" to (0..2))
+    private val INT_RANGES = mapOf("blur" to (0..40), "glassDepth" to (0..2), "glassFrost" to (0..2), "callPhotoBlur" to (0..2))
     private val FLOAT_RANGES = mapOf(
         "fontScale" to (0.8f..1.5f),
         "gridScale" to (0.8f..1.2f),
@@ -63,6 +63,7 @@ object SettingsBackup {
         v.put("gridScale", s.gridScale.toDouble()); v.put("bottomScale", s.bottomScale.toDouble())
         v.put("callCardScale", s.callCardScale.toDouble()); v.put("dialerScale", s.dialerScale.toDouble())
         v.put("callAvatarShape", s.callAvatarShape); v.put("callBgStyle", s.callBgStyle)
+        v.put("callPhotoBlur", s.callPhotoBlur)
         v.put("layoutGrid", s.layoutGrid); v.put("layoutBottom", s.layoutBottom)
         return JSONObject()
             .put("app", "liquid-dialer")
@@ -111,10 +112,12 @@ object SettingsBackup {
                     out[k] = raw
                 }
                 k in INT_RANGES -> {
-                    if (raw !is Number || raw.toLong() != raw.toDouble().toLong()) return ParseResult.Err("'$k' ka type galat hai")
-                    val n = raw.toInt()
-                    if (n !in INT_RANGES.getValue(k)) return ParseResult.Err("'$k' range se bahar hai")
-                    out[k] = n
+                    if (raw !is Number) return ParseResult.Err("'$k' ka type galat hai")
+                    val n = raw.toDouble()
+                    if (!n.isFinite() || n != kotlin.math.floor(n)) return ParseResult.Err("'$k' ka type galat hai")
+                    val range = INT_RANGES.getValue(k)
+                    if (n < range.first || n > range.last) return ParseResult.Err("'$k' range se bahar hai")
+                    out[k] = n.toInt()
                 }
                 k in FLOAT_RANGES -> {
                     if (raw !is Number) return ParseResult.Err("'$k' ka type galat hai")
@@ -183,6 +186,7 @@ object SettingsBackup {
                     "dialerScale" -> p[K.dialerScale] = v as Float
                     "callAvatarShape" -> p[K.callAvatarShape] = v as String
                     "callBgStyle" -> p[K.callBgStyle] = v as String
+                    "callPhotoBlur" -> p[K.callPhotoBlur] = v as Int
                     "layoutGrid" -> p[K.layoutGrid] = v as String
                     "layoutBottom" -> p[K.layoutBottom] = v as String
                 }
