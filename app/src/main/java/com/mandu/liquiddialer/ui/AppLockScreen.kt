@@ -26,7 +26,7 @@ fun AppLockScreen(onUnlock: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(), letter = 0f)
             Spacer(Modifier.height(26.dp))
             Row(
-                Modifier.glass(p, RoundedCornerShape(16.dp), 2.dp)
+                Modifier.buttonGlass(p, RoundedCornerShape(16.dp))
                     .clickable { onUnlock() }
                     .padding(horizontal = 26.dp, vertical = 13.dp)) {
                 LdText("Unlock karo", 15f, FontWeight.SemiBold, p.accent)
