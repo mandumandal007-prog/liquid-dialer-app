@@ -21,12 +21,13 @@ import androidx.datastore.preferences.core.edit
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(ExperimentalTestApi::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class GlassPhotoUiTest {
     @get:Rule val rule=createAndroidComposeRule<MainActivity>()
     private val app get()=ApplicationProvider.getApplicationContext<LdApp>()
     private fun settle(){rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(600);rule.waitForIdle()}
-    private fun await(check:()->Boolean){repeat(30){org.robolectric.shadows.ShadowLooper.idleMainLooper();settle();if(check())return;Thread.sleep(100)};assertTrue(check())}
-    @Before fun seed(){rule.activity.state.showOnboarding=false}
+    private fun await(check:()->Boolean){repeat(30){org.robolectric.shadows.ShadowLooper.idleMainLooper();settle();if(check())return;Thread.sleep(100)};assertTrue("photo="+CallPhotos.get(app,"9876543210")+" settings="+LdApp.settings.value+" tree="+rule.onAllNodes(isRoot(),useUnmergedTree=true).printToString(),check())}
+    @Before fun seed(){rule.runOnUiThread { rule.activity.state.showOnboarding=false }}
     @After fun clean(){CallPhotos.remove(app,"9876543210");LdApp.settings.value=LdSettings()}
     private fun photo():Uri {
         val f=File(app.cacheDir,"test-background.png");val b=Bitmap.createBitmap(360,640,Bitmap.Config.ARGB_8888)
@@ -68,7 +69,10 @@ class GlassPhotoUiTest {
     }
     @Test fun appearanceControlsPersistAndRenderDayNightLargeFont() {
         runBlocking {app.ldStore.edit {it[K.onboarded]=true;it[K.theme]="daylight";it[K.motion]=false}}
-        settle();rule.activity.state.showOnboarding=false
+        settle()
+        await { LdApp.settings.value.let { it.onboarded && it.theme=="daylight" && !it.motion } }
+        rule.runOnUiThread { rule.activity.state.showOnboarding=false }
+        settle()
         rule.onNodeWithTag("drawer_open",useUnmergedTree=true).performClick();settle()
         rule.onNodeWithText("Settings",useUnmergedTree=true).performClick();settle()
         rule.onNodeWithText("Display",useUnmergedTree=true).performClick();settle()
