@@ -169,6 +169,54 @@ class FlowTest {
         assertNull(org.robolectric.shadows.ShadowSpeechRecognizer.getLatestSpeechRecognizer())
     }
 
+    @Test fun voiceFailureOffersExplicitConsentForAlternateAndCancelDoesNothing() {
+        load()
+        val app=ApplicationProvider.getApplicationContext<LdApp>()
+        shadowOf(app).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
+        org.robolectric.shadows.ShadowSpeechRecognizer.setIsOnDeviceRecognitionAvailable(true)
+        val ri=android.content.pm.ResolveInfo().apply { serviceInfo=ServiceInfo().apply { packageName="com.fake.stt";name="com.fake.stt.Svc";applicationInfo=app.applicationInfo;exported=true } }
+        shadowOf(app.packageManager).addResolveInfoForIntent(Intent(android.speech.RecognitionService.SERVICE_INTERFACE),ri)
+        rule.onNodeWithTag("search_mic").performClick();settle()
+        val rec=org.robolectric.shadows.ShadowSpeechRecognizer.getLatestSpeechRecognizer()
+        rule.runOnUiThread { shadowOf(rec).triggerOnError(android.speech.SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE) };settle()
+        rule.onNodeWithText("Hindi voice language/pack nahi mila",substring=true).assertExists()
+        rule.onNodeWithTag("voice_alternate").assertIsDisplayed()
+        saveShot(rule,"G263-voice-error-day")
+        rule.onNodeWithTag("voice_alternate").performClick();settle()
+        rule.onNodeWithTag("voice_consent_ok").assertIsDisplayed()
+        assertNull("No activity launched before consent",shadowOf(rule.activity).nextStartedActivity)
+        saveShot(rule,"G263-voice-consent-day")
+        rule.onNodeWithTag("voice_consent_cancel").performClick();settle()
+        assertNull("Cancel must not launch speech activity",shadowOf(rule.activity).nextStartedActivity)
+        rule.onNodeWithTag("voice_alternate").performClick();settle()
+        rule.onNodeWithTag("voice_consent_ok").performClick();settle()
+        val intent=shadowOf(rule.activity).nextStartedActivity
+        assertNotNull(intent)
+        assertEquals(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH,intent.action)
+        assertEquals("hi-IN",intent.getStringExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE))
+        rule.runOnUiThread { shadowOf(rule.activity).receiveResult(intent,android.app.Activity.RESULT_OK,Intent().putStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS,arrayListOf("Papa"))) }
+        settle()
+        rule.onNode(hasSetTextAction()).assertTextContains("Papa")
+        noCallStarted()
+    }
+
+    @Test fun voiceErrorLargeNightRemainsReadable() {
+        load()
+        runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { it[K.theme]="midnight";it[K.fontScale]=1.3f } }
+        settle()
+        rule.waitUntil(5000) { LdApp.settings.value.theme=="midnight" && LdApp.settings.value.fontScale==1.3f }
+        shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
+        org.robolectric.shadows.ShadowSpeechRecognizer.setIsOnDeviceRecognitionAvailable(false)
+        rule.onNodeWithTag("search_mic").performClick();settle()
+        rule.onNodeWithTag("voice_alternate").assertIsDisplayed()
+        saveShot(rule,"G263-voice-error-night-large")
+        rule.onNodeWithTag("voice_alternate").performClick();settle()
+        rule.onNodeWithTag("voice_consent_ok").assertIsDisplayed()
+        saveShot(rule,"G263-voice-consent-night-large")
+        rule.onNodeWithTag("voice_consent_cancel").performClick();settle();noCallStarted()
+        runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { it[K.fontScale]=1f } }
+    }
+
     @Test
     fun searchMicOnDeviceFillsSearchBoxOnlyAndNeverCalls() {
         load()
