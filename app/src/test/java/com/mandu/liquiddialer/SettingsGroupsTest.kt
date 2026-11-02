@@ -27,12 +27,20 @@ class SettingsGroupsTest {
         rule.mainClock.autoAdvance=false
         rule.mainClock.advanceTimeBy(1200);rule.waitForIdle()
         runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { it[K.onboarded]=true;it[K.lang]="hi-en";it[K.theme]=theme;it[K.fontScale]=font } }
+        rule.waitUntil(5000) { LdApp.settings.value.let { it.theme==theme && it.fontScale==font && it.onboarded && it.lang=="hi-en" } }
         rule.activity.state.showOnboarding=false
         rule.mainClock.advanceTimeBy(600);rule.waitForIdle()
         val before=LdApp.settings.value
         rule.onNodeWithTag("drawer_open").performClick()
         rule.mainClock.advanceTimeBy(1200);rule.waitForIdle()
-        rule.waitUntil(5000) { rule.onAllNodesWithText("Settings",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty() }
+        try {
+            rule.waitUntil(5000) { rule.onAllNodesWithText("Settings",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty() }
+        } catch (e: AssertionError) {
+            println("DRAWER_NOT_READY settings="+LdApp.settings.value+" onboarding="+rule.activity.state.showOnboarding)
+            println(rule.onRoot(useUnmergedTree=true).printToString())
+            saveShot(rule,"G-drawer-not-ready-"+suffix)
+            throw e
+        }
         rule.onNodeWithText("Settings",useUnmergedTree=true).performClick()
         rule.mainClock.advanceTimeBy(600);rule.waitForIdle()
         saveShot(rule,"G-settings-home-"+suffix)
