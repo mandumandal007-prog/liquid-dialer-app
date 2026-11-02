@@ -120,7 +120,7 @@ object Repo {
     }
 
     /** Insert or update a contact in the real contacts provider (device-local account). */
-    fun saveContact(ctx: Context, existing: ContactDetail?, name: String, phones: List<Pair<String, Int>>, email: String, photo: ByteArray?, starred: Boolean): Boolean {
+    fun saveContact(ctx: Context, existing: ContactDetail?, name: String, phones: List<Pair<String, Int>>, email: String, photo: ByteArray?, starred: Boolean, otherEmails: List<String> = emptyList()): Boolean {
         val ops = ArrayList<ContentProviderOperation>()
         val dataUri = ContactsContract.Data.CONTENT_URI
         if (existing == null || existing.rawId < 0) {
@@ -135,8 +135,10 @@ object Repo {
                 ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
                     .withValue(CommonDataKinds.Phone.NUMBER, n).withValue(CommonDataKinds.Phone.TYPE, t).build()
             }
-            if (email.isNotBlank()) ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.Email.ADDRESS, email).withValue(CommonDataKinds.Email.TYPE, CommonDataKinds.Email.TYPE_HOME).build()
+            (listOf(email)+otherEmails).filter { it.isNotBlank() }.distinct().forEach { address ->
+                ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Email.ADDRESS, address).withValue(CommonDataKinds.Email.TYPE, CommonDataKinds.Email.TYPE_HOME).build()
+            }
             if (photo != null) ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
                 .withValue(CommonDataKinds.Photo.PHOTO, photo).build()
         } else {
@@ -153,8 +155,10 @@ object Repo {
                     .withValue(CommonDataKinds.Phone.NUMBER, n).withValue(CommonDataKinds.Phone.TYPE, t).build()
             }
             del(CommonDataKinds.Email.CONTENT_ITEM_TYPE)
-            if (email.isNotBlank()) ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE)
-                .withValue(CommonDataKinds.Email.ADDRESS, email).withValue(CommonDataKinds.Email.TYPE, CommonDataKinds.Email.TYPE_HOME).build()
+            (listOf(email)+otherEmails).filter { it.isNotBlank() }.distinct().forEach { address ->
+                ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                    .withValue(CommonDataKinds.Email.ADDRESS, address).withValue(CommonDataKinds.Email.TYPE, CommonDataKinds.Email.TYPE_HOME).build()
+            }
             if (photo != null) {
                 del(CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
                 ops += ins().withValue(ContactsContract.Data.MIMETYPE, CommonDataKinds.Photo.CONTENT_ITEM_TYPE)
