@@ -112,4 +112,34 @@ class NumberDetailsFullScreenTest {
         rule.onNodeWithTag("bottom_bar", useUnmergedTree = true).assertExists()
     }
 
+    @Test
+    fun notesSaveKeepsExistingTextAndGlassInDayAndNight() {
+        settle(2500)
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        val act = rule.activity
+        android.util.AtomicFile(java.io.File(ctx.filesDir,"notes.json")).delete()
+        com.mandu.liquiddialer.data.Repo.addNote(ctx,"+91 98765 43210","Rahul Sharma","पहली बात सुरक्षित")
+        act.state.showOnboarding = false
+        act.state.contacts = listOf(Contact(11,"lk1","Rahul Sharma","","+91 98765 43210","MOBILE",true,null))
+        act.state.recents = listOf(Recent(1,"+91 98765 43210","Rahul Sharma",1,System.currentTimeMillis(),25,null,null))
+        act.state.isDefault = true
+        org.robolectric.Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG,android.Manifest.permission.READ_CONTACTS)
+        settle()
+        rule.onNodeWithText("Rahul Sharma",substring=true,useUnmergedTree=true).performClick()
+        settle()
+        rule.onNodeWithText("Notes (",substring=true,useUnmergedTree=true).performClick()
+        settle()
+        rule.onAllNodes(hasSetTextAction()).assertCountEquals(2)
+        rule.onAllNodes(hasSetTextAction())[1].performTextInput("दूसरी बात 💚")
+        rule.onNodeWithText("Save",useUnmergedTree=true).performClick()
+        settle()
+        rule.onNodeWithText("पहली बात सुरक्षित",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithText("दूसरी बात 💚",useUnmergedTree=true).assertIsDisplayed()
+        org.junit.Assert.assertEquals(2,com.mandu.liquiddialer.data.Repo.notes(ctx).size)
+        saveShot(rule,"264-notes-day")
+        runBlocking { ctx.ldStore.edit { it[K.theme]="midnight" } }
+        settle()
+        saveShot(rule,"264-notes-night")
+    }
+
 }
