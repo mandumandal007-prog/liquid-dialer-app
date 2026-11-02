@@ -67,8 +67,10 @@ class FavWidgetCallUiTest {
         shadowOf(tm).setCallPhonePermission(true)
         tm.registerPhoneAccount(PhoneAccount.builder(sim,"Test SIM").setCapabilities(PhoneAccount.CAPABILITY_CALL_PROVIDER or PhoneAccount.CAPABILITY_SIM_SUBSCRIPTION).build())
         shadowOf(tm).enablePhoneAccount(sim,true)
-        settle(); LdApp.settings.value = LdSettings(undoCall=false,simMemory=false,theme="daylight")
-        rule.activity.state.showOnboarding=false
+        settle()
+        await { LdApp.settings.value.let { it.onboarded && !it.undoCall && !it.simMemory && it.theme=="daylight" } }
+        rule.runOnUiThread { rule.activity.state.showOnboarding=false }
+        await { rule.onAllNodesWithTag("drawer_open",useUnmergedTree=true).fetchSemanticsNodes().size==1 }
         Unit
     }
     @After fun clear() { app.getSharedPreferences("contact_controls",0).edit().clear().apply() }
