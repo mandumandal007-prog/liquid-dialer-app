@@ -64,7 +64,7 @@ class AlphaRailShotTest {
         saveShot(rule, "56-alpha-rail")
 
         // "V" tap -> Vikash viewport me aana chahiye (jump ka proof)
-        rule.onNodeWithText("V", useUnmergedTree = true).performClick()
+        rule.onNode(hasText("V") and hasAnyAncestor(hasTestTag("alpha_rail")), useUnmergedTree = true).performClick()
         settle(1500)
         val v = rule.onAllNodesWithText("Vikash", useUnmergedTree = true).fetchSemanticsNodes()
         assertTrue("jump ke baad Vikash composed hona chahiye", v.isNotEmpty())
