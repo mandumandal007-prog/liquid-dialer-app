@@ -36,6 +36,9 @@ import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeChild
 
+val LocalCallPhoto = staticCompositionLocalOf { false }
+val LocalCallGlass = staticCompositionLocalOf { false }
+
 val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 
 /** Accessibility: bold text everywhere when enabled. */
@@ -158,7 +161,7 @@ fun IconBtn(icon: ImageVector, size: Dp = 42.dp, iconSize: Dp = 22.dp, on: Boole
         danger -> base.shadow(10.dp, CircleShape, ambientColor = Color(0x66FF3C50), spotColor = Color(0x66FF3C50)).clip(CircleShape)
             .background(Brush.linearGradient(listOf(Color(0xF2FF5D6C), Color(0xE6D6263A)))).border(1.dp, Color.White.copy(alpha = .22f), CircleShape)
         on -> base.clip(CircleShape).background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
-        else -> base.raisedGlass(p, CircleShape, 10.dp).premiumRing(p, CircleShape)
+        else -> if (LocalCallGlass.current) base.callGlass(p, CircleShape) else base.raisedGlass(p, CircleShape, 10.dp).premiumRing(p, CircleShape)
     }
     Box(m.clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
         LdIcon(icon, iconSize, if (danger || on) Color.White else p.text)
@@ -200,9 +203,9 @@ fun Avatar(name: String, photo: String?, size: Dp = 46.dp, fontSize: Float = 15f
 
 @Composable
 fun LdText(text: String, size: Float, weight: FontWeight = FontWeight.Normal, color: Color = LocalLd.current.text, modifier: Modifier = Modifier,
-           maxLines: Int = 1, letter: Float = 0f) {
+           maxLines: Int = 1, letter: Float = 0f, textAlign: androidx.compose.ui.text.style.TextAlign? = null) {
     val w = if (LocalBold.current && weight < FontWeight.Bold) FontWeight.Bold else weight
-    Text(T(text), modifier, color = color, fontSize = size.sp, fontWeight = w, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
+    Text(T(text), modifier, textAlign = textAlign, style = androidx.compose.ui.text.TextStyle(shadow = if(LocalCallPhoto.current) Shadow(Color.Black.copy(alpha=.95f), Offset(0f,1.5f),3f) else null), color = color, fontSize = size.sp, fontWeight = w, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
 }
 
 /** .switch */
@@ -239,7 +242,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
 @Composable
 fun SimChip(text: String, color: Color = LocalLd.current.muted, live: Boolean = false, onClick: (() -> Unit)? = null) {
     val p = LocalLd.current
-    Row(Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp).then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+    Row((if (LocalCallGlass.current) Modifier.callGlass(p, RoundedCornerShape(999.dp)) else Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp)).then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
         .padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         if (live) LiveDot()
         LdText(text, 11.5f, FontWeight.SemiBold, color, letter = .4f)
@@ -275,3 +278,10 @@ fun rememberPhoto(uri: String?): ImageBitmap? {
     }
     return st.value
 }
+
+/** Call-only translucent material: static tint + bright rim, no live backdrop blur. */
+fun Modifier.callGlass(p: LdPalette, shape: Shape): Modifier = this
+    .shadow(if (p.glassDepth==0) 0.dp else 6.dp, shape, clip=false)
+    .clip(shape)
+    .background(Brush.linearGradient(listOf(Color.White.copy(alpha=.20f),p.bg2.copy(alpha=.10f))))
+    .border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.72f),Color.White.copy(alpha=.16f),Color.White.copy(alpha=.34f))),shape)
