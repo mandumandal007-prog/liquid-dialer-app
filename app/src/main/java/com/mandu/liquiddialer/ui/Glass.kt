@@ -157,14 +157,11 @@ fun IconBtn(icon: ImageVector, size: Dp = 42.dp, iconSize: Dp = 22.dp, on: Boole
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src)
     val base = Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
-    val m = when {
-        danger -> base.shadow(10.dp, CircleShape, ambientColor = Color(0x66FF3C50), spotColor = Color(0x66FF3C50)).clip(CircleShape)
-            .background(Brush.linearGradient(listOf(Color(0xF2FF5D6C), Color(0xE6D6263A)))).border(1.dp, Color.White.copy(alpha = .22f), CircleShape)
-        on -> base.clip(CircleShape).background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
-        else -> if (LocalCallGlass.current) base.callGlass(p, CircleShape) else base.raisedGlass(p, CircleShape, 10.dp).premiumRing(p, CircleShape)
-    }
+    val tint = when { danger -> p.danger; on -> p.accent; else -> Color.Transparent }
+    val m = if (LocalCallGlass.current && !danger && !on) base.callGlass(p,CircleShape)
+        else base.buttonGlass(p,CircleShape,tint)
     Box(m.clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
-        LdIcon(icon, iconSize, if (danger || on) Color.White else p.text)
+        LdIcon(icon, iconSize, if (danger) p.danger else if(on) p.accent else p.text)
     }
 }
 
@@ -213,11 +210,9 @@ fun LdText(text: String, size: Float, weight: FontWeight = FontWeight.Normal, co
 fun LdSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     val p = LocalLd.current
     val x by animateDpAsState(if (checked) 18.dp else 0.dp, tween(250), label = "sw")
-    Box(Modifier.size(46.dp, 28.dp).clip(RoundedCornerShape(999.dp))
-        .background(if (checked) p.accent else if (p.isLight) Color(0x290F172A) else Color.White.copy(alpha = .16f))
-        .border(1.dp, if (checked) Color.Transparent else p.stroke, RoundedCornerShape(999.dp))
+    Box(Modifier.size(46.dp, 28.dp).buttonGlass(p,RoundedCornerShape(999.dp),if(checked) p.accent else Color.Transparent)
         .clickable { onChange(!checked) }) {
-        Box(Modifier.padding(start = 3.dp + x, top = 3.dp).size(20.dp).shadow(3.dp, CircleShape).background(Color.White, CircleShape))
+        Box(Modifier.padding(start = 3.dp + x, top = 3.dp).size(20.dp).buttonGlass(p,CircleShape).background(if(checked) p.accent else p.muted,CircleShape))
     }
 }
 
@@ -229,10 +224,9 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
         .border(1.dp, p.stroke, RoundedCornerShape(16.dp)).padding(5.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         options.forEachIndexed { i, o ->
             val on = i == selected
-            Box(Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                .then(if (on) Modifier.background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .85f), p.accent))) else Modifier)
+            Box(Modifier.weight(1f).buttonGlass(p,RoundedCornerShape(12.dp),if(on) p.accent else Color.Transparent)
                 .clickable { onSelect(i) }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-                LdText(o, 13f, FontWeight.SemiBold, if (on) Color.White else p.muted, maxLines=2)
+                LdText(o, 13f, FontWeight.SemiBold, if (on) p.accent else p.muted, maxLines=2)
             }
         }
     }
@@ -242,7 +236,7 @@ fun Segmented(options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
 @Composable
 fun SimChip(text: String, color: Color = LocalLd.current.muted, live: Boolean = false, onClick: (() -> Unit)? = null) {
     val p = LocalLd.current
-    Row((if (LocalCallGlass.current) Modifier.callGlass(p, RoundedCornerShape(999.dp)) else Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp)).then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+    Row((if (LocalCallGlass.current) Modifier.callGlass(p, RoundedCornerShape(999.dp)) else Modifier.buttonGlass(p, RoundedCornerShape(999.dp))).then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
         .padding(horizontal = 12.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         if (live) LiveDot()
         LdText(text, 11.5f, FontWeight.SemiBold, color, letter = .4f)
@@ -279,9 +273,46 @@ fun rememberPhoto(uri: String?): ImageBitmap? {
     return st.value
 }
 
-/** Call-only translucent material: static tint + bright rim, no live backdrop blur. */
-fun Modifier.callGlass(p: LdPalette, shape: Shape): Modifier = this
-    .shadow(if (p.glassDepth==0) 0.dp else 6.dp, shape, clip=false)
-    .clip(shape)
-    .background(Brush.linearGradient(listOf(Color.White.copy(alpha=.20f),p.bg2.copy(alpha=.10f))))
-    .border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.72f),Color.White.copy(alpha=.16f),Color.White.copy(alpha=.34f))),shape)
+/** Call-only painted glass with explicit geometry rather than platform elevation/clip layers.
+ * No live blur or per-frame effect. Actual handset rendering still needs validation. */
+fun Modifier.callGlass(p: LdPalette, shape: Shape): Modifier = this.drawWithCache {
+    val outline = shape.createOutline(size,layoutDirection,this)
+    val circular = shape == CircleShape
+    val radius = size.minDimension / 2f
+    val rim = Brush.linearGradient(listOf(Color.White.copy(alpha=.78f),Color.White.copy(alpha=.12f),Color.White.copy(alpha=.42f)))
+    val fill = Brush.linearGradient(listOf(Color.White.copy(alpha=if(p.isLight) .24f else .18f),p.bg2.copy(alpha=.10f)))
+    onDrawWithContent {
+        if (circular && p.glassDepth > 0) {
+            // Soft painted halo, rather than an elevation layer behind a transparent disk.
+            for (step in 8 downTo 1) {
+                drawCircle(Color.Black.copy(alpha=if(p.isLight) .010f else .018f),radius+step*0.7.dp.toPx(),center+Offset(0f,2.dp.toPx()))
+            }
+        }
+        drawOutline(outline,fill)
+        if(circular) {
+            drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha=.16f),Color.Transparent),center=Offset(size.width*.30f,size.height*.22f),radius=radius*1.4f),radius)
+            drawCircle(rim,radius-0.6.dp.toPx(),style=Stroke(1.2.dp.toPx()))
+            drawCircle(Color.White.copy(alpha=.14f),(radius-3.dp.toPx()).coerceAtLeast(0f),style=Stroke(.65.dp.toPx()))
+        } else drawOutline(outline,rim,style=Stroke(1.dp.toPx()))
+        drawContent()
+    }
+}
+
+/** Shared static translucent button material. Frost changes tint strength, not live blur. */
+fun Modifier.buttonGlass(p: LdPalette, shape: Shape, tint: Color = Color.Transparent): Modifier = this.drawWithCache {
+    val outline=shape.createOutline(size,layoutDirection,this)
+    val frost=p.glassFrost.coerceIn(0,2)
+    val a=if(p.isLight) listOf(.18f,.29f,.42f)[frost] else listOf(.08f,.13f,.21f)[frost]
+    val fill=Brush.linearGradient(listOf(Color.White.copy(alpha=a),p.bg2.copy(alpha=a*.65f)))
+    val rim=Brush.linearGradient(listOf(Color.White.copy(alpha=if(p.isLight) .85f else .46f),p.accent.copy(alpha=.22f),Color.White.copy(alpha=.28f)))
+    onDrawWithContent {
+        if(p.glassDepth>0) {
+            // Cached outline, a few expanded strokes for soft depth without an elevation cutout.
+            for(step in 4 downTo 1) drawOutline(outline,Color.Black.copy(alpha=if(p.isLight) .012f else .025f),style=Stroke(step*if(p.glassDepth==1) 1.dp.toPx() else 2.dp.toPx()))
+        }
+        drawOutline(outline,fill)
+        if(tint.alpha>0f) drawOutline(outline,Brush.linearGradient(listOf(tint.copy(alpha=.25f),tint.copy(alpha=.11f))))
+        drawOutline(outline,rim,style=Stroke(1.dp.toPx()))
+        drawContent()
+    }
+}
