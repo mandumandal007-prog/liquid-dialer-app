@@ -36,7 +36,7 @@ object SettingsBackup {
         "callBgStyle" to setOf("blobs", "photo", "solid"),
         "defaultTab" to setOf("recents", "dialer"),
     )
-    private val INT_RANGES = mapOf("blur" to (0..40))
+    private val INT_RANGES = mapOf("blur" to (0..40), "glassDepth" to (0..2), "glassFrost" to (0..2))
     private val FLOAT_RANGES = mapOf(
         "fontScale" to (0.8f..1.5f),
         "gridScale" to (0.8f..1.2f),
@@ -52,6 +52,7 @@ object SettingsBackup {
     fun buildJson(s: LdSettings): String {
         val v = JSONObject()
         v.put("lang", s.lang); v.put("theme", s.theme); v.put(ACCENT, s.accent)
+        v.put("glassDepth", s.glassDepth); v.put("glassFrost", s.glassFrost)
         v.put("blur", s.blur); v.put("motion", s.motion); v.put("fontScale", s.fontScale.toDouble())
         v.put("sortByLast", s.sortByLast); v.put("lastNameFirst", s.lastNameFirst)
         v.put("tabSwipe", s.tabSwipe); v.put("boldText", s.boldText)
@@ -160,6 +161,8 @@ object SettingsBackup {
                     "theme" -> p[K.theme] = v as String
                     "accent" -> p[K.accent] = v as Long
                     "blur" -> p[K.blur] = v as Int
+                    "glassDepth" -> p[K.glassDepth] = v as Int
+                    "glassFrost" -> p[K.glassFrost] = v as Int
                     "motion" -> p[K.motion] = v as Boolean
                     "fontScale" -> p[K.fontScale] = v as Float
                     "sortByLast" -> p[K.sortByLast] = v as Boolean
