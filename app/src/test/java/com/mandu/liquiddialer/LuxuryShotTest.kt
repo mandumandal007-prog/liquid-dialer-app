@@ -128,6 +128,17 @@ class LuxuryShotTest {
         boot("midnight")
         rule.activity.state.tab = "dialer"
         settle()
+        // Wait for the dialer sheet transition to finish, not just Compose idle.
+        // Keep the same displayed assertions; capture state/tree if it never becomes visible.
+        var ready = false
+        repeat(30) {
+            org.robolectric.shadows.ShadowLooper.idleMainLooper()
+            rule.mainClock.advanceTimeBy(100); rule.waitForIdle()
+            if (rule.onAllNodesWithText("Pichhla:",substring=true,useUnmergedTree=true).fetchSemanticsNodes().any { it.boundsInRoot.width>0 && it.boundsInRoot.height>0 } &&
+                runCatching { rule.onNodeWithText("Pichhla:",substring=true,useUnmergedTree=true).assertIsDisplayed(); true }.getOrDefault(false)) ready=true
+            if(!ready) Thread.sleep(100)
+        }
+        org.junit.Assert.assertTrue("redial sheet readiness: tab=${rule.activity.state.tab}, dial=${rule.activity.state.dial}, recents=${rule.activity.state.recents}, settings=${com.mandu.liquiddialer.LdApp.settings.value}; tree="+rule.onAllNodes(isRoot(),useUnmergedTree=true).printToString(),ready)
         rule.onNodeWithText("Pichhla:", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("call button se bharo", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("91234 56789", substring = true, useUnmergedTree = true).assertIsDisplayed()
