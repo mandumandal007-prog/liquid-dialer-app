@@ -14,6 +14,8 @@ data class LdSettings(
     val theme: String = "midnight",
     val accent: Long = 0xFF5B8CFF,
     val blur: Int = 22,
+    val glassDepth: Int = 2, // 0=flat,1=soft,2=sculpted
+    val glassFrost: Int = 1, // 0=clear,1=balanced,2=milky
     val motion: Boolean = true,
     val fontScale: Float = 1f,
     val sortByLast: Boolean = false,
@@ -116,6 +118,8 @@ object K {
     val theme = stringPreferencesKey("theme")
     val accent = longPreferencesKey("accent")
     val blur = intPreferencesKey("blur")
+    val glassDepth = intPreferencesKey("glass_depth")
+    val glassFrost = intPreferencesKey("glass_frost")
     val motion = booleanPreferencesKey("motion")
     val fontScale = floatPreferencesKey("fontScale")
     val sortByLast = booleanPreferencesKey("sortByLast")
@@ -212,6 +216,8 @@ fun Preferences.toSettings(): LdSettings {
         theme = this[K.theme] ?: d.theme,
         accent = this[K.accent] ?: d.accent,
         blur = this[K.blur] ?: d.blur,
+        glassDepth = (this[K.glassDepth] ?: d.glassDepth).coerceIn(0,2),
+        glassFrost = (this[K.glassFrost] ?: d.glassFrost).coerceIn(0,2),
         motion = this[K.motion] ?: d.motion,
         fontScale = this[K.fontScale] ?: d.fontScale,
         sortByLast = this[K.sortByLast] ?: d.sortByLast,
