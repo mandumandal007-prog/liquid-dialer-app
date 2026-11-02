@@ -231,7 +231,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             LdText("CALL HISTORY", 12f, FontWeight.Bold, p.muted, letter = 1.2f)
-            Box(Modifier.clip(RoundedCornerShape(10.dp)).clickable { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }.padding(6.dp)) {
+            Box(Modifier.buttonGlass(p,RoundedCornerShape(10.dp)).clickable { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }.padding(6.dp)) {
                 LdText("Delete", 12f, FontWeight.SemiBold, p.danger)
             }
         }
@@ -271,7 +271,7 @@ fun ActionBubble(icon: ImageVector, label: String, on: Boolean = false, onClick:
 @Composable
 fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Boolean = false, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
     val p = LocalLd.current
-    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).glass(p, RoundedCornerShape(16.dp), 2.dp).combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).buttonGlass(p, RoundedCornerShape(16.dp)).combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background((if (danger) p.danger else p.accent).pct(.16f)), contentAlignment = Alignment.Center) {
             LdIcon(icon, 17.dp, if (danger) p.danger else p.accent)
