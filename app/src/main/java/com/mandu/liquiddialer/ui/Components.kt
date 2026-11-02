@@ -112,18 +112,16 @@ fun PrimaryButton(text: String, enabled: Boolean = true, danger: Boolean = false
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .97f)
     Box(modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.alpha(if (enabled) 1f else .5f)
-        .shadow(16.dp, RoundedCornerShape(16.dp), ambientColor = c.pct(.45f), spotColor = c.pct(.45f)).clip(RoundedCornerShape(16.dp))
-        .background(Brush.linearGradient(listOf(mix(c, Color.White, .86f), c)))
-        .border(1.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = .38f), Color.White.copy(alpha = .12f))), RoundedCornerShape(16.dp))
+.buttonGlass(p,RoundedCornerShape(16.dp),c)
         .clickable(src, null, enabled = enabled, onClick = onClick).padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
-        LdText(text, 14.5f, FontWeight.Bold, Color.White)
+        LdText(text, 14.5f, FontWeight.Bold, if(danger) p.danger else p.text)
     }
 }
 
 @Composable
 fun GhostButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val p = LocalLd.current
-    Box(modifier.fillMaxWidth().glass(p, RoundedCornerShape(16.dp), 4.dp).premiumRing(p, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
+    Box(modifier.fillMaxWidth().buttonGlass(p, RoundedCornerShape(16.dp)).clickable(onClick = onClick).padding(vertical = 13.dp), contentAlignment = Alignment.Center) {
         LdText(text, 14f, FontWeight.SemiBold, p.accent)
     }
 }
@@ -156,9 +154,9 @@ fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: B
                     var pressed by remember { mutableStateOf(false) }
                     val sc by animateFloatAsState(if (pressed) .93f else 1f, tween(120), label = "k")
                     Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(keySize)
-                        .then(if(LocalCallGlass.current) Modifier.callGlass(p,CircleShape) else Modifier.raisedGlass(p, CircleShape, 14.dp))
+                        .then(if(LocalCallGlass.current) Modifier.callGlass(p,CircleShape) else Modifier.buttonGlass(p, CircleShape))
                         .premiumRing(p, CircleShape)
-                        .background(if (pressed) p.glass2 else Color.Transparent)
+                        .background(if (pressed) p.accent.copy(alpha=.18f) else Color.Transparent,CircleShape)
                         .pointerInput(d) {
                             detectTapGestures(
                                 onPress = { pressed = true; tryAwaitRelease(); pressed = false },
