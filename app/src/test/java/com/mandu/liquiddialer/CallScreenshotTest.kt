@@ -1,5 +1,9 @@
 package com.mandu.liquiddialer
 
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.unit.dp
 import android.telecom.Call
 import android.telecom.CallAudioState
 import androidx.compose.ui.test.*
@@ -57,6 +61,31 @@ class CallScreenshotTest {
         CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_ACTIVE,
             System.currentTimeMillis() - 75_000))
         CallManager.bump()
+    }
+
+    @Test fun paintedCallControlsStayCircularWhenInactiveAndActive() {
+        for(active in listOf(false,true)) {
+            rule.activity.setContent {
+                com.mandu.liquiddialer.ui.LdThemeHost {
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF284A6C))) {
+                        com.mandu.liquiddialer.ui.CallBtn(com.mandu.liquiddialer.ui.LdIcons.Mic,"Shape",on=active,size=100.dp,onClick={})
+                    }
+                }
+            }
+            settle(1200)
+            saveShot(rule,"G262-circle-"+active)
+            val bmp=android.graphics.BitmapFactory.decodeFile((System.getenv("SHOT_DIR") ?: "build/shots")+"/G262-circle-"+active+".png")
+            val label=rule.onNodeWithText("Shape").fetchSemanticsNode().boundsInRoot
+            // The disk is 100dp across, centered directly above its label.
+            val density=rule.activity.resources.displayMetrics.density
+            val r=50f*density;val cx=label.center.x;val cy=r
+            fun at(dx:Float,dy:Float)=bmp.getPixel((cx+dx*r).toInt(),(cy+dy*r).toInt())
+            val bg=0xff284a6c.toInt()
+            org.junit.Assert.assertEquals("outside circular corner stays transparent",bg,at(.92f,.92f))
+            org.junit.Assert.assertNotEquals("near top-right arc must remain filled, not an inner octagon",bg,at(.63f,-.63f))
+            org.junit.Assert.assertNotEquals("inside disc must be glass",bg,at(.65f,0f))
+            bmp.recycle()
+        }
     }
 
     @Test
