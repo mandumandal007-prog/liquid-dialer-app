@@ -87,7 +87,9 @@ fun MainScreen(st: AppState, act: MainActivity) {
     fun goTab(k: String) { if (k == "recents" && query.isNotEmpty()) query = ""; st.tab = k }
 
     fun openPage(x: String) { drawer = false; pages.add(x) }
-    val openEditor: (Long?, String) -> Unit = { id, pre -> editContactId = id; editPrefill = pre; sheetNumber = null; sheetContact = null; menuNumber = null; pages.add("editor") }
+    val openEditor: (Long?, String) -> Unit = { id, pre ->
+        if(id == null) com.mandu.liquiddialer.data.ContactApps.open(act, com.mandu.liquiddialer.data.ContactApps.insert(pre))
+        editContactId = id; editPrefill = pre; sheetNumber = null; sheetContact = null; menuNumber = null; pages.add("editor") }
     val editReq = st.editContactRequest
     LaunchedEffect(editReq) {
         if (editReq != null) { st.editContactRequest = null; openEditor(editReq.first, editReq.second) }
