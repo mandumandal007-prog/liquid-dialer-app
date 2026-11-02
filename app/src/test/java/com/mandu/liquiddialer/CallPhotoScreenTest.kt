@@ -24,6 +24,7 @@ class CallPhotoScreenTest {
  private val app get()=ApplicationProvider.getApplicationContext<LdApp>()
  private fun settle(){rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(1800);rule.waitForIdle();Thread.sleep(150);rule.mainClock.advanceTimeBy(300);rule.waitForIdle()}
  @Before fun setup() {
+  runBlocking { app.ldStore.edit { it[K.callPhotoBlur]=0 } }
   val f=File(app.cacheDir,"landscape.jpg");val b=Bitmap.createBitmap(400,700,Bitmap.Config.ARGB_8888);val c=android.graphics.Canvas(b)
   val p=android.graphics.Paint().apply{shader=android.graphics.LinearGradient(0f,0f,400f,700f,intArrayOf(0xff213a61.toInt(),0xffcf9d75.toInt(),0xff426f71.toInt()),null,android.graphics.Shader.TileMode.CLAMP)};c.drawRect(0f,0f,400f,700f,p);p.shader=null;p.color=0xffede2bf.toInt();c.drawCircle(300f,170f,65f,p);p.color=0xff284049.toInt();c.drawOval(-100f,440f,500f,900f,p)
   f.outputStream().use {b.compress(Bitmap.CompressFormat.JPEG,90,it)};b.recycle();assertTrue(CallPhotos.save(app,"9876543210",Uri.fromFile(f)))
@@ -50,6 +51,16 @@ class CallPhotoScreenTest {
    CallManager.calls.value=listOf(FakeCall.make("+919876543210","Rahul Sharma",Call.STATE_ACTIVE,System.currentTimeMillis()-70000));CallManager.bump();settle()
    rule.onNodeWithText("Mute").assertIsDisplayed();rule.onNodeWithTag("call_timer").assertIsDisplayed()
    saveShot(rule,"G220-call-busy-$theme-large")
+  }
+ }
+
+ @Test fun photoBlurLevelsRenderAndKeepCallControlsVisible() {
+  for(level in 0..2) {
+   runBlocking {app.ldStore.edit {it[K.theme]="daylight";it[K.callPhotoBlur]=level;it[K.motion]=false}}
+   rule.waitUntil(5000) { LdApp.settings.value.callPhotoBlur==level }
+   CallManager.calls.value=listOf(FakeCall.make("+919876543210","Rahul Sharma",Call.STATE_ACTIVE,System.currentTimeMillis()-70000));CallManager.bump();settle()
+   rule.onNodeWithTag("call_timer").assertIsDisplayed();rule.onNodeWithTag("end_call").assertIsDisplayed()
+   saveShot(rule,"G256-photo-blur-"+level)
   }
  }
 
