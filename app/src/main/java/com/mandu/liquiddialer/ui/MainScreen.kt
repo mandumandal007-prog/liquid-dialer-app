@@ -409,7 +409,7 @@ private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp, on
         }
         IconBtn(LdIcons.Mic, 38.dp, 18.dp, on = audio?.isMuted == true) { CallManager.toggleMute() }
         IconBtn(LdIcons.Volume, 38.dp, 18.dp, on = CallManager.isSpeaker()) { CallManager.toggleSpeaker() }
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFD93025)).clickable { CallManager.end(call) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 18.dp, Color.White, Modifier.rotate(135f)) }
+        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFD93025)).clickable { CallManager.end(call) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.CallEnd, 18.dp, Color.White) }
     }
 }
 
