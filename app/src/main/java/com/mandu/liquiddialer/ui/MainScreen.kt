@@ -561,7 +561,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             }
         }
         // NAYA: aaj ke call stats ka chhota strip (passive info, koi auto-action nahi)
-        if (hasLog) item(key = "today-stats") {
+        if (hasLog && s.showTodayStats) item(key = "today-stats") {
             val stats = remember(st.recents) { Repo.dayStats(st.recents, System.currentTimeMillis()) }
             if (stats.calls > 0) {
                 Row(Modifier.fillMaxWidth().padding(bottom = 2.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp),
@@ -620,7 +620,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
                     val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
                     val simLabel = if (st.sims.size > 1 && s.showSimInRecents) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
-                    GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact) {
+                    GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact, extraVerticalPadding = 4.dp) {
                         Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 42.dp, fontSize = if (s.recentsCompact) 12f else 14f, seed = name)
                         Column(Modifier.weight(1f)) {
                             LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
@@ -703,13 +703,13 @@ private fun InsightRow(value: String, label: String) {
 
 /** .row glass list item */
 @Composable
-fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Boolean = false, modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Boolean = false, modifier: Modifier = Modifier, extraVerticalPadding: androidx.compose.ui.unit.Dp = 0.dp, content: @Composable RowScope.() -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .985f)
     Row(modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.glass(p, RoundedCornerShape(20.dp), 8.dp, .20f)
         .combinedClickable(src, null, onLongClick = onLongClick, onClick = onClick)
-        .padding(horizontal = 12.dp, vertical = if (dense) 3.dp else 6.dp),
+        .padding(horizontal = 12.dp, vertical = (if (dense) 3.dp else 6.dp) + extraVerticalPadding),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
 }
 
@@ -959,6 +959,9 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
                 Box(Modifier.size(34.dp).raisedGlass(p, RoundedCornerShape(11.dp), 6.dp).premiumRing(p, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) { LdIcon(ic, 18.dp, p.accent) }
                 LdText(label, 14f, FontWeight.Medium, modifier = Modifier.weight(1f)); LdIcon(LdIcons.Chevron, 16.dp, p.muted.copy(alpha = .45f))
             }
+        }
+        SwitchRow("Aaj ka call summary", "Recent calls ke neeche daily strip dikhao", s.showTodayStats) { on ->
+            LdApp.instance.scope.launch { LdApp.instance.repo.set(K.showTodayStats,on) }
         }
         item(LdIcons.Settings, "Settings") { onOpen("settings") }
         item(LdIcons.Palette, "Theme & appearance") { onOpen("appearance") }
