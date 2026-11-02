@@ -60,7 +60,11 @@ class GlassPhotoUiTest {
         org.robolectric.Shadows.shadowOf(rule.activity).receiveResult(started!!.intent, android.app.Activity.RESULT_CANCELED, null)
         settle();assertEquals(before,CallPhotos.get(app,"9876543210"))
         rule.onNodeWithText("Background photo hatao",useUnmergedTree=true).performClick()
-        await {CallPhotos.get(app,"9876543210")==null};rule.onNodeWithTag("call_photo_preview").assertDoesNotExist()
+        // IO removes the file before the Main continuation increments the UI revision.
+        // Await both halves of the action, not just its intermediate filesystem state.
+        await { CallPhotos.get(app,"9876543210")==null &&
+            rule.onAllNodesWithTag("call_photo_preview").fetchSemanticsNodes().isEmpty() }
+        rule.onNodeWithTag("call_photo_preview").assertDoesNotExist()
     }
     @Test fun appearanceControlsPersistAndRenderDayNightLargeFont() {
         runBlocking {app.ldStore.edit {it[K.onboarded]=true;it[K.theme]="daylight";it[K.motion]=false}}
