@@ -128,7 +128,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             AnimatedVisibility(st.tab != "dialer", enter = fadeIn() + slideInVertically { -it / 4 }, exit = fadeOut() + slideOutVertically { -it / 4 }) {
                 Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp).testTag("top_bar"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.size(42.dp).liquid(CircleShape, 6.dp).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu) }
+                    Box(Modifier.size(42.dp).buttonGlass(p,CircleShape).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu) }
                     Row(Modifier.weight(1f).height(46.dp).liquid(RoundedCornerShape(18.dp), 8.dp).padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LdIcon(LdIcons.Search, 18.dp, p.muted)
@@ -137,18 +137,17 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             BasicTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
-                        Box(Modifier.size(30.dp).clip(CircleShape).testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(30.dp).buttonGlass(p,CircleShape).testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
                             LdIcon(LdIcons.Mic, 19.dp, if (searchVoice.ui.listening) p.accent else p.muted)
                         }
-                        if (query.isNotEmpty()) Box(Modifier.size(26.dp).clip(CircleShape).background(Color.White.copy(alpha = .12f)).clickable { query = "" },
+                        if (query.isNotEmpty()) Box(Modifier.size(26.dp).buttonGlass(p,CircleShape).clickable { query = "" },
                             contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 13.dp) }
                     }
                     val pn = s.profileName.ifBlank { "You" }
-                    Box(Modifier.size(44.dp).shadow(10.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .9f), p.accent))).border(1.dp, p.stroke, CircleShape)
+                    Box(Modifier.size(44.dp).buttonGlass(p,CircleShape,p.accent)
                         .clickable { openPage("profile") }, contentAlignment = Alignment.Center) {
                         if (s.profilePhoto.isNotBlank()) Avatar(pn, s.profilePhoto, 44.dp, 15f, seed = "me")
-                        else LdText(initials(pn), 15f, FontWeight.Bold, Color.White)
+                        else LdText(initials(pn), 15f, FontWeight.Bold, p.accent)
                     }
                 }
             }
@@ -180,9 +179,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     val slot = maxWidth / navTabs.size
                     val sel = navTabs.indexOfFirst { it.first == st.tab }.coerceAtLeast(0)
                     val bx by animateDpAsState(slot * sel, tween(280, easing = CubicBezierEasing(.22f, 1f, .36f, 1f)), label = "navslide")
-                    Box(Modifier.offset(x = bx).width(slot).fillMaxHeight().clip(RoundedCornerShape(999.dp))
-                        .background(Brush.linearGradient(listOf(p.accent.pct(.42f), p.accent.pct(.16f))))
-                        .border(1.dp, p.accent.pct(.5f), RoundedCornerShape(999.dp)))
+                    Box(Modifier.offset(x = bx).width(slot).fillMaxHeight().buttonGlass(p,RoundedCornerShape(999.dp),p.accent))
                     Row(Modifier.fillMaxSize()) {
                         navTabs.forEach { (k, label, ic) ->
                             val on = st.tab == k
@@ -211,8 +208,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 exit = fadeOut(tween(160)) + shrinkHorizontally(tween(180)) + scaleOut(tween(180), targetScale = .7f)) {
                 Row {
                     Spacer(Modifier.width(12.dp))
-                    Box(Modifier.size(64.dp).shadow(18.dp, CircleShape, ambientColor = p.accent.pct(.4f), spotColor = p.accent.pct(.4f)).testTag("dialer_fab")
-                        .liquid(CircleShape, 22.dp).clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(64.dp).testTag("dialer_fab").buttonGlass(p,CircleShape).clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
                         LdIcon(LdIcons.Dialpad, 30.dp, p.accent)
                     }
                 }
@@ -240,7 +236,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 170.dp).clip(RoundedCornerShape(18.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(18.dp)).padding(horizontal = 16.dp, vertical = 10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         LdText("3 sec me call: ${Repo.pretty(n)}", 13f, FontWeight.SemiBold, maxLines = 1)
-                        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { act.cancelUndo() }.padding(horizontal = 10.dp, vertical = 6.dp)) { LdText("Radd karo", 13f, FontWeight.Bold, p.danger) }
+                        Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { act.cancelUndo() }.padding(horizontal = 10.dp, vertical = 6.dp)) { LdText("Radd karo", 13f, FontWeight.Bold, p.danger) }
                     }
                 }
             }
@@ -296,7 +292,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             if (list == null) LdText("Numbers load ho rahe hain...", 13f, color = p.muted, modifier = Modifier.testTag("chooser_loading"))
                             else if (list.isEmpty()) LdText("Contact mila nahi, number nahi, ya contacts permission nahi hai.", 13f, color = p.muted, maxLines = 3, modifier = Modifier.testTag("chooser_missing"))
                             else list.forEach { (num, _) ->
-                                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable {
+                                Row(Modifier.fillMaxWidth().buttonGlass(p,RoundedCornerShape(14.dp)).clickable {
                                     // Click-time revalidation: dialog khulne ke BAAD permission revoke / contact edit ho sakta hai.
                                     // Number ab bhi isi contact ka hai tabhi fill; warna list refresh + feedback, stale fill kabhi nahi.
                                     val cid = nc.first; val numC = num
@@ -409,7 +405,7 @@ private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp, on
         }
         IconBtn(LdIcons.Mic, 38.dp, 18.dp, on = audio?.isMuted == true) { CallManager.toggleMute() }
         IconBtn(LdIcons.Volume, 38.dp, 18.dp, on = CallManager.isSpeaker()) { CallManager.toggleSpeaker() }
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFFD93025)).clickable { CallManager.end(call) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.CallEnd, 18.dp, Color.White) }
+        Box(Modifier.size(38.dp).buttonGlass(p,CircleShape,p.danger).clickable { CallManager.end(call) }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.CallEnd, 18.dp, p.danger) }
     }
 }
 
@@ -551,10 +547,10 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         item {
             SectionHead("Recent calls") {
                 if (st.recents.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("insights_open")) {
+                    Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("insights_open")) {
                         LdText("Hisab", 12.5f, FontWeight.SemiBold, p.accent)
                     }
-                    Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onClear() }.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                    Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onClear() }.padding(horizontal = 8.dp, vertical = 6.dp)) {
                         LdText("Clear", 12.5f, FontWeight.SemiBold, p.accent)
                     }
                 }
@@ -581,7 +577,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 Column(Modifier.fillMaxWidth().padding(bottom = 2.dp).glass(p, RoundedCornerShape(16.dp), 0.dp).padding(horizontal = 12.dp, vertical = 6.dp)) {
                     LdText("CALL REMINDERS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
                     (if (expanded) rems else rems.take(3)).forEach { r ->
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onOpenNumber(r.number) }.padding(vertical = 6.dp),
+                        Row(Modifier.fillMaxWidth().buttonGlass(p,RoundedCornerShape(10.dp)).clickable { onOpenNumber(r.number) }.padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                             LdIcon(LdIcons.Clock, 13.dp, p.accent)
                             LdText((if (r.name.isNotBlank()) r.name else Repo.pretty(r.number)) + "  ·  " + df.format(Date(r.atMs)), 11.5f, FontWeight.SemiBold, p.text,
@@ -589,7 +585,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         }
                     }
                     if (rems.size > 3) LdText(if (expanded) "Kam dikho" else "+${rems.size - 3} aur dikho", 11.5f, FontWeight.SemiBold, p.accent,
-                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(horizontal = 20.dp, vertical = 4.dp).testTag("reminders_expand"))
+                        modifier = Modifier.buttonGlass(p,RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(horizontal = 20.dp, vertical = 4.dp).testTag("reminders_expand"))
                 }
             }
         }
@@ -679,7 +675,7 @@ fun BirthdayStrip(items: List<Repo.Birthday>, onOpen: (String) -> Unit) {
         LdText("BIRTHDAYS", 10.5f, FontWeight.Bold, p.muted, letter = 1.1f, modifier = Modifier.padding(top = 2.dp, bottom = 2.dp))
         var expanded by remember { mutableStateOf(false) }
         (if (expanded) items else items.take(3)).forEach { b ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { if (b.number.isNotBlank()) onOpen(b.number) }.padding(vertical = 6.dp),
+            Row(Modifier.fillMaxWidth().buttonGlass(p,RoundedCornerShape(10.dp)).clickable { if (b.number.isNotBlank()) onOpen(b.number) }.padding(vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                 LdIcon(LdIcons.Users, 13.dp, p.accent)
                 val whenStr = when (b.daysUntil) { 0 -> "aaj hai!" ; 1 -> "kal hai"; else -> "${b.daysUntil} din me" }
@@ -688,7 +684,7 @@ fun BirthdayStrip(items: List<Repo.Birthday>, onOpen: (String) -> Unit) {
             }
         }
         if (items.size > 3) LdText(if (expanded) "Kam dikho" else "+${items.size - 3} aur dikho", 11.5f, FontWeight.SemiBold, p.accent,
-            modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(horizontal = 20.dp, vertical = 4.dp).testTag("birthdays_expand"))
+            modifier = Modifier.buttonGlass(p,RoundedCornerShape(8.dp)).clickable { expanded = !expanded }.padding(horizontal = 20.dp, vertical = 4.dp).testTag("birthdays_expand"))
     }
 }
 
@@ -719,8 +715,7 @@ fun CallMini(onClick: () -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape).testTag("call_mini")
-        .background(Brush.linearGradient(listOf(p.accent.pct(.30f), p.accent.pct(.12f)))).premiumRing(p, CircleShape)
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).testTag("call_mini").buttonGlass(p,CircleShape,p.accent)
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 20.dp, p.accent) }
 }
 
@@ -730,8 +725,7 @@ fun VideoMini(onClick: () -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).clip(CircleShape)
-        .background(Brush.linearGradient(listOf(p.accent.pct(.14f), p.accent.pct(.06f)))).premiumRing(p, CircleShape)
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).buttonGlass(p,CircleShape,p.accent)
         .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, 20.dp, p.accent) }
 }
 
@@ -753,10 +747,10 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdText("${list.size}", 11.5f, FontWeight.Bold, p.muted, Modifier.clip(RoundedCornerShape(999.dp)).background(p.glass).border(1.dp, p.stroke, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 4.dp))
-                    if (dups.isNotEmpty()) Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onShowDups() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("dups_open")) {
+                    if (dups.isNotEmpty()) Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onShowDups() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("dups_open")) {
                         LdText("${dups.size} dup", 12.5f, FontWeight.SemiBold, p.accent)
                     }
-                    Box(Modifier.size(32.dp).glass(p, CircleShape, 2.dp).clickable { onAdd() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Plus, 16.dp, p.accent) }
+                    Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).clickable { onAdd() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Plus, 16.dp, p.accent) }
                 }
             }
         }
@@ -835,10 +829,10 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
             Row(Modifier.fillMaxWidth().padding(bottom = 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
                 Row(Modifier, horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(32.dp).clip(CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
                     LdIcon(LdIcons.Mic, 21.dp, if (voice.ui.listening) p.accent else p.muted)
                 }
-                Box(Modifier.size(32.dp).clip(CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
+                Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
             }
             }
             Box(Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
@@ -850,7 +844,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 if (suggest.isNotEmpty() && nameMatch == null) {
                     LazyRow(Modifier.fillMaxWidth().padding(top = 4.dp).testTag("dial_suggest"), horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(horizontal = 4.dp)) {
                         items(suggest, key = { it.second }) { (nm, num) ->
-                            Box(Modifier.widthIn(max = 240.dp).clip(RoundedCornerShape(999.dp)).background(p.accent.pct(.14f)).clickable { st.dial = num.filter { c -> c.isDigit() || c in "+*#" } }.padding(horizontal = 10.dp, vertical = 4.dp)) {
+                            Box(Modifier.widthIn(max = 240.dp).buttonGlass(p,RoundedCornerShape(999.dp),p.accent).clickable { st.dial = num.filter { c -> c.isDigit() || c in "+*#" } }.padding(horizontal = 10.dp, vertical = 4.dp)) {
                                 LdText(if (nm == Repo.pretty(num)) nm else nm.split(" ").first() + " · " + Repo.pretty(num), 11.5f, FontWeight.SemiBold, p.accent, maxLines = 1)
                             }
                         }
@@ -858,13 +852,13 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 } else LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Pichhla: " + Repo.pretty(it.number) + " - call button se bharo" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 2)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
                     Row(Modifier.fillMaxWidth().padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1.4f).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).background(p.accent.pct(.12f)).clickable { onAddContact(dial) }.testTag("dial_save_contact").padding(horizontal = 10.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.weight(1.4f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp),p.accent).clickable { onAddContact(dial) }.testTag("dial_save_contact").padding(horizontal = 10.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
                             LdText("Contact save karo", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
-                        Box(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").padding(horizontal = 10.dp, vertical = 2.dp)) {
+                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").padding(horizontal = 10.dp, vertical = 2.dp)) {
                             LdText("+ Pause (,)", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
-                        Box(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp)) {
+                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp)) {
                             LdText("Meet call", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
                     }
@@ -887,20 +881,18 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 }, maxKey = minOf(natKey, keyByW).dp, letters = s.keypadLetters, rowGap = 5.dp, tag = "dial_keypad")
             }
             Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
+                Box(Modifier.size(60.dp).buttonGlass(p,CircleShape).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
                     contentAlignment = Alignment.Center) { LdIcon(LdIcons.Backspace, 27.dp) }
                 val ready = dial.isNotEmpty()
                 val src = remember { MutableInteractionSource() }
                 val sc = pressScale(src, .94f)
                 Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(64.dp).testTag("call_btn").alpha(if (ready) 1f else .55f)
-                    .shadow(16.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .88f), p.accent)))
-                    .border(1.dp, p.accent.pct(.55f), CircleShape)
+                    .buttonGlass(p,CircleShape,p.accent)
                     .clickable(src, null) {
                         if (dial.isNotEmpty()) { act.call(dial); st.dial = "" }
                         else st.recents.firstOrNull { it.type == CallLog.Calls.OUTGOING_TYPE }?.let { st.dial = it.number }
-                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 30.dp, Color.White) }
-                Box(Modifier.size(60.dp).glass(p, CircleShape, 6.dp).clickable { cycleSim() }, contentAlignment = Alignment.Center) {
+                    }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 30.dp, p.accent) }
+                Box(Modifier.size(60.dp).buttonGlass(p,CircleShape).clickable { cycleSim() }, contentAlignment = Alignment.Center) {
                     LdText(if (simIdx >= 0) "SIM${simIdx + 1}" else if (sims.size > 1) "ASK" else "SIM1", 11f, FontWeight.ExtraBold, letter = .4f)
                 }
             }
@@ -953,7 +945,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         }
         @Composable
         fun item(ic: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp), verticalAlignment = Alignment.CenterVertically,
+            Row(Modifier.fillMaxWidth().buttonGlass(p,RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Luxury: har drawer icon ko tinted glass chip me - ek jaisa premium container
                 Box(Modifier.size(34.dp).raisedGlass(p, RoundedCornerShape(11.dp), 6.dp).premiumRing(p, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) { LdIcon(ic, 18.dp, p.accent) }
