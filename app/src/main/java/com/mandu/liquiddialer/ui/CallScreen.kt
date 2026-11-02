@@ -72,17 +72,19 @@ fun nowTicker(): Long {
 @Composable
 fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo: String? = null, custom: Boolean = false) {
     val p = LocalLd.current
+    val settings by LdApp.settings.collectAsState()
     Box(modifier.fillMaxSize()) {
         when (style) {
             "solid" -> Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(p.bg2, p.bg))))
             "photo" -> {
-                val bmp = rememberPhoto(photo)
+                val bmp = rememberCallPhoto(photo, settings.callPhotoBlur)
                 if (bmp != null) {
-                    Image(bmp, null, Modifier.fillMaxSize().then(if (!custom && Build.VERSION.SDK_INT >= 31) Modifier.blur(70.dp, BlurredEdgeTreatment.Unbounded) else Modifier), contentScale = ContentScale.Crop, alpha = .6f)
-                    Box(Modifier.fillMaxSize().background(p.bg.copy(alpha = if(custom) .82f else .62f)))
+                    Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    // Neutral dark contrast wash, never a pale theme-colored cover over the photo.
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .55f)))
                 } else {
-                    BlobBackground(strong = true)
-                    Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.28f), .62f to Color.Transparent, center = Offset(540f, 0f), radius = 1400f)))
+                    // Photo foreground is white: keep a dark fallback while loading or if decoding fails.
+                    Box(Modifier.fillMaxSize().background(Color(0xFF121B2B)))
                 }
             }
             else -> {
@@ -101,14 +103,14 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.alpha(if (enabled) 1f else .4f)) {
         val base = Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
         val m = when {
-            flat && on -> base.clip(CircleShape).background(p.accent)
-            flat -> base.clip(CircleShape).background(p.text.copy(alpha = .10f))
+            flat && on -> base.callGlass(p, CircleShape).background(p.accent.copy(alpha=.42f))
+            flat -> base.callGlass(p, CircleShape)
             on -> base.shadow(14.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
-                .background(Brush.linearGradient(listOf(mix(p.accent, Color.White, .86f), p.accent)))
-            else -> base.glass(p, CircleShape, 12.dp, .5f)  // off-state bhi glass disc jaisa padhe, flat white nahi
+                .background(Brush.linearGradient(listOf(p.accent.copy(alpha=.52f),p.accent.copy(alpha=.30f))))
+            else -> base.callGlass(p, CircleShape)  // off-state bhi glass disc jaisa padhe, flat white nahi
         }
         Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
-            LdIcon(icon, size * .38f, if (on) Color.White else p.text)
+            LdIcon(icon, size * .38f, if (on) Color.White else if (flat) p.text else mix(p.text, p.accent, .82f))
         }
         LdText(label, (size.value * .165f).coerceIn(9.5f, 12.5f), FontWeight.SemiBold, p.muted, maxLines = 1)
     }
@@ -121,7 +123,8 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
     // wide red pill (OPPO-style hang-up); still one big tap target
     Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.width(size * 1.5f).height(size * .9f)
         .shadow(10.dp, RoundedCornerShape(999.dp), ambientColor = Color(0x66D93025), spotColor = Color(0x66D93025)).clip(RoundedCornerShape(999.dp))
-        .background(Brush.verticalGradient(listOf(Color(0xFFEF4A3D), Color(0xFFD93025))))
+        .background(Brush.verticalGradient(listOf(Color(0xE6EF4A3D), Color(0xD9D93025))))
+        .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = .48f), Color.White.copy(alpha = .08f))), RoundedCornerShape(999.dp))
         .testTag("end_call")
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
         LdIcon(LdIcons.CallEnd, size * .42f, Color.White)
@@ -163,7 +166,10 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     Box(Modifier.fillMaxSize()) {
         val customPhoto = call?.let { com.mandu.liquiddialer.data.CallPhotos.get(ctx, CallManager.number(it)) }
         CallBackground(Modifier.haze(haze), if(customPhoto != null) "photo" else s.callBgStyle, customPhoto ?: call?.let { CallManager.photoFor(it) }, custom = customPhoto != null)
-        CompositionLocalProvider(LocalHaze provides haze) {
+        val basePalette = LocalLd.current
+        val photoSurface = customPhoto != null || s.callBgStyle=="photo"
+        val callPalette = if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette
+        CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette) {
             if (call == null) {
                 CallEndedScreen(lastEnded)
             } else {
@@ -250,7 +256,7 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit, onVid
                 val vsChip = try { call.details?.videoState } catch (_: Throwable) { null } ?: VideoProfile.STATE_AUDIO_ONLY
                 if (vsChip == VideoProfile.STATE_AUDIO_ONLY) {
                     val sup = CallManager.supportsVideo(call)
-                    Box(Modifier.size(34.dp).glass(p, CircleShape, 6.dp).clip(CircleShape).testTag("video_call")
+                    Box(Modifier.size(34.dp).callGlass(p, CircleShape).clip(CircleShape).testTag("video_call")
                         .clickable(onClick = onVideo), contentAlignment = Alignment.Center) {
                         LdIcon(LdIcons.Video, 18.dp, if (sup) p.accent else p.muted)
                     }
@@ -281,24 +287,25 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
     val av0 = (minOf(avBase, avFit) * heroScale).coerceAtMost((maxH * .36f).coerceAtLeast(48.dp))
     val nameF = (if (sh < 700) 21f else 23f) * heroScale
     val timerF = if (maxH < 330.dp) 21f else 26f
+    val nameLines = if (maxH >= 360.dp) 2 else 1
     val showNum = s.callShowNumber && number.isNotBlank() && name != Repo.pretty(number)
     // fit guarantee: tight height + bada fontScale pe hero content box se bahar nikalta tha aur scroll top se
     // shuru hone ke kaaran sabse neeche ka TIMER asli render me clip ho jata tha (bounds check nahi pakadta).
     // isliye poori hero ko ek measured scale factor se sikodo: text sp->dp me fontScale pehle se juda hota hai.
     val textH0 = with(androidx.compose.ui.platform.LocalDensity.current) {
-        (nameF + (if (showNum) 13f else 0f) + 12.5f + (if (timer != null) timerF else 0f)).sp.toDp() * 1.42f
+        (nameF * nameLines + (if (showNum) 13f else 0f) + 12.5f + (if (timer != null) timerF else 0f)).sp.toDp() * 1.42f
     }
-    val estH0 = av0 + 2.dp + 5.dp * (2 + (if (showNum) 1 else 0) + (if (timer != null) 1 else 0)) + textH0
+    val estH0 = av0 + (if (timer != null) 10.dp else 2.dp) + 6.dp * (2 + (if (showNum) 1 else 0) + (if (timer != null) 1 else 0)) + textH0
     val k = if (estH0 > 0.dp && maxH < 50000.dp) ((maxH - 2.dp) / estH0).coerceIn(0.55f, 1f) else 1f
     val av = av0 * k
-    val sp = 5.dp * k
+    val sp = 6.dp * k
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(sp)) {
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Box(Modifier.testTag("hero_avatar")) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
+        }) { Box(Modifier.testTag("hero_avatar").padding(3.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
         Spacer(Modifier.height(2.dp * k))
-        LdText(name, nameF * k, FontWeight.Bold, letter = -.3f, maxLines = 1)
+        LdText(name, nameF * k, FontWeight.Bold, letter = -.3f, maxLines = nameLines, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp).testTag("call_name"))
         if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .3f)
         if (ringing && s.showContactType && number.isNotBlank()) {
             remember(number) { Repo.contactLabel(ctx, number) }?.let { LdText(it, 12f, FontWeight.SemiBold, p.accent) }
@@ -319,7 +326,11 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
             LdText(status, 12.5f * k, FontWeight.SemiBold, statusColor)
         }
         // timer hi active call ka hero hai: bada + bold taaki door se padh jaye; k scale se tight height pe bhi poora dikhta hai
-        if (timer != null) LdText(timer, timerF * k, FontWeight.Bold, letter = 1f, modifier = Modifier.testTag("call_timer"))
+        if (timer != null) Box(Modifier.padding(top = 2.dp * k)
+            .callGlass(p, RoundedCornerShape(18.dp)).padding(horizontal = 18.dp * k, vertical = 4.dp * k),
+            contentAlignment = Alignment.Center) {
+            LdText(timer, timerF * k, FontWeight.Bold, letter = 1f, modifier = Modifier.testTag("call_timer"))
+        }
     }
 }
 
@@ -328,7 +339,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
 @Composable
 private fun BadgeChip(t: String, c: Color) {
     val p = LocalLd.current
-    Row(Modifier.glass(p, RoundedCornerShape(999.dp), 0.dp).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
+    Row(Modifier.callGlass(p, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         if (t.startsWith("REC")) {
             val inf2 = rememberInfiniteTransition(label = "blink")
@@ -576,7 +587,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(52.dp).glass(p, CircleShape, 6.dp).clickable { onMessage() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Message, 22.dp) }
+                Box(Modifier.size(52.dp).callGlass(p, CircleShape).clickable { onMessage() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Message, 22.dp) }
                 LdText("Message", 11f, FontWeight.SemiBold, p.muted)
                 Spacer(Modifier.height(18.dp))
             }
@@ -616,6 +627,7 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
     val pulse by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1700, easing = LinearEasing), RepeatMode.Restart), label = "pulse")
     val hint by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(1300, easing = LinearEasing), RepeatMode.Restart), label = "hint")
     val base = if (danger) Color(0xFFD93025) else Color(0xFF1EA446)
+    val hintColor = if(p.isLight) base else if(danger) Color(0xFFFF9B91) else Color(0xFF83F0AD)
     val pull = (-off.value / threshold).coerceIn(0f, 1.2f)
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (swipe) {
@@ -624,9 +636,9 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                 for (i in 2 downTo 0) {
                     val ph = ((hint * 3f) - i).let { if (it < 0f) it + 3f else it }
                     val a = (1f - kotlin.math.abs(ph - .5f) * 1.6f).coerceIn(.18f, 1f)
-                    LdIcon(LdIcons.ChevronDown, 18.dp, base.copy(alpha = a), Modifier.rotate(180f).offset(y = (i * -4).dp))
+                    LdIcon(LdIcons.ChevronDown, 18.dp, hintColor.copy(alpha = if(p.isLight) a else .55f+.45f*a), Modifier.rotate(180f).offset(y = (i * -4).dp))
                 }
-                LdText("Upar khiskao", 11.5f, FontWeight.Bold, base.copy(alpha = .8f))
+                LdText("Upar khiskao", 11.5f, FontWeight.Bold, hintColor)
             }
         }
         Box(Modifier
@@ -663,7 +675,7 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                 .size(btn)
                 .shadow(8.dp, CircleShape, ambientColor = Color(0x59000000), spotColor = Color(0x59000000))
                 .clip(CircleShape)
-                .background(base), contentAlignment = Alignment.Center) {
+                .background(Brush.verticalGradient(listOf(base.copy(alpha=.85f),base.copy(alpha=.68f)))).border(1.dp,Color.White.copy(alpha=.5f),CircleShape), contentAlignment = Alignment.Center) {
                 // handset (red = handset down)
                 val ic = btn * .42f
                 LdIcon(if (danger) LdIcons.CallEnd else LdIcons.Phone, ic, Color.White)
