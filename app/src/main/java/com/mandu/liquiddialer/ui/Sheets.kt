@@ -8,6 +8,10 @@ import android.media.RingtoneManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.provider.CallLog
 import android.text.format.DateUtils
 import android.widget.Toast
@@ -210,6 +214,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
                 }
             }
         }
+        CallPhotoControl(number)
         SheetRow(LdIcons.Phone, "Home screen par call button",
             if (com.mandu.liquiddialer.data.DialShortcuts.supported(ctx)) "Button dabate hi call lag jayega" else "Is launcher par shortcut nahi ban sakta") {
             val ok = com.mandu.liquiddialer.data.DialShortcuts.pin(ctx, number, name)
@@ -330,5 +335,46 @@ fun NumberMenu(number: String, st: AppState, act: MainActivity, onClose: () -> U
     }
     SheetRow(LdIcons.Chevron, "Share karo") {
         onClose(); go(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, if (contact != null) "${contact.name}: $number" else number), "Share"))
+    }
+}
+
+/** Separate from address-book photo, scoped to this exact number. */
+@Composable
+fun CallPhotoControl(number: String) {
+    val ctx = LocalContext.current
+    val p = LocalLd.current
+    val scope = rememberCoroutineScope()
+    var tick by remember(number) { mutableIntStateOf(0) }
+    var busy by remember(number) { mutableStateOf(false) }
+    val photo = remember(number, tick) { CallPhotos.get(ctx, number) }
+    var pendingNumber by remember { mutableStateOf<String?>(null) }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        val target = pendingNumber; pendingNumber = null
+        if(uri != null && target != null && !busy) {
+            busy = true
+            scope.launch {
+                val ok = withContext(Dispatchers.IO) { CallPhotos.save(ctx, target, uri) }
+                tick++; busy = false
+                Toast.makeText(ctx, if(ok) "Calling background photo set ho gayi" else "Photo load nahi hui; purani photo nahi badli", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    GlassCard(modifier=Modifier.padding(vertical=10.dp).testTag("call_photo_control"), padding=12.dp) {
+        LdText("Calling card ki background photo", 14f, FontWeight.SemiBold, maxLines=2)
+        LdText("Sirf is number ke liye. Contact ki profile photo nahi badlegi. Global background se upar lagegi.", 11.5f, color=p.muted, maxLines=4, modifier=Modifier.padding(vertical=6.dp))
+        if(photo != null) {
+            val bmp = rememberPhoto(photo)
+            Box(Modifier.fillMaxWidth().height(125.dp).clip(RoundedCornerShape(16.dp)).testTag("call_photo_preview")) {
+                if(bmp != null) Image(bmp, "Chuni hui calling background", Modifier.fillMaxSize().testTag("call_photo_loaded"), contentScale=androidx.compose.ui.layout.ContentScale.Fit)
+                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=.22f)))
+                LdText("Call background preview", 14f, FontWeight.SemiBold, Color.White, Modifier.align(Alignment.Center))
+            }
+        }
+        SheetRow(LdIcons.Palette, if(busy) "Photo set ho rahi hai..." else if(photo == null) "Gallery se background chuno" else "Background photo badlo") {
+            if(!busy) { pendingNumber=number; pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+        }
+        if(photo != null) SheetRow(LdIcons.Trash, "Background photo hatao", "Global call background wapas") {
+            if(!busy) scope.launch { busy=true; withContext(Dispatchers.IO) { CallPhotos.remove(ctx,number) }; tick++;busy=false }
+        }
     }
 }
