@@ -429,17 +429,30 @@ object Repo {
 
     // ---------------- notes ----------------
     private fun notesFile(ctx: Context) = File(ctx.filesDir, "notes.json")
-    fun notes(ctx: Context): List<Note> = try {
-        val a = JSONArray(notesFile(ctx).takeIf { it.exists() }?.readText() ?: "[]")
+    @Synchronized fun notes(ctx: Context): List<Note> = try {
+        val a = JSONArray(android.util.AtomicFile(notesFile(ctx)).let { f -> if (f.baseFile.exists() || File(f.baseFile.path+".bak").exists()) String(f.readFully(), Charsets.UTF_8) else "[]" })
         (0 until a.length()).map { i -> a.getJSONObject(i).let { Note(it.getLong("id"), it.getString("number"), it.optString("name"), it.getString("text"), it.getLong("time")) } }.sortedByDescending { it.time }
     } catch (e: Exception) { emptyList() }
     private fun saveNotes(ctx: Context, list: List<Note>) {
         val a = JSONArray(); list.forEach { a.put(JSONObject().put("id", it.id).put("number", it.number).put("name", it.name).put("text", it.text).put("time", it.time)) }
-        notesFile(ctx).writeText(a.toString())
+        val file=android.util.AtomicFile(notesFile(ctx))
+        val stream=file.startWrite()
+        try {
+            stream.write(a.toString().toByteArray(Charsets.UTF_8))
+            file.finishWrite(stream)
+        } catch(t: Throwable) {
+            file.failWrite(stream)
+            throw t
+        }
     }
     @Synchronized fun addNote(ctx: Context, number: String, name: String, text: String) {
         if (text.isBlank()) return
-        saveNotes(ctx, notes(ctx) + Note(System.currentTimeMillis(), number, name, text.trim(), System.currentTimeMillis()))
+        val saved=notes(ctx)
+        val now=System.currentTimeMillis()
+        // Stable unique IDs even when two notes are added in one clock tick or the clock moves back.
+        val lastId=saved.maxOfOrNull { it.id } ?: 0L
+        val id=if(now>lastId) now else Math.addExact(lastId,1L)
+        saveNotes(ctx, saved + Note(id, number, name, text.trim(), now))
     }
     @Synchronized fun deleteNote(ctx: Context, id: Long) = saveNotes(ctx, notes(ctx).filter { it.id != id })
     fun notesFor(ctx: Context, number: String) = notes(ctx).filter { key(it.number) == key(number) }
