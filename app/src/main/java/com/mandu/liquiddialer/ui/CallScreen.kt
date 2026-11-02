@@ -103,10 +103,10 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.alpha(if (enabled) 1f else .4f)) {
         val base = Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
         val m = when {
-            flat && on -> base.callGlass(p, CircleShape).background(p.accent.copy(alpha=.42f))
+            flat && on -> base.callGlass(p, CircleShape).background(p.accent.copy(alpha=.42f),CircleShape)
             flat -> base.callGlass(p, CircleShape)
-            on -> base.shadow(14.dp, CircleShape, ambientColor = p.accent.pct(.42f), spotColor = p.accent.pct(.42f)).clip(CircleShape)
-                .background(Brush.linearGradient(listOf(p.accent.copy(alpha=.52f),p.accent.copy(alpha=.30f))))
+            on -> base.callGlass(p,CircleShape)
+                .background(Brush.linearGradient(listOf(p.accent.copy(alpha=.52f),p.accent.copy(alpha=.30f))),CircleShape)
             else -> base.callGlass(p, CircleShape)  // off-state bhi glass disc jaisa padhe, flat white nahi
         }
         Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
@@ -673,9 +673,8 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
             Box(Modifier
                 .graphicsLayer { scaleX = 1f + .08f * pull; scaleY = 1f + .08f * pull }
                 .size(btn)
-                .shadow(8.dp, CircleShape, ambientColor = Color(0x59000000), spotColor = Color(0x59000000))
-                .clip(CircleShape)
-                .background(Brush.verticalGradient(listOf(base.copy(alpha=.85f),base.copy(alpha=.68f)))).border(1.dp,Color.White.copy(alpha=.5f),CircleShape), contentAlignment = Alignment.Center) {
+                .callGlass(p,CircleShape)
+                .background(Brush.verticalGradient(listOf(base.copy(alpha=.85f),base.copy(alpha=.68f))),CircleShape).border(1.dp,Color.White.copy(alpha=.5f),CircleShape), contentAlignment = Alignment.Center) {
                 // handset (red = handset down)
                 val ic = btn * .42f
                 LdIcon(if (danger) LdIcons.CallEnd else LdIcons.Phone, ic, Color.White)
