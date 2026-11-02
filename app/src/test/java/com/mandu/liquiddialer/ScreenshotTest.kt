@@ -10,6 +10,7 @@ import com.mandu.liquiddialer.data.Contact
 import com.mandu.liquiddialer.data.K
 import com.mandu.liquiddialer.data.Recent
 import com.mandu.liquiddialer.data.ldStore
+import com.mandu.liquiddialer.data.toSettings
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
@@ -139,9 +140,23 @@ class ScreenshotTest {
             Recent(2, "+91 91234 56789", "Papa", 2, noon - 5 * 3600_000, 60, null, null),
         )
         settle()
+        rule.onNodeWithTag("today_stats").assertDoesNotExist()
+        saveShot(rule,"G241-recents-summary-hidden")
+        rule.onNodeWithTag("drawer_open").performClick();settle()
+        rule.onNodeWithText("Aaj ka call summary",useUnmergedTree=true).assertIsDisplayed().performClick()
+        rule.waitUntil(5000) { LdApp.settings.value.showTodayStats };settle()
+        saveShot(rule,"G241-drawer-summary-setting")
+        rule.onAllNodesWithText("Settings",useUnmergedTree=true).onFirst().assertExists()
+        rule.runOnIdle { act.onBackPressedDispatcher.onBackPressed() };settle()
         org.junit.Assert.assertTrue("aaj-stats strip dikhe",
             rule.onAllNodesWithTag("today_stats").fetchSemanticsNodes().isNotEmpty())
         saveShot(rule, "36-recents-today-stats")
+        rule.onNodeWithTag("drawer_open").performClick();settle()
+        rule.onNodeWithText("Aaj ka call summary",useUnmergedTree=true).performClick()
+        rule.waitUntil(5000) { !LdApp.settings.value.showTodayStats };settle()
+        rule.runOnIdle { act.onBackPressedDispatcher.onBackPressed() };settle()
+        rule.onNodeWithTag("today_stats").assertDoesNotExist()
+        org.junit.Assert.assertFalse(runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.data.first().toSettings().showTodayStats })
 
         // contacts tab pe hain aur tab nayi missed call aayi -> Recents tab pe red badge
         rule.onNodeWithText("Contacts").performClick()
