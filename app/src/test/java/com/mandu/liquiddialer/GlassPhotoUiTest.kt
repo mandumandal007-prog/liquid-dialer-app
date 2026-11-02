@@ -34,6 +34,20 @@ class GlassPhotoUiTest {
         p.shader=null;p.color=0xffc8d1c2.toInt();c.drawCircle(260f,160f,72f,p);p.color=0xff28404c.toInt();c.drawOval(-100f,390f,500f,900f,p)
         f.outputStream().use {b.compress(Bitmap.CompressFormat.PNG,100,it)};b.recycle();return Uri.fromFile(f)
     }
+    @Test fun callingCardBlurChoicePersistsAndRenders() {
+        runBlocking { app.ldStore.edit { it[K.theme]="daylight";it[K.onboarded]=true;it[K.callPhotoBlur]=0 } }
+        await { LdApp.settings.value.theme=="daylight" && LdApp.settings.value.callPhotoBlur==0 }
+        rule.activity.setContent { LdThemeHost { CallLayoutPage {} } };settle()
+        rule.mainClock.autoAdvance=true
+        rule.onNodeWithText("Halka",useUnmergedTree=true).performScrollTo().performClick()
+        await { LdApp.settings.value.callPhotoBlur==1 }
+        rule.onAllNodes(hasScrollAction(),useUnmergedTree=true).onLast().performTouchInput { swipe(center,center.copy(y=center.y-120f),300) };settle()
+        saveShot(rule,"G256-blur-setting")
+        rule.onNodeWithText("Soft",useUnmergedTree=true).performClick()
+        await { LdApp.settings.value.callPhotoBlur==2 }
+        rule.onNodeWithText("Clear / Off",useUnmergedTree=true).performClick()
+        await { LdApp.settings.value.callPhotoBlur==0 }
+    }
     @Test fun selectedPhotoPreviewRemoveAndPickerCancelNoMutation() {
         assertTrue(CallPhotos.save(app,"9876543210",photo()))
         rule.activity.setContent { LdThemeHost { androidx.compose.foundation.layout.Column {CallPhotoControl("9876543210")} } }
