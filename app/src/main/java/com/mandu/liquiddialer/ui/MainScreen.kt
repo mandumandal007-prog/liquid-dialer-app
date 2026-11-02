@@ -219,7 +219,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 DialerSheet(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it }, onOpen = { openPage(it) })
             }
             // search-bar voice overlays
-            searchVoice.ui.notice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { searchVoice.ui.notice = null } }
+            searchVoice.ui.notice?.takeUnless { searchVoice.ui.pendingConsent }?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp, onAlternate={ searchVoice.alternate() }) { searchVoice.ui.notice = null } }
             if (searchVoice.ui.listening) VoiceListeningCard(Alignment.Center) { searchVoice.stop() }
             if (searchVoice.ui.pendingConsent) VoiceConsentCard(Alignment.Center, onOk = { searchVoice.consentOk() }, onCancel = { searchVoice.consentCancel() })
             // ===== drawer =====
@@ -504,7 +504,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         }
         out
     }
-    val contactHits = remember(st.contacts, query) { if (query.isBlank()) emptyList() else st.contacts.filter { Repo.matches(it, query) }.take(8) }
+    val contactSearch = remember(st.contacts) { com.mandu.liquiddialer.data.ContactSearch(st.contacts) }
+    val contactHits = remember(contactSearch, query) { if (query.isBlank()) emptyList() else contactSearch.find(query,8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
     LazyColumn(Modifier.fillMaxSize().testTag("main_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 90.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -733,7 +734,8 @@ fun VideoMini(onClick: () -> Unit) {
 private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Contact) -> Unit, onAdd: () -> Unit, onLong: (String) -> Unit, onShowDups: () -> Unit = {}) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
-    val list = remember(st.contacts, query) { st.contacts.filter { Repo.matches(it, query) } }
+    val contactSearch = remember(st.contacts) { com.mandu.liquiddialer.data.ContactSearch(st.contacts) }
+    val list = remember(contactSearch, query) { contactSearch.find(query) }
     val dups = remember(st.contacts) { Repo.duplicateGroups(st.contacts) }
     val hasPerm = act.has(android.Manifest.permission.READ_CONTACTS)
     val listState = rememberLazyListState()
@@ -799,14 +801,16 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         scope.launch { LdApp.instance.repo.set(K.defaultSim, next) }
     }
     val lastOutgoing = remember(st.recents) { st.recents.firstOrNull { it.type == CallLog.Calls.OUTGOING_TYPE } }
-    val matches = remember(dial, st.contacts) { if (dial.length < 2) emptyList() else st.contacts.filter { Repo.matches(it, dial) }.take(3) }
+    val contactSearch = remember(st.contacts) { com.mandu.liquiddialer.data.ContactSearch(st.contacts) }
+    val dialMatches = remember(dial, contactSearch) { if (dial.length < 2) emptyList() else contactSearch.find(dial,6) }
+    val matches = dialMatches.take(3)
     // live suggestions while typing: saved contacts first, then numbers from call history (local data only; tapping fills the number, never calls)
     val suggest = remember(dial, st.contacts, st.recents) {
         if (dial.length < 2) emptyList() else {
             val dd = dial.filter { it.isDigit() }
             val out = LinkedHashMap<String, Pair<String, String>>()
-            st.contacts.filter { Repo.matches(it, dial) }.take(6).forEach { out.putIfAbsent(Repo.key(it.number), it.name to it.number) }
-            if (dd.length >= 2) st.recents.filter { r -> r.number.filter { it.isDigit() }.contains(dd) }.take(40).forEach { r ->
+            dialMatches.forEach { out.putIfAbsent(Repo.key(it.number), it.name to it.number) }
+            if (dd.length >= 2) st.recents.asSequence().filter { r -> r.number.filter { it.isDigit() }.contains(dd) }.take(40).forEach { r ->
                 out.putIfAbsent(Repo.key(r.number), (r.name?.takeIf { it.isNotBlank() } ?: Repo.pretty(r.number)) to r.number)
             }
             out.values.filter { Repo.key(it.second) != Repo.key(dial) }.take(4).toList()
@@ -898,7 +902,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
             }
         }
             // voice dialing overlays
-        voice.ui.notice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { voice.ui.notice = null } }
+        voice.ui.notice?.takeUnless { voice.ui.pendingConsent }?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp, onAlternate={ voice.alternate() }) { voice.ui.notice = null } }
         voiceNoticeHolder?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 118.dp) { voiceNoticeHolder = null } }
         if (voice.ui.listening) VoiceListeningCard(Alignment.Center) { voice.stop() }
         if (voice.ui.pendingConsent) VoiceConsentCard(Alignment.Center, onOk = { voice.consentOk() }, onCancel = { voice.consentCancel() })
