@@ -109,7 +109,7 @@ class RecentsDensityShotTest {
         saveShot(rule, "20-recents-density-compact")
 
         println("DENSITY default=$defCount compact=$compactCount pitch=$defPitch->$compPitch")
-        // Compact ka asli guarantee = chhoti row pitch (vertical padding 6dp -> 3dp).
+        // Compact ka asli guarantee = chhoti row pitch (vertical padding 10dp -> 7dp).
         // Row COUNT viewport boundary par luck hai (full-height list me dono 8 compose ho
         // sakte hain), isliye count ab sirf non-decreasing hona chahiye.
         assertTrue("compact rows tight honi chahiye (pitch $defPitch -> $compPitch)", compPitch < defPitch)
