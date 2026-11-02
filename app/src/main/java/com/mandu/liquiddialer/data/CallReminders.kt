@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import com.mandu.liquiddialer.telecom.CallActionReceiver
 import java.util.Calendar
 
@@ -63,14 +64,16 @@ object CallReminders {
         }
     }
 
-    fun set(ctx: Context, number: String, name: String, atMs: Long) {
+    @Synchronized fun set(ctx: Context, number: String, name: String, atMs: Long) {
+        migrateAlarmIds(ctx)
         prefs(ctx).edit().putString(Repo.key(number), "$number|$name|$atMs").apply()
         bump()
         val am = ctx.getSystemService(AlarmManager::class.java)
         try { am.set(AlarmManager.RTC_WAKEUP, atMs, pi(ctx, number, name)) } catch (e: Exception) { }
     }
 
-    fun cancel(ctx: Context, number: String) {
+    @Synchronized fun cancel(ctx: Context, number: String) {
+        migrateAlarmIds(ctx)
         prefs(ctx).edit().remove(Repo.key(number)).apply()
         bump()
         val am = ctx.getSystemService(AlarmManager::class.java)
@@ -79,10 +82,32 @@ object CallReminders {
 
     fun remove(ctx: Context, number: String) { prefs(ctx).edit().remove(Repo.key(number)).apply(); bump() }
 
+    /** Re-arm stored reminders before retiring the old shared 256-bucket alarm identities.
+     * One-time per install/update path; no reminder time or number is changed. */
+    private fun migrateAlarmIds(ctx: Context) {
+        val p = prefs(ctx)
+        if (p.getBoolean("alarmIdsV2", false)) return
+        val am = ctx.getSystemService(AlarmManager::class.java)
+        val stored = allRaw(ctx)
+        try {
+            stored.filter { it.atMs > System.currentTimeMillis() }.forEach { r ->
+                am.set(AlarmManager.RTC_WAKEUP, r.atMs, pi(ctx, r.number, r.name))
+            }
+            stored.forEach { r ->
+                val old = Intent(ctx, CallActionReceiver::class.java).setAction(CallActionReceiver.CALL_REMIND)
+                val legacy = PendingIntent.getBroadcast(ctx, 700 + (Repo.key(r.number).hashCode() and 0xFF), old,
+                    PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+                if (legacy != null) { am.cancel(legacy); legacy.cancel() }
+            }
+            p.edit().putBoolean("alarmIdsV2", true).commit()
+        } catch (_: Exception) { /* Retry migration on the next explicit reminder action. */ }
+    }
+
     private fun pi(ctx: Context, number: String, name: String): PendingIntent {
         val i = Intent(ctx, CallActionReceiver::class.java).setAction(CallActionReceiver.CALL_REMIND)
+            .setData(Uri.Builder().scheme("liquiddialer").authority("call-reminder").appendPath(Repo.key(number)).build())
             .putExtra("number", number).putExtra("name", name)
-        return PendingIntent.getBroadcast(ctx, 700 + (Repo.key(number).hashCode() and 0xFF), i,
+        return PendingIntent.getBroadcast(ctx, 700, i,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 }
