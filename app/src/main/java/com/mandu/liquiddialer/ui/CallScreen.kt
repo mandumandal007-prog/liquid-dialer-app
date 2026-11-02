@@ -124,7 +124,7 @@ fun EndCallBtn(size: Dp = 74.dp, onClick: () -> Unit) {
         .background(Brush.verticalGradient(listOf(Color(0xFFEF4A3D), Color(0xFFD93025))))
         .testTag("end_call")
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) {
-        LdIcon(LdIcons.Phone, size * .42f, Color.White, Modifier.rotate(135f))
+        LdIcon(LdIcons.CallEnd, size * .42f, Color.White)
     }
 }
 
@@ -423,9 +423,6 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                 if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
             }
             "notes" -> BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") }
-            "summary" -> BtnSpec(LdIcons.Note, "Summarise", enabled = s.callSummary) {
-                openSheet("notes")
-            }
             else -> null
         }
     }
@@ -669,8 +666,7 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                 .background(base), contentAlignment = Alignment.Center) {
                 // handset (red = handset down)
                 val ic = btn * .42f
-                val rot = if (danger) 135f else 0f
-                LdIcon(LdIcons.Phone, ic, Color.White, Modifier.rotate(rot))
+                LdIcon(if (danger) LdIcons.CallEnd else LdIcons.Phone, ic, Color.White)
             }
         }
         LdText(label, 12.5f, FontWeight.SemiBold, p.text.copy(alpha = .85f))
@@ -828,7 +824,7 @@ private fun ConferenceSheet(call: Call, onClose: () -> Unit) {
                     .clickable(enabled = canCut) { CallManager.disconnectChild(child) }
                     .padding(horizontal = 14.dp, vertical = 8.dp).testTag("conf_cut_$i"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    LdIcon(LdIcons.PhoneOff, 13.dp, if (canCut) Color.White else p.muted)
+                    LdIcon(LdIcons.CallEnd, 13.dp, if (canCut) Color.White else p.muted)
                     LdText("Cut karo", 12f, FontWeight.SemiBold, if (canCut) Color.White else p.muted)
                 }
                 Row(Modifier.clip(RoundedCornerShape(999.dp)).background(p.glass).alpha(if (canSplit) 1f else .45f)
