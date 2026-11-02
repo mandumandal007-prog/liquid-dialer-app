@@ -66,7 +66,7 @@ fun PageFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScop
         Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 30.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.testTag("page_back")) { IconBtn(LdIcons.ArrowLeft, onClick = onBack) }
-                LdText(title, 22f, FontWeight.ExtraBold, modifier = Modifier.weight(1f), letter = -.3f)
+                LdText(title, 22f, FontWeight.ExtraBold, modifier = Modifier.weight(1f), letter = -.3f, maxLines=2)
                 Spacer(Modifier.width(42.dp))
             }
             content()
@@ -544,11 +544,11 @@ private fun AppearancePage(onBack: () -> Unit) {
                         val on = s.theme == k
                         Row(Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(if (on) p.accent.pct(.14f) else p.glass)
                             .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(18.dp)).clickable { save(K.theme, k) }.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Box(Modifier.size(34.dp).clip(RoundedCornerShape(12.dp)).background(
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(Modifier.size(26.dp).clip(RoundedCornerShape(12.dp)).background(
                                 if (k == "auto") Brush.linearGradient(listOf(Color(0xFF0B1020), Color(0xFFC9D8FF))) else Brush.linearGradient(listOf(pal.previewA, pal.previewB))
                             ).border(1.dp, p.stroke, RoundedCornerShape(12.dp)))
-                            LdText(if (k == "auto") "Auto" else pal.name, 12.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            LdText(if (k == "auto") "Auto" else pal.name, 12.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines=2)
                             if (on) LdIcon(LdIcons.Check, 16.dp, p.accent)
                         }
                     }
@@ -567,6 +567,15 @@ private fun AppearancePage(onBack: () -> Unit) {
                 }
             }
         }
+        SecTitle("3D frosted glass")
+        GlassCard {
+            LdText("Glass ki gehraai", 13f, FontWeight.SemiBold, modifier = Modifier.padding(bottom=8.dp))
+            Segmented(listOf("Flat", "Soft", "3D"), s.glassDepth) { save(K.glassDepth, it) }
+            Spacer(Modifier.height(12.dp))
+            LdText("Frost finish", 13f, FontWeight.SemiBold, modifier = Modifier.padding(bottom=8.dp))
+            Segmented(listOf("Clear", "Balanced", "Milky"), s.glassFrost) { save(K.glassFrost, it) }
+            LdText("Static light aur edges; har button par live blur nahi. Animations OFF par press movement bhi band.", 11.5f, color=p.muted, maxLines=4, modifier=Modifier.padding(top=10.dp))
+        }
         SecTitle("Glass blur")
         GlassCard {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -584,7 +593,7 @@ private fun AppearancePage(onBack: () -> Unit) {
             SwitchRow("Text bold karo", "Poori app me moti likhai", s.boldText, last = true) { save(K.boldText, it) }
         }
         SecTitle("Motion")
-        GlassCard { SwitchRow("Animations", "Blobs ka chalna aur floating avatar", s.motion, last = true) { save(K.motion, it) } }
+        GlassCard { SwitchRow("Animations", "Blobs, floating avatar aur button press movement", s.motion, last = true) { save(K.motion, it) } }
     }
 }
 
@@ -683,6 +692,14 @@ private fun ContactEditor(contactId: Long?, prefill: String, act: MainActivity, 
     }
     val canWrite = act.has(android.Manifest.permission.WRITE_CONTACTS)
     PageFrame(if (detail == null) "Naya contact" else "Contact edit", onBack) {
+        GlassCard(Modifier.padding(bottom=12.dp)) {
+            LdText("Contact app mein kholna", 14f, FontWeight.SemiBold)
+            LdText("Compatible app chuno: account, address, birthday aur us app ke saare fields. Yahan ke unsaved changes wahan nahi bheje jaate.", 11.5f, color=p.muted, maxLines=4)
+            GhostButton(if(detail==null) "Contact app mein naya save" else "Contact app mein edit") {
+                ContactApps.open(act, if(detail==null) ContactApps.insert(phones.firstOrNull()?.first ?: prefill) else ContactApps.edit(detail.id,detail.lookupKey))
+            }
+            LdText("Neeche Liquid Dialer ka editor bhi hai. Back karne par bina Save kuch nahi badlega.",11f,color=p.muted,maxLines=3)
+        }
         Box(Modifier.fillMaxWidth().padding(bottom = 18.dp), contentAlignment = Alignment.Center) {
             Box(Modifier.clickable { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                 val img = photoPreview ?: existingPhoto
@@ -714,11 +731,12 @@ private fun ContactEditor(contactId: Long?, prefill: String, act: MainActivity, 
             }
             LdText("Email", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(top = 6.dp, bottom = 8.dp))
             LdField(email, { email = it }, "email@example.com")
+            if((detail?.emails?.size ?: 0)>1) LdText("Is contact ke baaki ${detail!!.emails.size-1} email bhi rakhe jayenge. Sab fields ke liye upar Contact app mein edit chuno.",11.5f,color=p.muted,maxLines=3)
             SwitchRow("Favourite", "Recents me upar dikhega", fav, last = true) { fav = it }
         }
         Spacer(Modifier.height(16.dp))
         PrimaryButton("Save", enabled = name.isNotBlank() && phones.any { it.first.isNotBlank() } && canWrite) {
-            val ok = Repo.saveContact(ctx, detail, name.trim(), phones.map { it.first.trim() to it.second }, email.trim(), photoBytes, fav)
+            val ok = Repo.saveContact(ctx, detail, name.trim(), phones.map { it.first.trim() to it.second }, email.trim(), photoBytes, fav, detail?.emails?.drop(1) ?: emptyList())
             Toast.makeText(ctx, if (ok) "Contact save ho gaya" else "Save nahi hua", Toast.LENGTH_SHORT).show()
             if (ok) { act.reload(); onBack() }
         }
