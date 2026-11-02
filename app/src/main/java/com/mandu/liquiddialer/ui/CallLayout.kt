@@ -131,9 +131,12 @@ fun CallLayoutPage(onBack: () -> Unit) {
             ChoiceRow("Call screen ka background", listOf("Blobs", "Photo", "Solid"), when (s.callBgStyle) { "photo" -> 1; "solid" -> 2; else -> 0 }) {
                 saveF(K.callBgStyle, when (it) { 1 -> "photo"; 2 -> "solid"; else -> "blobs" })
             }
+            ChoiceRow("Photo ka blur", listOf("Clear / Off", "Halka", "Soft"), s.callPhotoBlur) { level ->
+                LdApp.instance.scope.launch { LdApp.instance.repo.set(K.callPhotoBlur,level) }
+            }
             Spacer(Modifier.height(6.dp))
         }
-        LdText("Photo wala background caller ki photo ko blur karke poori screen pe dikhata hai.", 11f, color = p.muted, modifier = Modifier.padding(start = 6.dp, top = 6.dp))
+        LdText("Photo blur caller aur per-number background dono par lagega. Clear mein photo bina blur dikhegi.", 11f, color = p.muted, modifier = Modifier.padding(start = 6.dp, top = 6.dp))
 
         Spacer(Modifier.height(16.dp))
         LdText("DIALER KEYPAD", 12f, FontWeight.Bold, p.muted, letter = 1f, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
