@@ -156,7 +156,7 @@ fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: B
                     var pressed by remember { mutableStateOf(false) }
                     val sc by animateFloatAsState(if (pressed) .93f else 1f, tween(120), label = "k")
                     Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(keySize)
-                        .raisedGlass(p, CircleShape, 14.dp)
+                        .then(if(LocalCallGlass.current) Modifier.callGlass(p,CircleShape) else Modifier.raisedGlass(p, CircleShape, 14.dp))
                         .premiumRing(p, CircleShape)
                         .background(if (pressed) p.glass2 else Color.Transparent)
                         .pointerInput(d) {
