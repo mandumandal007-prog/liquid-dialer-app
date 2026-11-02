@@ -70,6 +70,9 @@ class CallScreenshotTest {
         settle(2000)
         activeCall()
         settle(2500)
+        rule.onNodeWithTag("end_call").assertIsDisplayed()
+        val endBounds = rule.onNodeWithTag("end_call").fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue("Ongoing hangup stays a wide pill", endBounds.width > endBounds.height * 1.5f)
         saveShot(rule, "08-ongoing-call")
     }
 
