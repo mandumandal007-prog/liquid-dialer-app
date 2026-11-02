@@ -69,7 +69,10 @@ fun voiceErrorNotice(error: Int): String = when (error) {
     SpeechRecognizer.ERROR_AUDIO, SpeechRecognizer.ERROR_CLIENT -> "Mic mein dikkat aayi, dobara koshish karein"
     SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> VOICE_NOTICE_MIC_DENIED
     SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network nahi hai, offline pack check karo"
-    else -> VOICE_NOTICE_BROKEN
+    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Voice service busy hai. Dobara mic dabao ya doosri voice service chuno"
+    SpeechRecognizer.ERROR_SERVER -> "Phone ki voice service se jawab nahi mila. Doosri voice service try karo"
+    SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "Hindi voice language/pack nahi mila. Phone ki voice language settings check karo"
+    else -> "$VOICE_NOTICE_BROKEN (code $error). Doosri voice service try karo"
 }
 
 /** What trigger() should do next. Unit-tested: fallback capture always goes through explicit consent. */
@@ -85,10 +88,11 @@ class VoiceUiState {
     var listening by mutableStateOf(false)
     var notice by mutableStateOf<String?>(null)     // inline message (errors, no-match)
     var confirm by mutableStateOf<VoiceMatch?>(null) // pending confirmation
+    var alternateRequested by mutableStateOf(false)
     var pendingConsent by mutableStateOf(false)     // network-capable fallback needs explicit OK
 }
 
-class VoiceDialer internal constructor(val ui: VoiceUiState, val trigger: () -> Unit, val stop: () -> Unit, val consentOk: () -> Unit, val consentCancel: () -> Unit)
+class VoiceDialer internal constructor(val ui: VoiceUiState, val trigger: () -> Unit, val stop: () -> Unit, val consentOk: () -> Unit, val consentCancel: () -> Unit, val alternate: () -> Unit)
 
 /** Owns SpeechRecognizer lifecycle; trigger() starts (or cancels while listening). */
 @Composable
@@ -96,11 +100,29 @@ fun rememberVoiceDialer(onHeard: (String) -> Unit): VoiceDialer {
     val ctx = LocalContext.current
     val ui = remember { VoiceUiState() }
     var recognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
+    val heard by rememberUpdatedState(onHeard)
+    val alternateLauncher=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if(result.resultCode==android.app.Activity.RESULT_OK) {
+            val said=result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
+            if(said.isNotBlank()) { ui.notice=null;heard(said) } else ui.notice="Kuch sunai nahi diya, dobara bolein"
+        }
+    }
+    fun alternateCapture() {
+        val intent=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE,"hi-IN")
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,3)
+        }
+        try { alternateLauncher.launch(intent);ui.notice=null }
+        catch (_: android.content.ActivityNotFoundException) { ui.notice="Doosri voice service nahi mili. Phone me speech service enable/update karo; tab tak keyboard se khojo" }
+        catch (_: Exception) { ui.notice=VOICE_NOTICE_BROKEN }
+    }
 
     fun destroy() { try { recognizer?.destroy() } catch (_: Exception) { }; recognizer = null }
 
-    fun onDeviceReady(): Boolean =
+    fun onDeviceReady(): Boolean = try {
         android.os.Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(ctx)
+    } catch (_: Exception) { false }
 
     /** Actually starts capture. Reached only via on-device path or explicit consent. */
     fun beginCapture() {
@@ -116,7 +138,7 @@ fun rememberVoiceDialer(onHeard: (String) -> Unit): VoiceDialer {
             override fun onResults(results: Bundle) {
                 ui.listening = false
                 val said = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-                if (said.isBlank()) ui.notice = "Kuch sunai nahi diya, dobara bolein" else onHeard(said)
+                if (said.isBlank()) ui.notice = "Kuch sunai nahi diya, dobara bolein" else heard(said)
                 destroy()
             }
             override fun onError(error: Int) {
@@ -169,8 +191,9 @@ fun rememberVoiceDialer(onHeard: (String) -> Unit): VoiceDialer {
             }
         },
         stop = { try { recognizer?.cancel() } catch (_: Exception) { }; ui.listening = false; destroy() },
-        consentOk = { ui.pendingConsent = false; beginCapture() },
-        consentCancel = { ui.pendingConsent = false })
+        consentOk = { ui.pendingConsent = false; if(ui.alternateRequested) { ui.alternateRequested=false;alternateCapture() } else beginCapture() },
+        consentCancel = { ui.pendingConsent = false;ui.alternateRequested=false },
+        alternate = { ui.alternateRequested=true;ui.pendingConsent=true })
 }
 
 /** Look up contact type label (Mobile/Work/Home...) for a number. */
@@ -187,11 +210,15 @@ private fun voiceCardMod(align: Alignment, topPad: androidx.compose.ui.unit.Dp?)
 
 /** Small inline message with a single dismiss action. */
 @Composable
-fun androidx.compose.foundation.layout.BoxScope.VoiceNoticeCard(text: String, align: Alignment, topPad: androidx.compose.ui.unit.Dp, onDismiss: () -> Unit) {
+fun androidx.compose.foundation.layout.BoxScope.VoiceNoticeCard(text: String, align: Alignment, topPad: androidx.compose.ui.unit.Dp, onAlternate: (() -> Unit)? = null, onDismiss: () -> Unit) {
     val p = LocalLd.current
     Column(voiceCardMod(align, topPad).align(align).widthIn(max = 300.dp).clip(RoundedCornerShape(16.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(16.dp)).padding(horizontal = 14.dp, vertical = 10.dp).testTag("voice_notice"),
         horizontalAlignment = Alignment.CenterHorizontally) {
         LdText(text, 13f, FontWeight.SemiBold, maxLines = 3)
+        if(onAlternate!=null) {
+            Spacer(Modifier.height(8.dp))
+            GhostButton("Doosri voice service try karo",modifier=Modifier.testTag("voice_alternate"),onClick=onAlternate)
+        }
         Spacer(Modifier.height(6.dp))
         Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onDismiss() }.padding(horizontal = 12.dp, vertical = 6.dp)) { LdText("Theek hai", 13f, FontWeight.Bold, p.accent) }
     }
@@ -239,7 +266,7 @@ fun androidx.compose.foundation.layout.BoxScope.VoiceConsentCard(align: Alignmen
     val p = LocalLd.current
     Column(Modifier.align(align).widthIn(max = 310.dp).clip(RoundedCornerShape(22.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(22.dp)).padding(20.dp).testTag("voice_consent")) {
         LdText("Voice search private rahegi?", 15f, FontWeight.Bold)
-        LdText("Is phone pe on-device voice pack nahi mila. Aapki awaaz phone ki speech service ko internet par bheji ja sakti hai (jaise Gboard voice typing). Humare paas kuch nahi aata.", 12.5f, color = p.muted, maxLines = 6, modifier = Modifier.padding(top = 8.dp))
+        LdText("Phone ki doosri speech service aapki awaaz internet par bhej sakti hai. Sirf aapki ijazat se voice capture khulega; cancel karne par kuch nahi hoga.", 12.5f, color = p.muted, maxLines = 6, modifier = Modifier.padding(top = 8.dp))
         Row(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(p.glass).clickable { onCancel() }.padding(vertical = 12.dp).testTag("voice_consent_cancel"), contentAlignment = Alignment.Center) { LdText("Radd karo", 13f, FontWeight.SemiBold) }
             Box(Modifier.weight(1f).clip(RoundedCornerShape(999.dp)).background(p.accent).clickable { onOk() }.padding(vertical = 12.dp).testTag("voice_consent_ok"), contentAlignment = Alignment.Center) { LdText("Theek hai", 13f, FontWeight.SemiBold, Color.White) }
