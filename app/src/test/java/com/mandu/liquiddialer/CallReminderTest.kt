@@ -61,6 +61,62 @@ class CallReminderTest {
         assertNull("cancel ke baad koi alarm nahi", am.nextScheduledAlarm)
     }
 
+    private fun collision(): Pair<String,String> {
+        val seen=mutableMapOf<Int,String>()
+        for (n in 9812345000L..9812346000L) {
+            val number=n.toString();val bucket=com.mandu.liquiddialer.data.Repo.key(number).hashCode() and 255
+            val old=seen.putIfAbsent(bucket,number)
+            if(old!=null)return old to number
+        }
+        error("Expected a collision in 1001 numbers / 256 buckets")
+    }
+
+    @Test fun collidingLegacyBucketsNowKeepTwoIndependentAlarmsAndCancellation() {
+        val ctx=ApplicationProvider.getApplicationContext<LdApp>()
+        ctx.getSharedPreferences("call_reminders",0).edit().clear().commit()
+        val (a,b)=collision();val at=System.currentTimeMillis()+3600_000L
+        CallReminders.set(ctx,a,"First",at);CallReminders.set(ctx,b,"Second",at+60_000L)
+        val am=Shadows.shadowOf(ctx.getSystemService(AlarmManager::class.java))
+        assertEquals(2,am.scheduledAlarms.size)
+        CallReminders.set(ctx,a,"First updated",at+120_000L)
+        assertEquals(2,am.scheduledAlarms.size)
+        CallReminders.cancel(ctx,a)
+        assertEquals(1,am.scheduledAlarms.size)
+        assertNotNull(CallReminders.forNumber(ctx,b))
+        val remaining=Shadows.shadowOf(am.scheduledAlarms.single().operation).savedIntent
+        assertEquals(b,remaining.getStringExtra("number"))
+        CallReminders.cancel(ctx,b);assertTrue(am.scheduledAlarms.isEmpty())
+    }
+
+    @Test fun legacySharedAlarmMigratesAllStoredNumbersBeforeCancel() {
+        val ctx=ApplicationProvider.getApplicationContext<LdApp>()
+        val p=ctx.getSharedPreferences("call_reminders",0);p.edit().clear().commit()
+        val (a,b)=collision();val at=System.currentTimeMillis()+3600_000L
+        p.edit().putString(a,"$a|First|$at").putString(b,"$b|Second|${at+60000}").commit()
+        val old=android.content.Intent(ctx,CallActionReceiver::class.java).setAction(CallActionReceiver.CALL_REMIND).putExtra("number",b)
+        val legacy=android.app.PendingIntent.getBroadcast(ctx,700+(a.hashCode() and 255),old,android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        val manager=ctx.getSystemService(AlarmManager::class.java);manager.set(AlarmManager.RTC_WAKEUP,at,legacy)
+        val am=Shadows.shadowOf(manager);assertEquals(1,am.scheduledAlarms.size)
+        CallReminders.cancel(ctx,a)
+        assertEquals(1,am.scheduledAlarms.size)
+        val intent=Shadows.shadowOf(am.scheduledAlarms.single().operation).savedIntent
+        assertEquals(b,intent.getStringExtra("number"));assertNotNull(intent.data)
+        CallReminders.cancel(ctx,b);assertTrue(am.scheduledAlarms.isEmpty())
+    }
+
+    @Test fun rebootRearmsCollidingNumbersIndependently() {
+        val ctx=ApplicationProvider.getApplicationContext<LdApp>()
+        ctx.getSharedPreferences("call_reminders",0).edit().clear().commit()
+        val (a,b)=collision();val at=System.currentTimeMillis()+3600_000L
+        CallReminders.set(ctx,a,"First",at);CallReminders.set(ctx,b,"Second",at+60_000L)
+        val am=Shadows.shadowOf(ctx.getSystemService(AlarmManager::class.java))
+        while(am.nextScheduledAlarm!=null) { }
+        com.mandu.liquiddialer.telecom.BootReceiver().onReceive(ctx,android.content.Intent(android.content.Intent.ACTION_BOOT_COMPLETED))
+        assertEquals(2,am.scheduledAlarms.size)
+        assertEquals(setOf(a,b),am.scheduledAlarms.map { Shadows.shadowOf(it.operation).savedIntent.getStringExtra("number") }.toSet())
+        CallReminders.cancel(ctx,a);CallReminders.cancel(ctx,b)
+    }
+
     @Test
     fun allReturnsSortedByTime() {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
