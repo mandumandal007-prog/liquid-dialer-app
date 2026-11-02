@@ -153,6 +153,38 @@ class SettingsBackupTest {
     }
 
     @Test
+    fun photoBlurRoundTripsAllLevelsAndOldBackupsLeaveItUntouched() {
+        val ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val key = com.mandu.liquiddialer.data.K.callPhotoBlur
+        kotlinx.coroutines.runBlocking {
+            for (level in 0..2) {
+                val parsed = sb.parse(sb.buildJson(sample().copy(callPhotoBlur=level))) as com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Ok
+                org.junit.Assert.assertEquals(level, parsed.values["callPhotoBlur"])
+                sb.applyRestored(ctx, parsed.values)
+                org.junit.Assert.assertEquals(level, ctx.ldStore.data.first()[key])
+            }
+            val old = sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"theme":"midnight"}}""") as com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Ok
+            org.junit.Assert.assertFalse(old.values.containsKey("callPhotoBlur"))
+            sb.applyRestored(ctx,old.values)
+            org.junit.Assert.assertEquals(2, ctx.ldStore.data.first()[key])
+            ctx.ldStore.edit { it.clear() }
+        }
+    }
+
+    @Test
+    fun integerSettingsRejectFractionsOverflowAndOutOfRangeBeforeRestore() {
+        for (key in listOf("blur","glassDepth","glassFrost","callPhotoBlur")) {
+            for (bad in listOf("1.5","-0.2","4294967297","9223372036854775807","1e100","\"1\"","null")) {
+                val text="""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"theme":"daylight","$key":$bad}}"""
+                org.junit.Assert.assertTrue("$key=$bad must reject the whole candidate",sb.parse(text) is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+            }
+        }
+        for (bad in listOf(-1,3)) {
+            org.junit.Assert.assertTrue(sb.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"callPhotoBlur":$bad}}""") is com.mandu.liquiddialer.ui.SettingsBackup.ParseResult.Err)
+        }
+    }
+
+    @Test
     fun exportNeverContainsPersonalOrBehavioralKeys() {
         val json = sb.buildJson(sample())
         listOf("profileName", "profileNumber", "profilePhoto", "voicemail", "quickReplies", "speedDial",
