@@ -27,6 +27,8 @@ data class LdPalette(
     val previewB: Color,
     val blur: Float = 22f,
     val motion: Boolean = true,
+    val glassDepth: Int = 2,
+    val glassFrost: Int = 1,
 )
 
 fun mix(a: Color, b: Color, aPart: Float): Color = lerp(b, a, aPart)
