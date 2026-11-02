@@ -15,19 +15,28 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(ExperimentalTestApi::class, kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DialSaveContactUiTest {
-    @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+    // The default unconfined recomposer can resume inline on DataStore's worker thread.
+    // Queue recomposition on the controlled test scheduler instead of the emitter thread.
+    @get:Rule val rule=createAndroidComposeRule<MainActivity>(kotlinx.coroutines.test.StandardTestDispatcher())
     private fun settle(){rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
-    @Before fun seed()=runBlocking{
-        ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.onboarded]=true;it[K.theme]="daylight";it[K.fontScale]=1f}
-        Unit
+    @Before fun seed(){
+        runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.onboarded]=true;it[K.theme]="daylight";it[K.fontScale]=1f} }
+        settle()
+        rule.waitUntil(5000) { LdApp.settings.value.let { it.onboarded && it.theme=="daylight" && it.fontScale==1f } }
+        rule.runOnUiThread { rule.activity.state.showOnboarding=false }
+        settle()
+        rule.onNodeWithTag("drawer_open").assertIsDisplayed()
     }
     @Test fun explicitSaveEntryPrefillsNumberAndRequiresUserNameAndSave(){
-        settle();rule.activity.state.showOnboarding=false;rule.activity.state.dial="9876543210";rule.activity.state.tab="dialer";settle()
+        settle()
+        rule.runOnUiThread { rule.activity.state.showOnboarding=false;rule.activity.state.dial="9876543210";rule.activity.state.tab="dialer" }
+        settle()
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).assertExists()
         saveShot(rule,"N201-dial-save-day")
         runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.theme]="midnight"}}
-        settle();saveShot(rule,"N201-dial-save-night")
+        settle();rule.waitUntil(5000) { LdApp.settings.value.theme=="midnight" };saveShot(rule,"N201-dial-save-night")
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).performClick();settle()
         val launch=org.robolectric.Shadows.shadowOf(rule.activity).nextStartedActivity
         org.junit.Assert.assertEquals(android.content.Intent.ACTION_CHOOSER,launch.action)
@@ -41,14 +50,14 @@ class DialSaveContactUiTest {
         rule.onNodeWithText("Save",useUnmergedTree=true).assertExists()
         saveShot(rule,"G220-editor-night")
         runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.theme]="daylight";it[K.fontScale]=1.3f}}
-        settle();saveShot(rule,"G220-editor-day-large")
+        settle();rule.waitUntil(5000) { LdApp.settings.value.let { it.theme=="daylight" && it.fontScale==1.3f } };saveShot(rule,"G220-editor-day-large")
         // No name entered, no Save tap. Opening this editor alone must not create a contact.
         org.junit.Assert.assertTrue(rule.activity.state.contacts.isEmpty())
     }
     @Test fun largeFontKeypadSaveDoesNotHideCallControl() {
-        settle();rule.activity.state.showOnboarding=false
+        settle();rule.runOnUiThread { rule.activity.state.showOnboarding=false }
         runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.fontScale]=1.3f}}
-        rule.activity.state.dial="9876543210";rule.activity.state.tab="dialer";settle()
+        rule.runOnUiThread { rule.activity.state.dial="9876543210";rule.activity.state.tab="dialer" };settle()
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).assertIsDisplayed()
         saveShot(rule,"N201-dial-save-large")
     }
