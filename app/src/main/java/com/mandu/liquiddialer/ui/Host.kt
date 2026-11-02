@@ -14,8 +14,8 @@ import com.mandu.liquiddialer.LdApp
 fun LdThemeHost(content: @Composable () -> Unit) {
     val s by LdApp.settings.collectAsState()
     val dark = isSystemInDarkTheme()
-    val pal = remember(s.theme, s.accent, s.blur, s.motion, dark) {
-        paletteFor(s.theme, Color(s.accent.toInt()), dark).copy(blur = s.blur.toFloat(), motion = s.motion)
+    val pal = remember(s.theme, s.accent, s.blur, s.motion, s.glassDepth, s.glassFrost, dark) {
+        paletteFor(s.theme, Color(s.accent.toInt()), dark).copy(blur = s.blur.toFloat(), motion = s.motion, glassDepth = s.glassDepth, glassFrost = s.glassFrost)
     }
     val d = LocalDensity.current
     val scheme = if (pal.isLight) lightColorScheme(primary = pal.accent, background = pal.bg, surface = pal.bg2, onSurface = pal.text, onBackground = pal.text)
