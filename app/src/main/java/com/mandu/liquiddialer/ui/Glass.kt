@@ -112,9 +112,9 @@ fun Modifier.liquid(shape: Shape, shadow: Dp = 16.dp, blur: Boolean = true): Mod
 
 /** Gemini-style raised glass: soft BADA shadow + top-light->bottom-shade gradient = 3D depth (user ref: Gemini overlay panels). Sab static - shadow cached layer, koi per-frame cost nahi. */
 fun Modifier.raisedGlass(p: LdPalette, shape: Shape, elevation: Dp = 14.dp): Modifier = this
-    .shadow(elevation * when(p.glassDepth) { 0 -> 0f; 1 -> .5f; else -> 1f }, shape, clip = false,
-        ambientColor = Color.Black.copy(alpha = if (p.isLight) .16f else .38f),
-        spotColor = p.accent.copy(alpha = if (p.isLight) .12f else .25f))
+    .shadow(elevation * when(p.glassDepth) { 0 -> 0f; 1 -> .5f; else -> 1.2f }, shape, clip = false,
+        ambientColor = Color.Black.copy(alpha = if (p.isLight) .20f else .42f),
+        spotColor = p.accent.copy(alpha = if (p.isLight) .16f else .28f))
     .clip(shape)
     .background(Brush.verticalGradient(listOf(
         if (p.isLight) Color.White.copy(alpha = listOf(.58f,.82f,.98f)[p.glassFrost.coerceIn(0,2)]) else mix(p.bg2, p.accent, .94f).copy(alpha = listOf(.74f,.88f,.98f)[p.glassFrost.coerceIn(0,2)]),
@@ -122,9 +122,9 @@ fun Modifier.raisedGlass(p: LdPalette, shape: Shape, elevation: Dp = 14.dp): Mod
     )))
     .drawWithContent {
         drawContent()
-        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = if (p.glassDepth==0) .12f else if (p.isLight) .55f else .32f), (2.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent))
+        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = if (p.glassDepth==0) .12f else if (p.isLight) .67f else .40f), (3.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent))
         // bottom ki halki shade - 3D depth ka doosra half
-        drawRect(Brush.verticalGradient(1f - (3.5.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent, 1f to Color.Black.copy(alpha = if (p.glassDepth==0) 0f else if (p.isLight) .05f else .16f)))
+        drawRect(Brush.verticalGradient(1f - (4.dp.toPx() / size.height).coerceIn(0.001f, 1f) to Color.Transparent, 1f to Color.Black.copy(alpha = if (p.glassDepth==0) 0f else if (p.isLight) .075f else .19f)))
     }
     .border(1.dp, if (p.isLight) Color.White.copy(alpha = .75f) else p.stroke, shape)
 
