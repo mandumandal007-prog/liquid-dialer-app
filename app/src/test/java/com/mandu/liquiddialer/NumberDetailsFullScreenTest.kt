@@ -129,7 +129,7 @@ class NumberDetailsFullScreenTest {
         settle()
         rule.onNodeWithText("Notes (",substring=true,useUnmergedTree=true).performClick()
         settle()
-        rule.onAllNodes(hasSetTextAction()).assertCountEquals(2)
+        rule.onAllNodes(hasSetTextAction()).assertCountEquals(3)
         rule.onAllNodes(hasSetTextAction())[1].performTextInput("दूसरी बात 💚")
         rule.onNodeWithText("Save",useUnmergedTree=true).performClick()
         settle()
