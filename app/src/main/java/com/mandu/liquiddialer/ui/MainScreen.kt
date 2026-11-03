@@ -963,6 +963,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         item(LdIcons.Palette, "Theme & appearance") { onOpen("appearance") }
         item(LdIcons.User, "My profile (naam + photo)") { onOpen("profile") }
         item(LdIcons.Dialpad, "Calling card layout") { onOpen("calllayout") }
+        item(LdIcons.Users, "Call Lists") { onOpen("calllists") }
         item(LdIcons.Phone, "Wapas call karna") { onOpen("callbacks") }
         item(LdIcons.Record, "Recordings") { onOpen("recordings") }
         item(LdIcons.Edit, "Call notes") { onOpen("notes") }
