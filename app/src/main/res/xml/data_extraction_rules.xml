@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
-    <cloud-backup><exclude domain="sharedpref" path="received_caller_names.xml" />
+    <cloud-backup><exclude domain="file" path="manual_call_lists.json" />
+        <exclude domain="file" path="manual_call_lists.json.bak" />
+        <exclude domain="file" path="manual_call_lists.json.new" />
+        <exclude domain="sharedpref" path="received_caller_names.xml" />
         <exclude domain="sharedpref" path="call_background_photos.xml" />
         <exclude domain="file" path="call_backgrounds/" /></cloud-backup>
-    <device-transfer><exclude domain="sharedpref" path="received_caller_names.xml" />
+    <device-transfer><exclude domain="file" path="manual_call_lists.json" />
+        <exclude domain="file" path="manual_call_lists.json.bak" />
+        <exclude domain="file" path="manual_call_lists.json.new" />
+        <exclude domain="sharedpref" path="received_caller_names.xml" />
         <exclude domain="sharedpref" path="call_background_photos.xml" />
         <exclude domain="file" path="call_backgrounds/" /></device-transfer>
 </data-extraction-rules>
