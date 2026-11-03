@@ -149,7 +149,12 @@ class LuxuryShotTest {
     fun hisabDark() {
         boot("midnight")
         openDrawer()
-        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
         settle()
         rule.onNodeWithText("CSV share karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
         saveShot(rule, "L11-hisab-dark")
@@ -159,7 +164,12 @@ class LuxuryShotTest {
     fun hisabLight() {
         boot("daylight")
         openDrawer()
-        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
         settle()
         rule.onNodeWithText("CSV share karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
         saveShot(rule, "L12-hisab-light")
@@ -170,7 +180,12 @@ class LuxuryShotTest {
     fun hisabBigfont() {
         boot("midnight")
         openDrawer()
-        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
         settle()
         rule.onNodeWithText("CSV share karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
         saveShot(rule, "L13-hisab-bigfont")
@@ -275,7 +290,12 @@ class HisabShareUiTest {
         settle()
         rule.onNodeWithTag("drawer_open", useUnmergedTree = true).performTouchInput { click(center) }
         settle()
-        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
         settle()
     }
 
