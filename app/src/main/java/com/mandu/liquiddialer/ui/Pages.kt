@@ -795,6 +795,7 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
     var notes by remember { mutableStateOf(if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number)) }
     var text by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
+    var deleting by remember { mutableStateOf<Note?>(null) }
     val shown = remember(notes, query) { NoteSearch.find(notes, query) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     PageFrame(if (number == null) "Call notes" else "Notes · ${Repo.lookupName(ctx, number)?.first ?: Repo.pretty(number)}", onBack) {
@@ -820,7 +821,7 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
                         LdText(n.name.ifBlank { Repo.pretty(n.number) }, 13.5f, FontWeight.Bold)
                         LdText(df.format(Date(n.time)), 11f, color = p.muted)
                     }
-                    Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).clickable { Repo.deleteNote(ctx, n.id); notes = if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number) },
+                    Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).testTag("note_delete_${n.id}").clickable { deleting = n },
                         contentAlignment = Alignment.Center) { LdIcon(LdIcons.Trash, 16.dp, p.muted) }
                 }
                 Spacer(Modifier.height(6.dp))
@@ -828,6 +829,27 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
             }
         }
     }
+    deleting?.let { selected ->
+        AlertDialog(
+            onDismissRequest = { deleting = null },
+            containerColor = p.bg2,
+            title = { LdText("Note delete karein?", 20f, FontWeight.Bold) },
+            text = { Column(Modifier.verticalScroll(rememberScrollState())) {
+                LdText(selected.name.ifBlank { Repo.pretty(selected.number) }, 13f, FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                LdText(selected.text, 14f, maxLines = 4)
+                Spacer(Modifier.height(12.dp))
+                LdText("Ye note wapas nahi aayega.", 12f, color = p.muted)
+            } },
+            confirmButton = { TextButton(onClick = {
+                deleting = null
+                Repo.deleteNote(ctx, selected.id)
+                notes = if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number)
+            }, modifier = Modifier.testTag("note_delete_confirm")) { LdText("Delete", 14f, color = p.danger) } },
+            dismissButton = { TextButton(onClick = { deleting = null }, modifier = Modifier.testTag("note_delete_cancel")) { LdText("Rehne do", 14f) } }
+        )
+    }
+
 }
 
 @Composable
