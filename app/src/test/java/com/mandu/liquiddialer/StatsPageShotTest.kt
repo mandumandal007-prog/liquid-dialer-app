@@ -83,7 +83,12 @@ class StatsPageShotTest {
     private fun openStatsViaDrawer() {
         rule.onNodeWithTag("drawer_open", useUnmergedTree = true).performTouchInput { click(center) }
         settle()
-        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
         settle()
     }
     private fun openStats() {
@@ -152,7 +157,12 @@ class StatsPageShotTest {
         // empty page drawer ke "Hisab (call stats)" se kholo
         rule.onNodeWithTag("drawer_open", useUnmergedTree = true).performTouchInput { click(center) }
         settle()
-        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
         settle()
         rule.onNodeWithTag("stats_empty", useUnmergedTree = true).assertExists()
         rule.onNodeWithText("Koi call history nahi", substring = true, useUnmergedTree = true).assertExists()
@@ -166,7 +176,12 @@ class StatsPageShotTest {
         bootAndSeed(emptyList(), grantLog = false)
         rule.onNodeWithTag("drawer_open", useUnmergedTree = true).performTouchInput { click(center) }
         settle()
-        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performClick()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).performScrollTo()
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        settle()
+        rule.onNodeWithText("Hisab (call stats)", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
         settle()
         rule.onNodeWithTag("stats_empty", useUnmergedTree = true).assertExists()
         rule.onNodeWithText("Call log ka access nahi", substring = true, useUnmergedTree = true).assertExists()
