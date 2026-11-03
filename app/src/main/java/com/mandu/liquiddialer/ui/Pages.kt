@@ -124,6 +124,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "recordings" -> RecordingsPage(onBack)
         page == "notes" -> NotesPage(null, onBack)
         page.startsWith("notes:") -> NotesPage(page.removePrefix("notes:"), onBack)
+        page == "calllists" -> CallListsPage(st, act, onBack)
         page == "callbacks" -> CallbacksPage(st, act, onBack, onOpenNumber)
         page == "stats" -> StatsPage(st, act, onBack, onInsights)
         page == "blocked" -> BlockedPage(st, act, onBack)
