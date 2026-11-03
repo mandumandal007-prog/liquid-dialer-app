@@ -52,20 +52,20 @@ class ScreenshotTest {
     fun dialerSheet() {
         settle(2500)
         val act = rule.activity
-        act.state.showOnboarding = false
-        act.state.contacts = listOf(
+        rule.runOnUiThread { act.state.showOnboarding = false }
+        rule.runOnUiThread { act.state.contacts = listOf(
             Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null),
             Contact(12, "lk2", "Papa", "", "+91 91234 56789", "MOBILE", false, null),
-        )
-        act.state.recents = listOf(
+            ) }
+        rule.runOnUiThread { act.state.recents = listOf(
             Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null),
-        )
-        act.state.isDefault = true
+            ) }
+        rule.runOnUiThread { act.state.isDefault = true }
         org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
-        act.state.recents = act.state.recents + Recent(2, "+91 91234 56789", "Papa", 2, System.currentTimeMillis() - 5 * 3600_000, 0, null, null)
+        rule.runOnUiThread { act.state.recents = act.state.recents + Recent(2, "+91 91234 56789", "Papa", 2, System.currentTimeMillis() - 5 * 3600_000, 0, null, null) }
         settle()
         saveShot(rule, "02-recents")
-        act.state.recents = act.state.recents + (3..9).map { Recent(it.toLong(), "+91 90000 0000$it", "Zed $it", 1, System.currentTimeMillis() - it * 86_400_000L, 30, null, null) }
+        rule.runOnUiThread { act.state.recents = act.state.recents + (3..9).map { Recent(it.toLong(), "+91 90000 0000$it", "Zed $it", 1, System.currentTimeMillis() - it * 86_400_000L, 30, null, null) } }
         settle()
         repeat(4) { rule.onRoot().performTouchInput { swipeUp(startY = height * 0.8f, endY = height * 0.2f) }; settle(400) }
         settle()
@@ -74,11 +74,11 @@ class ScreenshotTest {
         // open the dialer sheet via the FAB
         rule.onNodeWithTag("dialer_fab").performClick()
         settle()
-        act.state.dial = "9876543210"
+        rule.runOnUiThread { act.state.dial = "9876543210" }
         settle()
         saveShot(rule, "03-dialer")
 
-        act.state.dial = "9876"
+        rule.runOnUiThread { act.state.dial = "9876" }
         settle()
         saveShot(rule, "03d-chips")
         // user runs max dialer scale: same tight layout, no dead gaps
@@ -92,22 +92,22 @@ class ScreenshotTest {
         }
         settle(1000)
         // dark theme + several live suggestions at once (user's phone look)
-        act.state.contacts = act.state.contacts + listOf(
+        rule.runOnUiThread { act.state.contacts = act.state.contacts + listOf(
             Contact(13, "lk3", "Riya Singh", "", "+91 98765 11111", "MOBILE", false, null),
             Contact(14, "lk4", "Rohan Kumar", "", "+91 98765 22222", "MOBILE", false, null),
-        )
+            ) }
         runBlocking {
             ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p -> p[K.theme] = "midnight" }
         }
         settle(2000)
-        act.state.dial = "98765"
+        rule.runOnUiThread { act.state.dial = "98765" }
         settle()
         saveShot(rule, "03f-dialer-dark-multi")
         runBlocking {
             ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p -> p[K.theme] = "daylight" }
         }
         settle(1000)
-        act.state.dial = "9876543210"
+        rule.runOnUiThread { act.state.dial = "9876543210" }
         settle()
         // open the three-dot menu (Paste / Pause / Wait)
         rule.onNodeWithTag("dial_menu").performClick()
@@ -119,7 +119,6 @@ class ScreenshotTest {
         settle()
         saveShot(rule, "03c-dialer-pause")
     }
-
     /** Contacts tab pixel coverage: GlassRow padding change ke baad bhi rows sahi dikhte hain. */
     /** Naye features: aaj-stats strip + missed-call tab badge (arrive while on Contacts, clear on Recents). */
     @Test
