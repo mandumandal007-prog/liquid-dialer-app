@@ -794,6 +794,8 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
     val ctx = LocalContext.current
     var notes by remember { mutableStateOf(if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number)) }
     var text by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf("") }
+    val shown = remember(notes, query) { NoteSearch.find(notes, query) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     PageFrame(if (number == null) "Call notes" else "Notes · ${Repo.lookupName(ctx, number)?.first ?: Repo.pretty(number)}", onBack) {
         if (number != null) GlassCard(Modifier.padding(bottom = 12.dp)) {
@@ -803,7 +805,15 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
             }
         }
         if (notes.isEmpty()) EmptyState(LdIcons.Edit, "Koi note nahi", "Call ke dauran Notes button dabao")
-        notes.forEach { n ->
+        if (notes.isNotEmpty()) GlassCard(Modifier.padding(bottom = 12.dp)) {
+            LdField(query, { query = it }, "Notes mein khojo…", modifier = Modifier.testTag("notes_search"))
+            if (query.isNotBlank()) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                LdText("${shown.size} / ${notes.size} notes", 12f, color = p.muted, modifier = Modifier.weight(1f))
+                TextButton(onClick = { query = "" }, modifier = Modifier.testTag("notes_search_clear")) { LdText("Saaf karo", 12f) }
+            }
+        }
+        if (notes.isNotEmpty() && shown.isEmpty()) EmptyState(LdIcons.Search, "Koi matching note nahi", "Naam, number ya note ke shabd badal kar khojo")
+        shown.forEach { n ->
             Column(Modifier.fillMaxWidth().padding(bottom = 10.dp).glass(p, RoundedCornerShape(20.dp)).padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
