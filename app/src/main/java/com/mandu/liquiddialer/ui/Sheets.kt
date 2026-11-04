@@ -49,7 +49,8 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     val reminder = remember(reminderTick) { try { com.mandu.liquiddialer.data.CallReminders.forNumber(ctx, number) }catch(_:Exception){null} }
     val name = contact?.name ?: if (number.isBlank()) "Private number" else Repo.pretty(number)
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
-    val notes = remember(number) { Repo.notesFor(ctx, number) }
+    val notesRead = remember(number) {runCatching {Repo.notesChecked(ctx).filter {ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}}
+    val notes=notesRead.getOrDefault(emptyList())
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Avatar(name, contact?.photo, 72.dp, 24f, seed = name)
@@ -184,7 +185,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             Toast.makeText(ctx, "Yaad kiya naam hata diya", Toast.LENGTH_SHORT).show()
             }
         }
-        SheetRow(LdIcons.Edit, "Notes (${notes.size})") { onNotes() }
+        SheetRow(LdIcons.Edit, if(notesRead.isFailure) "Notes load nahi hue" else "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
         if (remindOpen) {
             listOf("30min" to "30 min baad", "1h" to "1 ghante baad", "evening" to "Shaam 6 baje", "morning" to "Kal subah 9 baje").forEach { (preset, label) ->
