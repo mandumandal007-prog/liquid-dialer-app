@@ -43,11 +43,9 @@ class CallActionReceiver : BroadcastReceiver() {
             }
             CALL_REMIND -> {
                 val number = intent.getStringExtra("number") ?: ""
-                val name = intent.getStringExtra("name") ?: number
-                if (number.isNotBlank()) {
-                    com.mandu.liquiddialer.data.CallReminders.remove(ctx, number)
-                    CallNotifier.callReminder(ctx, number, name)
-                }
+                val token=intent.getStringExtra("token").orEmpty()
+                val r=try {com.mandu.liquiddialer.data.CallReminders.consume(ctx,number,token)}catch(_:Exception){null}
+                if(r!=null) CallNotifier.callReminder(ctx,r.number,r.name)
             }
         }
         CallNotifier.update(ctx)
