@@ -166,7 +166,7 @@ class CallReminderTest {
         val at = System.currentTimeMillis() + 3600_000L
         CallReminders.set(ctx, "9812345678", "Rahul", at)
         val intent = android.content.Intent(CallActionReceiver.CALL_REMIND)
-            .putExtra("number", "9812345678").putExtra("name", "Rahul")
+            .putExtra("number", "9812345678").putExtra("token", CallReminders.allRaw(ctx).first {it.number=="9812345678"}.token)
         CallActionReceiver().onReceive(ctx, intent)
         val nm = Shadows.shadowOf(ctx.getSystemService(NotificationManager::class.java))
         val n = nm.allNotifications.lastOrNull { it.extras.getCharSequence("android.title").toString().contains("Call reminder") }
