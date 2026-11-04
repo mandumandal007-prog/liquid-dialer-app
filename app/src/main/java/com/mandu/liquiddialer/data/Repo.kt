@@ -429,16 +429,31 @@ object Repo {
 
     // ---------------- notes ----------------
     private fun notesFile(ctx: Context) = File(ctx.filesDir, "notes.json")
-    @Synchronized fun notes(ctx: Context): List<Note> = try {
-        val a = JSONArray(android.util.AtomicFile(notesFile(ctx)).let { f -> if (f.baseFile.exists() || File(f.baseFile.path+".bak").exists()) String(f.readFully(), Charsets.UTF_8) else "[]" })
-        (0 until a.length()).map { i -> a.getJSONObject(i).let { Note(it.getLong("id"), it.getString("number"), it.optString("name"), it.getString("text"), it.getLong("time")) } }.sortedByDescending { it.time }
-    } catch (e: Exception) { emptyList() }
+    /** Compatibility display read. Mutations and Notes workspace use checked read. */
+    @Synchronized fun notes(ctx: Context): List<Note> = try {notesChecked(ctx)}catch(_:Exception){emptyList()}
+    @Synchronized fun notesChecked(ctx:Context):List<Note> {
+        val file=android.util.AtomicFile(notesFile(ctx))
+        if(!file.baseFile.exists() && !File(file.baseFile.path+".bak").exists())return emptyList()
+        val bytes=file.openRead().use {stream->
+            val out=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192)
+            while(true){val n=stream.read(buffer);if(n<0)break;require(out.size()+n<=4*1024*1024){"Notes file bahut badi hai"};out.write(buffer,0,n)}
+            out.toByteArray()
+        }
+        val text=Charsets.UTF_8.newDecoder().onMalformedInput(java.nio.charset.CodingErrorAction.REPORT).decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+        val tokener=org.json.JSONTokener(text);val a=tokener.nextValue() as? JSONArray ?: error("Notes format sahi nahi hai");require(tokener.nextClean()=='\u0000');require(a.length()<=10000);val ids=HashSet<Long>()
+        return (0 until a.length()).map {i->val o=a.getJSONObject(i)
+            require((o.get("id") is Int || o.get("id") is Long) && (o.get("time") is Int || o.get("time") is Long) && o.get("number") is String && o.get("text") is String)
+            val id=o.getLong("id");require(id>0 && ids.add(id))
+            val name=if(o.has("name")){require(o.get("name") is String);o.getString("name")}else ""
+            Note(id,o.getString("number"),name,o.getString("text"),o.getLong("time"))
+        }.sortedByDescending {it.time}
+    }
     private fun saveNotes(ctx: Context, list: List<Note>) {
         val a = JSONArray(); list.forEach { a.put(JSONObject().put("id", it.id).put("number", it.number).put("name", it.name).put("text", it.text).put("time", it.time)) }
         val file=android.util.AtomicFile(notesFile(ctx))
         val stream=file.startWrite()
         try {
-            stream.write(a.toString().toByteArray(Charsets.UTF_8))
+            val bytes=a.toString().toByteArray(Charsets.UTF_8);require(bytes.size<=4*1024*1024){"Notes storage ki limit aa gayi"};stream.write(bytes)
             file.finishWrite(stream)
         } catch(t: Throwable) {
             file.failWrite(stream)
@@ -447,15 +462,22 @@ object Repo {
     }
     @Synchronized fun addNote(ctx: Context, number: String, name: String, text: String) {
         if (text.isBlank()) return
-        val saved=notes(ctx)
+        val saved=notesChecked(ctx)
+        require(text.trim().length<=50000){"Note 50,000 letters tak rakho"}
+        require(saved.size<10000){"Notes ki limit aa gayi"}
         val now=System.currentTimeMillis()
         // Stable unique IDs even when two notes are added in one clock tick or the clock moves back.
         val lastId=saved.maxOfOrNull { it.id } ?: 0L
         val id=if(now>lastId) now else Math.addExact(lastId,1L)
         saveNotes(ctx, saved + Note(id, number, name, text.trim(), now))
     }
-    @Synchronized fun deleteNote(ctx: Context, id: Long) = saveNotes(ctx, notes(ctx).filter { it.id != id })
-    fun notesFor(ctx: Context, number: String) = notes(ctx).filter { key(it.number) == key(number) }
+    @Synchronized fun deleteNote(ctx: Context, id: Long) = saveNotes(ctx, notesChecked(ctx).filter { it.id != id })
+    fun notesFor(ctx: Context, number: String) = notes(ctx).filter {ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}
+    @Synchronized fun updateNote(ctx:Context,original:Note,text:String) {
+        require(text.isNotBlank() && text.trim().length<=50000){"Note 1 se 50,000 letters ka rakho"}
+        val saved=notesChecked(ctx);require(saved.firstOrNull{it.id==original.id}==original){"Note badal chuka hai; dobara kholo"}
+        saveNotes(ctx,saved.map {if(it.id==original.id)it.copy(text=text.trim()) else it})
+    }
 
     // ---------------- recordings ----------------
     fun recordingsDir(ctx: Context): File = File(ctx.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC) ?: ctx.filesDir, "LiquidDialer").apply { mkdirs() }
