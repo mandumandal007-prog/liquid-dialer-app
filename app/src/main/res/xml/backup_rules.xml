@@ -3,6 +3,7 @@
     <exclude domain="file" path="manual_call_lists.json" />
         <exclude domain="file" path="manual_call_lists.json.bak" />
         <exclude domain="file" path="manual_call_lists.json.new" />
+        <exclude domain="sharedpref" path="call_reminders.xml" />
         <exclude domain="sharedpref" path="received_caller_names.xml" />
         <exclude domain="sharedpref" path="call_background_photos.xml" />
         <exclude domain="file" path="call_backgrounds/" />
