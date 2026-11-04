@@ -19,9 +19,11 @@ class BootReceiver : BroadcastReceiver() {
         val bdayOn = kotlinx.coroutines.runBlocking {
             try { com.mandu.liquiddialer.data.SettingsRepo(ctx).flow.first().birthdayRemind } catch (e: Exception) { false }
         }
-        if (bdayOn) com.mandu.liquiddialer.data.BirthdayReminders.schedule(ctx)
+        if (bdayOn) try {com.mandu.liquiddialer.data.BirthdayReminders.schedule(ctx)}catch(_:Exception){}
         val now = System.currentTimeMillis()
-        for (r in CallReminders.allRaw(ctx)) {
+        val reminders=try {CallReminders.allRaw(ctx)}catch(_:Exception){return}
+        for (r in reminders) {
+            try {
             when {
                 r.atMs > now -> CallReminders.set(ctx, r.number, r.name, r.atMs)
                 r.atMs > now - 24 * 60 * 60_000L -> {
@@ -30,6 +32,7 @@ class BootReceiver : BroadcastReceiver() {
                 }
                 else -> CallReminders.remove(ctx, r.number)
             }
+            }catch(_:Exception){android.util.Log.w("CallReminders","Restart recovery failed; saved reminder retained for retry")}
         }
     }
 }
