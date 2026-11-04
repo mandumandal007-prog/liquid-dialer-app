@@ -1,6 +1,8 @@
 package com.mandu.liquiddialer.ui
 
 import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.AlertDialog
@@ -27,6 +29,7 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
     var loaded by remember {mutableStateOf(false)}
     var busy by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf("")}
+    var notice by remember {mutableStateOf("")}
     var selected by remember {mutableStateOf<String?>(null)}
     var mode by remember {mutableStateOf("")}
     var name by remember {mutableStateOf("")}
@@ -35,6 +38,26 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
     var visible by remember(selected) {mutableIntStateOf(20)}
     var filter by remember(selected) {mutableStateOf("Pending")}
     var confirm by remember {mutableStateOf<Pair<String,String>?>(null)}
+    var batchText by remember {mutableStateOf("")}
+    var batchReview by remember {mutableStateOf<CallListTransfer.Batch?>(null)}
+    var importText by remember {mutableStateOf<String?>(null)}
+    var importPreview by remember {mutableStateOf<List<CallLists.ListItem>?>(null)}
+    var exportText by remember {mutableStateOf<String?>(null)}
+    val exportFile=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")){uri->
+        val text=exportText;exportText=null
+        if(uri!=null && text!=null){busy=true;scope.launch {
+            val ok=try{withContext(Dispatchers.IO){ctx.contentResolver.openOutputStream(uri,"wt")?.use {it.write(text.toByteArray(Charsets.UTF_8))} ?: error("No output");true}}catch(_:Exception){false}
+            busy=false;if(ok)notice="Call Lists backup save hua" else error="Backup save nahi hua; adhuri file ko use mat karo"
+        }}
+    }
+    val importFile=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
+        if(uri!=null){busy=true;error="";scope.launch {
+            try {val text=withContext(Dispatchers.IO){ctx.contentResolver.openInputStream(uri)?.use {CallListTransfer.read(it)} ?: error("No input")}
+                val preview=withContext(Dispatchers.IO){CallListTransfer.preview(text)};importText=text;importPreview=preview;mode="import-review"
+            }catch(_:Exception){error="Backup khul nahi raha ya valid Call Lists file nahi hai. Koi saved list nahi badli."}
+            finally{busy=false}
+        }}
+    }
     val current=lists.firstOrNull {it.id==selected}
     fun update(action:()->List<CallLists.ListItem>,after:()->Unit={}) {
         if(busy) return
@@ -49,13 +72,30 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
         try {lists=withContext(Dispatchers.IO){CallLists.read(ctx)};loaded=true}
         catch(_:Exception){error="Saved lists khul nahi rahi. Data ko overwrite nahi kiya gaya."}
     }
-    fun back() {if(busy)return; when {mode.isNotEmpty()->mode="";selected!=null->selected=null;else->onBack()}}
+    fun back() {if(busy)return; when {mode.isNotEmpty()->{mode="";batchReview=null;importPreview=null;importText=null};selected!=null->selected=null;else->onBack()}}
     PageFrame(current?.title ?: "Call Lists",{back()}) {
         LdText("Apni calling lists banao, ek-ek karke khud call karo aur Done lagao. Call dabane se entry apne aap Done nahi hogi. Lists isi app mein save hoti hain.",12f,color=p.muted,maxLines=6)
         Spacer(Modifier.height(12.dp))
+        if(notice.isNotEmpty())LdText(notice,13f,color=p.accent,maxLines=3,modifier=Modifier.testTag("lists_notice"))
         if(error.isNotEmpty()) LdText(error,13f,color=p.danger,maxLines=5,modifier=Modifier.testTag("lists_error"))
         if(!loaded) {
             LdText("Lists load ho rahi hain. Load fail ho toh wapas jaakar dobara kholo.",13f,color=p.muted,maxLines=4)
+        } else if(mode=="import-review") {
+            val preview=importPreview.orEmpty()
+            LdText("Backup preview",18f,FontWeight.Bold)
+            LdText("${preview.size} lists · ${preview.sumOf {it.entries.size}} entries · ${preview.sumOf {l->l.entries.count {it.done}}} Done",13f,color=p.accent,maxLines=3)
+            LdText("Nayi copies judengi. Maujooda lists/progress nahi badlenge. Ek file dobara import karne par phir copies banengi. Phone contacts ya call history nahi badlegi. Koi call nahi lagega.",12f,color=p.muted,maxLines=7)
+            preview.forEach {l->
+                LdText("${l.title}: ${l.entries.size} entries · ${l.entries.count {it.done}} Done",14f,FontWeight.Bold,maxLines=3,modifier=Modifier.padding(top=10.dp))
+                l.entries.take(5).forEach {e->LdText(e.number+if(e.name.isBlank())"" else " · "+e.name,12f,color=p.muted,maxLines=3)}
+                if(l.entries.size>5)LdText("Aur ${l.entries.size-5} entries backup mein",12f,color=p.muted,maxLines=2)
+            }
+            if(lists.size+preview.size>20)LdText("20 lists ki limit: import se pehle jagah banao.",13f,color=p.danger,maxLines=3)
+            PrimaryButton("Copies import karo",enabled=!busy && preview.isNotEmpty() && lists.size+preview.size<=20,modifier=Modifier.testTag("lists_import_confirm")) {
+                val text=importText ?: return@PrimaryButton
+                update({CallLists.importCopies(ctx,text)}){mode="";importPreview=null;importText=null;selected=null}
+            }
+            PrimaryButton("Rehne do",enabled=!busy,modifier=Modifier.testTag("lists_import_cancel")){mode="";importPreview=null;importText=null}
         } else if(current==null) {
             if(mode!="create") PrimaryButton("Nayi list banao",enabled=!busy,modifier=Modifier.testTag("lists_create")){mode="create";name=""}
             if(mode=="create") {
@@ -64,6 +104,13 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
                     val savedName=name;update({CallLists.create(ctx,savedName)}) {selected=lists.last().id;mode="";name=""}
                 }
                 PrimaryButton("Rehne do",enabled=!busy){mode=""}
+            }
+            if(mode!="create") {
+                LdText("Apni JSON backup file mein naam, numbers aur Done progress honge. Private jagah save karo. App automatic cloud backup nahi banata.",12f,color=p.muted,maxLines=5,modifier=Modifier.padding(top=10.dp))
+                PrimaryButton("Backup file save karo",enabled=!busy && lists.isNotEmpty(),modifier=Modifier.testTag("lists_export")) {
+                    try{exportText=CallListTransfer.backup(lists);exportFile.launch("call-lists-backup.json")}catch(_:Exception){error="Backup taiyar nahi hua. Koi saved list nahi badli."}
+                }
+                PrimaryButton("Backup file se import",enabled=!busy,modifier=Modifier.testTag("lists_import")){importFile.launch(arrayOf("application/json","text/plain"))}
             }
             if(lists.isEmpty() && mode!="create") EmptyState(LdIcons.Phone,"Abhi koi list nahi","Family, Work ya aaj ke calls ki list banao")
             lists.forEach { l ->
@@ -79,6 +126,7 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
             Spacer(Modifier.height(10.dp))
             if(mode.isEmpty()) {
                 PrimaryButton("Number jodo",enabled=!busy,modifier=Modifier.testTag("list_add")){mode="manual";name="";number=""}
+                PrimaryButton("Numbers paste karo",enabled=!busy,modifier=Modifier.testTag("list_batch")){mode="batch";batchText="";batchReview=null}
                 PrimaryButton("Contacts se jodo",enabled=!busy,modifier=Modifier.testTag("list_contacts")){mode="contacts";query=""}
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                     PrimaryButton("Naam badlo",enabled=!busy,modifier=Modifier.weight(1f).testTag("list_rename")){mode="rename";name=current.title}
@@ -95,6 +143,23 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
                     ListField(name,{name=it.take(100)},"Naam (optional)","entry_name")
                     PrimaryButton("Number save karo",enabled=!busy && number.isNotBlank(),modifier=Modifier.testTag("entry_save")) {
                         val savedNumber=number;val savedName=name;update({CallLists.add(ctx,id,savedNumber,savedName)}){mode="";number="";name=""}
+                    }
+                }
+                "batch" -> {
+                    LdText("Har line: number ya number, naam. Tab bhi separator hai. Naam mein comma reh sakta hai. Quotes/CSV headers support nahi; pehle preview dekho. Phone contacts nahi badlenge.",12f,color=p.muted,maxLines=6)
+                    OutlinedTextField(batchText,{batchText=it;batchReview=null},label={Text("Numbers yahan paste karo")},minLines=5,maxLines=8,modifier=Modifier.fillMaxWidth().testTag("list_batch_text"))
+                    PrimaryButton("Preview dekho",enabled=!busy && batchText.isNotBlank(),modifier=Modifier.testTag("list_batch_preview")) {
+                        try{batchReview=CallListTransfer.batch(batchText,current.entries.map{it.number});error=""}catch(e:Exception){error=e.message ?: "Paste sahi karo"}
+                    }
+                    batchReview?.let {preview->
+                        LdText("${preview.entries.size} naye · ${preview.duplicateCount} duplicate skip",14f,FontWeight.Bold,modifier=Modifier.testTag("list_batch_count"))
+                        if(preview.invalidLines.isNotEmpty())LdText("Galat lines: ${preview.invalidLines.joinToString(", ")}. Pehle sab sahi karo; abhi kuch add nahi hua.",13f,color=p.danger,maxLines=6,modifier=Modifier.testTag("list_batch_invalid"))
+                        if(current.entries.size+preview.entries.size>200)LdText("200 entries ki limit se zyada; paste chhota karo.",13f,color=p.danger,maxLines=3)
+                        preview.entries.take(20).forEach {row->LdText(row.number+if(row.name.isBlank())"" else " · "+row.name,13f,maxLines=3,modifier=Modifier.padding(vertical=4.dp))}
+                        if(preview.entries.size>20)LdText("Preview mein pehle 20; confirm par sab ${preview.entries.size} naye numbers judenge.",12f,color=p.muted,maxLines=3)
+                        PrimaryButton("${preview.entries.size} numbers jodo",enabled=!busy && preview.entries.isNotEmpty() && preview.invalidLines.isEmpty() && current.entries.size+preview.entries.size<=200,modifier=Modifier.testTag("list_batch_confirm")) {
+                            val text=batchText;update({CallLists.addBatch(ctx,id,text)}){mode="";batchText="";batchReview=null}
+                        }
                     }
                 }
                 "contacts" -> {
