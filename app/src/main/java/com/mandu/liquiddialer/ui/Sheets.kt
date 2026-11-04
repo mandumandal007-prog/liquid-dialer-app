@@ -46,7 +46,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     var confirmDelete by remember { mutableStateOf(false) }
     var remindOpen by remember { mutableStateOf(false) }
     var reminderTick by remember { mutableStateOf(0) }
-    val reminder = remember(reminderTick) { com.mandu.liquiddialer.data.CallReminders.forNumber(ctx, number) }
+    val reminder = remember(reminderTick) { try { com.mandu.liquiddialer.data.CallReminders.forNumber(ctx, number) }catch(_:Exception){null} }
     val name = contact?.name ?: if (number.isBlank()) "Private number" else Repo.pretty(number)
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     val notes = remember(number) { Repo.notesFor(ctx, number) }
@@ -190,9 +190,11 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             listOf("30min" to "30 min baad", "1h" to "1 ghante baad", "evening" to "Shaam 6 baje", "morning" to "Kal subah 9 baje").forEach { (preset, label) ->
                 SheetRow(LdIcons.Chevron, label) {
                     val at = com.mandu.liquiddialer.data.CallReminders.presetAt(preset, System.currentTimeMillis())
-                    com.mandu.liquiddialer.data.CallReminders.set(ctx, number, name, at)
-                    reminderTick++; remindOpen = false
-                    Toast.makeText(ctx, trNow("Reminder set") + ": " + df.format(Date(at)), Toast.LENGTH_SHORT).show()
+                    try {
+                        com.mandu.liquiddialer.data.CallReminders.set(ctx, number, name, at)
+                        reminderTick++; remindOpen = false
+                        Toast.makeText(ctx, trNow("Reminder set") + ": " + df.format(Date(at)), Toast.LENGTH_SHORT).show()
+                    }catch(_:Exception){Toast.makeText(ctx,"Reminder set nahi hua. Dobara try karo.",Toast.LENGTH_LONG).show()}
                 }
             }
             LdText("Samay lagbhag hoga - battery saver thoda der kar sakta hai", 11.5f, color = p.muted,
@@ -208,9 +210,11 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             }
             reminder?.let {
                 SheetRow(LdIcons.Block, "Reminder hataye", danger = true) {
-                    com.mandu.liquiddialer.data.CallReminders.cancel(ctx, number)
-                    reminderTick++; remindOpen = false
-                    Toast.makeText(ctx, trNow("Reminder hataya"), Toast.LENGTH_SHORT).show()
+                    try {
+                        com.mandu.liquiddialer.data.CallReminders.cancel(ctx, number)
+                        reminderTick++; remindOpen = false
+                        Toast.makeText(ctx, trNow("Reminder hataya"), Toast.LENGTH_SHORT).show()
+                    }catch(_:Exception){Toast.makeText(ctx,"Reminder cancel nahi hua. Dobara try karo.",Toast.LENGTH_LONG).show()}
                 }
             }
         }
