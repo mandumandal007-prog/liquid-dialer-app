@@ -796,20 +796,32 @@ private fun RecordingsPage(onBack: () -> Unit) {
 private fun NotesPage(number: String?, onBack: () -> Unit) {
     val p = LocalLd.current
     val ctx = LocalContext.current
-    var notes by remember { mutableStateOf(if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number)) }
+    var loadError by remember {mutableStateOf("")}
+    fun readNotes():List<Note> = try {Repo.notesChecked(ctx).filter {number==null || (ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number))}}
+        catch(_:Exception){loadError="Notes khul nahi rahe. Saved file ko overwrite nahi kiya gaya.";emptyList()}
+    var notes by remember {mutableStateOf(readNotes())}
+    var viewingId by androidx.compose.runtime.saveable.rememberSaveable {mutableStateOf<Long?>(null)}
+    var notePage by remember {mutableIntStateOf(0)}
     var text by remember { mutableStateOf("") }
     var query by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<Note?>(null) }
+    LaunchedEffect(query,notes){notePage=0}
     val shown = remember(notes, query) { NoteSearch.find(notes, query) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
+    notes.firstOrNull{it.id==viewingId}?.let {selected->NoteDetailPage(selected,onBack={viewingId=null},onSaved={viewingId=null;notes=readNotes()});return}
     PageFrame(if (number == null) "Call notes" else "Notes · ${Repo.lookupName(ctx, number)?.first ?: Repo.pretty(number)}", onBack) {
-        if (number != null) GlassCard(Modifier.padding(bottom = 12.dp)) {
+        if(loadError.isNotEmpty()) {
+            LdText(loadError,13f,color=p.danger,maxLines=5,modifier=Modifier.testTag("notes_load_error"))
+            PrimaryButton("Dobara load karo",modifier=Modifier.testTag("notes_retry")){loadError="";notes=readNotes()}
+        }
+        if (number != null && loadError.isEmpty()) GlassCard(Modifier.padding(bottom = 12.dp)) {
             LdField(text, { text = it }, "Naya note…", minLines = 2)
             PrimaryButton("Save", enabled = text.isNotBlank()) {
-                Repo.addNote(ctx, number, Repo.lookupName(ctx, number)?.first ?: "", text); text = ""; notes = Repo.notesFor(ctx, number)
+                try{Repo.addNote(ctx, number, Repo.lookupName(ctx, number)?.first ?: "", text); text = ""; notes = readNotes()}
+                catch(_:Exception){loadError="Note save nahi hua. Purani file nahi badli; dobara load karo."}
             }
         }
-        if (notes.isEmpty()) EmptyState(LdIcons.Edit, "Koi note nahi", "Call ke dauran Notes button dabao")
+        if (notes.isEmpty() && loadError.isEmpty()) EmptyState(LdIcons.Edit, "Koi note nahi", "Call ke dauran Notes button dabao")
         if (notes.isNotEmpty()) GlassCard(Modifier.padding(bottom = 12.dp)) {
             LdField(query, { query = it }, "Notes mein khojo…", modifier = Modifier.testTag("notes_search"))
             if (query.isNotBlank()) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -818,7 +830,12 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
             }
         }
         if (notes.isNotEmpty() && shown.isEmpty()) EmptyState(LdIcons.Search, "Koi matching note nahi", "Naam, number ya note ke shabd badal kar khojo")
-        shown.forEach { n ->
+        if(shown.size>20) {
+            LdText("${notePage*20+1}-${minOf((notePage+1)*20,shown.size)} / ${shown.size} notes",12f,color=p.muted,modifier=Modifier.testTag("notes_page_count"))
+            if(notePage>0)PrimaryButton("Pichhle 20 notes",modifier=Modifier.testTag("notes_previous")){notePage--}
+            if((notePage+1)*20<shown.size)PrimaryButton("Agle 20 notes",modifier=Modifier.testTag("notes_more")){notePage++}
+        }
+        shown.drop(notePage*20).take(20).forEach { n ->
             Column(Modifier.fillMaxWidth().padding(bottom = 10.dp).glass(p, RoundedCornerShape(20.dp)).padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -829,7 +846,8 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
                         contentAlignment = Alignment.Center) { LdIcon(LdIcons.Trash, 16.dp, p.muted) }
                 }
                 Spacer(Modifier.height(6.dp))
-                LdText(n.text, 14f, maxLines = 20)
+                LdText(n.text, 14f, maxLines = 5)
+                PrimaryButton("Poora note / edit",modifier=Modifier.testTag("note_open_${n.id}")){viewingId=n.id}
             }
         }
     }
@@ -847,8 +865,8 @@ private fun NotesPage(number: String?, onBack: () -> Unit) {
             } },
             confirmButton = { TextButton(onClick = {
                 deleting = null
-                Repo.deleteNote(ctx, selected.id)
-                notes = if (number == null) Repo.notes(ctx) else Repo.notesFor(ctx, number)
+                try{Repo.deleteNote(ctx, selected.id);notes=readNotes()}
+                catch(_:Exception){loadError="Note delete nahi hua. Saved file nahi badli; dobara load karo."}
             }, modifier = Modifier.testTag("note_delete_confirm")) { LdText("Delete", 14f, color = p.danger) } },
             dismissButton = { TextButton(onClick = { deleting = null }, modifier = Modifier.testTag("note_delete_cancel")) { LdText("Rehne do", 14f) } }
         )
