@@ -571,7 +571,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         // NAYA: upcoming call reminders ka strip - set reminders ek jagah dikhte hain, tap = number details
         item(key = "reminders-strip") {
             val remTick by com.mandu.liquiddialer.data.CallReminders.tick.collectAsState()
-            val rems = remember(remTick) { com.mandu.liquiddialer.data.CallReminders.all(ctx) }
+            val rems = remember(remTick) { try { com.mandu.liquiddialer.data.CallReminders.all(ctx) } catch(_:Exception){emptyList()} }
             if (rems.isNotEmpty()) {
                 val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
                 var expanded by remember { mutableStateOf(false) }
@@ -964,6 +964,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         item(LdIcons.User, "My profile (naam + photo)") { onOpen("profile") }
         item(LdIcons.Dialpad, "Calling card layout") { onOpen("calllayout") }
         item(LdIcons.Clock, "History Explorer") { onOpen("historyexplorer") }
+        item(LdIcons.Clock, "Reminder Center") { onOpen("reminders") }
         item(LdIcons.Users, "Call Lists") { onOpen("calllists") }
         item(LdIcons.Phone, "Wapas call karna") { onOpen("callbacks") }
         item(LdIcons.Record, "Recordings") { onOpen("recordings") }
