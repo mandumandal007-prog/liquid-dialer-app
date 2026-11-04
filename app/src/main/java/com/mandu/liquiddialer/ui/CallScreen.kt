@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Repo
+import com.mandu.liquiddialer.data.ContactControls
 import com.mandu.liquiddialer.telecom.CallManager
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
@@ -704,12 +705,15 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     var text by remember { mutableStateOf("") }
-    var list by remember { mutableStateOf(Repo.notesFor(ctx, number)) }
+    var error by remember {mutableStateOf("")}
+    var list by remember { mutableStateOf(try{Repo.notesChecked(ctx).filter{ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}catch(_:Exception){error="Notes khul nahi rahe. Saved file nahi badli.";emptyList()}) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     SheetTitle("Notes · $name")
     LdField(text, { text = it }, "Call ke dauran note likho…", minLines = 3)
-    PrimaryButton("Save note", enabled = text.isNotBlank()) {
-        Repo.addNote(ctx, number, name, text); text = ""; list = Repo.notesFor(ctx, number)
+    if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=4)
+    PrimaryButton("Save note", enabled = text.isNotBlank() && text.trim().length<=50000) {
+        try{Repo.addNote(ctx, number, name, text); text = ""; list = Repo.notesFor(ctx, number);error=""}
+        catch(_:Exception){error="Note save nahi hua. Saved file nahi badli. Notes page mein dobara load karo."}
     }
     if (list.isNotEmpty()) {
         Spacer(Modifier.height(10.dp))
