@@ -41,7 +41,10 @@ class SettingsGroupsTest {
         rule.onNodeWithTag("drawer_open").performClick()
         rule.mainClock.advanceTimeBy(1200);rule.waitForIdle()
         try {
-            rule.waitUntil(5000) { rule.onAllNodesWithText("Settings",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty() }
+            rule.waitUntil(5000) {
+                rule.mainClock.advanceTimeByFrame()
+                rule.onAllNodesWithText("Settings",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()
+            }
         } catch (e: Throwable) {
             println("DRAWER_NOT_READY settings="+LdApp.settings.value+" onboarding="+rule.activity.state.showOnboarding)
             println(rule.onAllNodes(isRoot(),useUnmergedTree=true).printToString())
