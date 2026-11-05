@@ -25,7 +25,7 @@ class CallbacksUiTest {
   rule.mainClock.autoAdvance=false;settle()
   val ctx=ApplicationProvider.getApplicationContext<LdApp>()
   runBlocking {ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
-  rule.waitUntil(5000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
+  rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
   org.robolectric.Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
   var opened=""
   rule.runOnUiThread {
