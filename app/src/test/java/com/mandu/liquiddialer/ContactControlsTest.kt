@@ -25,6 +25,31 @@ class ContactControlsTest {
         .edit().clear().apply()
 
     @Test
+    fun blockNeverRoundTripAurAliases() {
+        assertFalse(ContactControls.blockNever(ctx, "+91 98765 43210"))
+        ContactControls.setBlockNever(ctx, "98765 43210", true)
+        assertTrue(ContactControls.blockNever(ctx, "+91 98765 43210"))
+        assertTrue(ContactControls.blockNever(ctx, "919876543210"))
+        assertTrue(ContactControls.blockNever(ctx, "09876543210"))
+        ContactControls.setBlockNever(ctx, "+919876543210", false)
+        assertFalse(ContactControls.blockNever(ctx, "9876543210"))
+    }
+
+    @Test
+    fun blockNeverListAurForeignZero() {
+        assertTrue(ContactControls.blockNeverList(ctx).isEmpty())
+        ContactControls.setBlockNever(ctx, "0044 20 7946 0018", true)
+        ContactControls.setBlockNever(ctx, "0120 456789", true)  // Indian mobile pattern nahi: local namespace
+        val l = ContactControls.blockNeverList(ctx)
+        assertEquals(2, l.size)
+        assertTrue(l.contains("+442079460018"))
+        assertTrue(l.any { it.startsWith("local:") })
+        ContactControls.setBlockNever(ctx, "+44 20 7946 0018", false)
+        assertFalse(ContactControls.blockNeverList(ctx).contains("+442079460018"))
+        assertEquals(1, ContactControls.blockNeverList(ctx).size)
+    }
+
+    @Test
     fun sabDefaultsOff() {
         val n = "+91 98765 43210"
         assertNull(ContactControls.simPin(ctx, n))
