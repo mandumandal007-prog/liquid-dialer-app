@@ -473,6 +473,15 @@ object Repo {
     }
     @Synchronized fun deleteNote(ctx: Context, id: Long) = saveNotes(ctx, notesChecked(ctx).filter { it.id != id })
     fun notesFor(ctx: Context, number: String) = notes(ctx).filter {ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}
+    /** FullBackup merge path: caller (FullBackup.parse) has already strict-validated each note; ids colliding with existing notes are skipped, nothing existing is ever changed or deleted. */
+    @Synchronized fun importMerged(ctx: Context, fresh: List<Note>) {
+        if (fresh.isEmpty()) return
+        val current = notesChecked(ctx)
+        val have = current.mapTo(HashSet()) { it.id }
+        val clean = fresh.filter { it.id > 0 && it.text.isNotBlank() && it.text.length <= 50000 && it.id !in have }
+        require(current.size + clean.size <= 10000) { "Notes ki limit aa gayi" }
+        if (clean.isNotEmpty()) saveNotes(ctx, current + clean)
+    }
     @Synchronized fun updateNote(ctx:Context,original:Note,text:String) {
         require(text.isNotBlank() && text.trim().length<=50000){"Note 1 se 50,000 letters ka rakho"}
         val saved=notesChecked(ctx);require(saved.firstOrNull{it.id==original.id}==original){"Note badal chuka hai; dobara kholo"}
