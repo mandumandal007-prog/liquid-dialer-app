@@ -35,6 +35,21 @@ object ContactControls {
         prefs(ctx).edit().apply { if (handleId == null) remove("$key:sim") else putString("$key:sim", handleId) }.apply()
     }
 
+    /** Is number ko kabhi block mat karo: unknown aur spam-series blocking se upar.
+     * Private/hidden pe lagoo nahi (number hota hi nahi). System block list pe effect nahi. */
+    fun blockNever(ctx: Context, number: String): Boolean =
+        k(number).isNotEmpty() && prefs(ctx).getBoolean(k(number) + ":neverblock", false)
+
+    fun setBlockNever(ctx: Context, number: String, on: Boolean) {
+        val key = k(number); if (key.isEmpty()) return
+        prefs(ctx).edit().putBoolean(key + ":neverblock", on).apply()
+    }
+
+    /** Never-block list, keyed identities (local: prefix ke saath), sorted. */
+    fun blockNeverList(ctx: Context): List<String> =
+        prefs(ctx).all.filter { it.key.endsWith(":neverblock") && it.value == true }
+            .keys.map { it.removeSuffix(":neverblock") }.sorted()
+
     /** Quiet hours me bhi ring karne do (per-number bypass). */
     fun quietAllow(ctx: Context, number: String): Boolean =
         k(number).isNotEmpty() && prefs(ctx).getBoolean(k(number) + ":quiet", false)
