@@ -7,7 +7,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.mandu.liquiddialer.MainActivity
 import com.mandu.liquiddialer.data.BlockLog
+import com.mandu.liquiddialer.data.ContactControls
 import com.mandu.liquiddialer.data.Repo
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -20,6 +22,8 @@ import java.util.Locale
     val p = LocalLd.current
     var list by remember { mutableStateOf(BlockLog.list(ctx)) }
     var confirmClear by remember { mutableStateOf(false) }
+    var actionFor by remember { mutableStateOf<BlockLog.Entry?>(null) }
+    var neverTick by remember { mutableIntStateOf(0) }
     PageFrame("Block history", onBack) {
         GlassCard {
             LdText("Sirf app ki screening se roki gayi calls (private / unknown / spam series). Manually blocked numbers ki calls Recents me dikhti hain. List sirf is phone pe rehti hai, 200 tak.", 12f, color = p.muted, maxLines = 6, modifier = Modifier.testTag("blockhistory_note"))
@@ -31,7 +35,7 @@ import java.util.Locale
             LdText("${list.size} roki gayi calls", 12f, color = p.muted, modifier = Modifier.testTag("blockhistory_count"))
             Spacer(Modifier.height(8.dp))
             list.forEach { e ->
-                GlassRow(onClick = {}, modifier = Modifier.testTag("blockhistory_row")) {
+                GlassRow(onClick = { if (e.display.isNotBlank()) actionFor = e }, modifier = Modifier.testTag("blockhistory_row")) {
                     Avatar(if (e.display.isBlank()) "?" else e.display, null, seed = e.idn.ifBlank { "private" })
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
@@ -41,7 +45,7 @@ import java.util.Locale
                                 BlockLog.REASON_PRIVATE -> "Private number block"
                                 BlockLog.REASON_UNKNOWN -> "Unknown number block"
                                 else -> "Spam series block"
-                            } + " · " + SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(e.ts)),
+                            } + " · " + SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(e.ts)) + if (neverTick >= 0 && e.display.isNotBlank() && ContactControls.blockNever(ctx, e.display)) " · Ab kabhi block nahi" else "",
                             11.5f, color = p.muted, maxLines = 2
                         )
                     }
@@ -61,6 +65,12 @@ import java.util.Locale
                 }
             } else {
                 PrimaryButton("History saaf karo", modifier = Modifier.testTag("blockhistory_clear")) { confirmClear = true }
+            }
+        }
+        actionFor?.let { e ->
+            Sheet({ actionFor = null }) {
+                SheetRow(LdIcons.PhoneOut, "Call karo", Repo.pretty(e.display), modifier = Modifier.testTag("blockhistory_action_call")) { (ctx as? MainActivity)?.call(e.display); actionFor = null }
+                SheetRow(LdIcons.Check, "Kabhi block mat karo", "Unknown/series blocking ke bawajood ring hoga", modifier = Modifier.testTag("blockhistory_action_never")) { ContactControls.setBlockNever(ctx, e.display, true); actionFor = null; neverTick++ }
             }
         }
     }
