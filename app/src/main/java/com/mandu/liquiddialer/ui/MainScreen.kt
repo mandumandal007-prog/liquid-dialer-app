@@ -155,6 +155,22 @@ fun MainScreen(st: AppState, act: MainActivity) {
             if (showBanner) {
                 CallBanner(live!!, if (st.tab == "dialer") 8.dp else 94.dp, onHeight = { bannerHPx = it })
             }
+            // ===== auto-redial session card (user-started, har waqt Rok do) =====
+            val arSession by com.mandu.liquiddialer.telecom.AutoRedial.session.collectAsState()
+            arSession?.let { ar ->
+                Row(Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(start = 10.dp, end = 10.dp, top = 8.dp).fillMaxWidth()
+                    .liquid(RoundedCornerShape(22.dp), 22.dp).padding(start = 12.dp, end = 8.dp, top = 7.dp, bottom = 7.dp)
+                    .testTag("autoredial_card"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LdIcon(LdIcons.Phone, 16.dp, p.accent)
+                    Column(Modifier.weight(1f)) {
+                        LdText("Auto-redial · " + ar.name.ifBlank { Repo.pretty(ar.number) }, 13.5f, FontWeight.SemiBold, maxLines = 1)
+                        LdText(if (ar.waitingUntil > 0) "Thodi der me koshish ${ar.attempt}/${com.mandu.liquiddialer.telecom.AutoRedial.MAX_ATTEMPTS}" else "Koshish ${ar.attempt}/${com.mandu.liquiddialer.telecom.AutoRedial.MAX_ATTEMPTS} chal rahi", 11f, color = p.muted, maxLines = 1)
+                    }
+                    Box(Modifier.buttonGlass(p, RoundedCornerShape(12.dp)).clickable { com.mandu.liquiddialer.telecom.AutoRedial.cancel(ctx) }.padding(horizontal = 10.dp, vertical = 7.dp).testTag("autoredial_stop")) {
+                        LdText("Rok do", 12f, FontWeight.Bold, p.danger)
+                    }
+                }
+            }
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
             val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users))
             Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 18.dp, end = 18.dp, bottom = 12.dp).fillMaxWidth(),
