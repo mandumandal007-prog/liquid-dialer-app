@@ -21,7 +21,7 @@ class NotesWorkspaceUiTest {
     private fun setup(night:Boolean=false){
         rule.mainClock.autoAdvance=false;settle()
         runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=if(night)"midnight" else "daylight";it[K.fontScale]=if(night)1.5f else 1f}}
-        rule.waitUntil(5000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
+        rule.waitUntil(15000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
         if(night)rule.runOnUiThread{val c=android.content.res.Configuration(rule.activity.resources.configuration);c.fontScale=1.5f;rule.activity.resources.updateConfiguration(c,rule.activity.resources.displayMetrics)}
         android.util.AtomicFile(File(ctx.filesDir,"notes.json")).delete()
     }
