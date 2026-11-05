@@ -52,7 +52,8 @@ class FavWidgetCallUiTest {
     private val tm get() = app.getSystemService(TelecomManager::class.java)
     private fun settle() { rule.mainClock.autoAdvance = false; rule.mainClock.advanceTimeBy(400); rule.waitForIdle() }
     private fun await(check: () -> Boolean) {
-        repeat(30) {
+        // CI runner local se kafi slow hota hai (worker coroutines late) - budget 2x rakha hai
+        repeat(60) {
             org.robolectric.shadows.ShadowLooper.idleMainLooper()
             if(check()) return
             Thread.sleep(100); settle()
