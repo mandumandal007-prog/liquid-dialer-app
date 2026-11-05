@@ -54,7 +54,8 @@ class RecordingLibraryUiTest {
   assertFalse(File(ctx.cacheDir,"cancel.m4a").exists());assertTrue(File(root,"Papa.m4a").exists())
  }
  @Test fun searchAndPagesStayBoundedWithoutChangingFiles(){
-  repeat(24){add("Memo%02d.m4a".format(it))};show()
+  val base=System.currentTimeMillis()
+ repeat(24){val n="Memo%02d.m4a".format(it);add(n);File(root,n).setLastModified(base-it*60_000L)};show()
   rule.onNodeWithTag("recording_Memo20.m4a",useUnmergedTree=true).assertDoesNotExist();click("recordings_next")
   rule.onNodeWithTag("recording_Memo20.m4a",useUnmergedTree=true).assertExists();rule.onNodeWithTag("recording_Memo00.m4a",useUnmergedTree=true).assertDoesNotExist()
   click("recordings_previous")
