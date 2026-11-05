@@ -44,6 +44,13 @@ fun paletteFor(theme: String, accent: Color, systemDark: Boolean): LdPalette {
             Color(0x12FFFFFF), Color(0x21FFFFFF), Color(0x2EB4FFE6), accent, previewA = Color(0xFF04120F), previewB = Color(0xFF0F5C4A))
         "sunset" -> LdPalette("sunset", "Sunset", Color(0xFF140708), Color(0xFF200D0A), Color(0xFFFFF3EC), Color(0x99FFECE2),
             Color(0x14FFFFFF), Color(0x24FFFFFF), Color(0x33FFCDB4), accent, previewA = Color(0xFF1A0708), previewB = Color(0xFF7A2C1B))
+        "ocean" -> LdPalette("ocean", "Ocean", Color(0xFF03101C), Color(0xFF072033), Color(0xFFE9F6FF), Color(0x99D9F1FF),
+            Color(0x12FFFFFF), Color(0x21FFFFFF), Color(0x2EAEE6FF), accent, previewA = Color(0xFF041523), previewB = Color(0xFF0C4E75))
+        "rose" -> LdPalette("rose", "Rose", Color(0xFF16050D), Color(0xFF260A17), Color(0xFFFFEEF6), Color(0x99FFD9EA),
+            Color(0x12FFFFFF), Color(0x21FFFFFF), Color(0x33FFA8CD), accent, previewA = Color(0xFF1C0710), previewB = Color(0xFF711A3F))
+        "sand" -> LdPalette("sand", "Sand", Color(0xFFF4EBDC), Color(0xFFFCF6EA), Color(0xFF241A0C), Color(0x944A3418),
+            Color(0x80FFFFFF), Color(0xC7FFFFFF), Color(0xF2FFFFFF), accent, isLight = true, blobAlpha = .38f,
+            previewA = Color(0xFFFFFDF6), previewB = Color(0xFFE7CE9E))
         "daylight" -> LdPalette("daylight", "Daylight", Color(0xFFE9EEFB), Color(0xFFF7F9FF), Color(0xFF0B1224), Color(0x940F172A),
             Color(0x80FFFFFF), Color(0xC7FFFFFF), Color(0xF2FFFFFF), accent, isLight = true, blobAlpha = .38f,
             previewA = Color(0xFFFFFFFF), previewB = Color(0xFFC9D8FF))
@@ -52,6 +59,6 @@ fun paletteFor(theme: String, accent: Color, systemDark: Boolean): LdPalette {
     }
 }
 
-val THEME_KEYS = listOf("midnight", "aurora", "sunset", "daylight")
+val THEME_KEYS = listOf("midnight", "aurora", "sunset", "ocean", "rose", "daylight", "sand")
 
 val LocalLd = staticCompositionLocalOf { paletteFor("midnight", ACCENTS[0], true) }
