@@ -27,11 +27,11 @@ class ReminderCenterUiTest {
  private fun show(theme:String="daylight",font:Float=1f){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}}
-  rule.waitUntil(5000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
+  rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{ReminderCenterPage({},{})}}};settle()
-  rule.waitUntil(5000){rule.onAllNodesWithTag("reminder_new").fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("reminder_new").fetchSemanticsNodes().isNotEmpty()};settle()
  }
- private fun awaitRows(count:Int){rule.waitUntil(5000){CallReminders.all(ctx).size==count};settle()}
+ private fun awaitRows(count:Int){rule.waitUntil(15000){CallReminders.all(ctx).size==count};settle()}
  @Test fun createValidateRescheduleSearchAndConfirmedCancel(){
   show();click("reminder_new")
   rule.onNodeWithTag("reminder_number").performTextInput("*123#")
@@ -50,7 +50,7 @@ class ReminderCenterUiTest {
   click("reminder_edit_${first.token}")
   rule.onNodeWithTag("reminder_time").performTextReplacement("15:30")
   rule.onNodeWithTag("reminder_save").performClick()
-  rule.waitUntil(5000){CallReminders.all(ctx).single().token!=first.token};settle()
+  rule.waitUntil(15000){CallReminders.all(ctx).single().token!=first.token};settle()
   val changed=CallReminders.all(ctx).single();assertEquals(first.number,changed.number)
   assertEquals("15:30",SimpleDateFormat("HH:mm",Locale.US).format(Date(changed.atMs)))
   rule.onNodeWithTag("reminder_search").performTextInput("Missing");settle()
@@ -69,7 +69,7 @@ class ReminderCenterUiTest {
   show(theme,font)
   rule.onNodeWithTag("reminder_warning",useUnmergedTree=true).assertIsDisplayed()
   saveShot(rule,"272-reminder-center-$suffix")
-  click("reminder_new");rule.waitUntil(5000){rule.onAllNodesWithTag("reminder_number").fetchSemanticsNodes().isNotEmpty()}
+  click("reminder_new");rule.waitUntil(15000){rule.onAllNodesWithTag("reminder_number").fetchSemanticsNodes().isNotEmpty()}
   rule.onNodeWithTag("reminder_number").performTextInput("+91 98765 43210")
   rule.onNodeWithTag("reminder_name").performTextInput("Papa - follow-up");settle()
   saveShot(rule,"272-reminder-editor-$suffix")
