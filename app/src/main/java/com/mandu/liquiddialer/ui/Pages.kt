@@ -134,6 +134,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "stats" -> StatsPage(st, act, onBack, onInsights)
         page == "blocked" -> BlockedPage(st, act, onBack)
         page == "blockhistory" -> BlockHistoryPage(onBack)
+        page == "neverblock" -> NeverBlockPage(onBack)
         page == "series" -> SeriesPage(onBack)
         page == "speeddial" -> SpeedDialPage(st, onBack)
         page == "radio" -> RadioInfoPage(onBack)
@@ -392,6 +393,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Blocked numbers", "${st.blocked.size} blocked", LdIcons.Block) { onOpen("blocked") }
             SRow("Spam series block", if (s.blockedPrefixes.isEmpty()) "Koi series nahi" else "${s.blockedPrefixes.size} series block", LdIcons.Block) { onOpen("series") }
             SRow("Block history", BlockLog.list(ctx).size.let { if (it == 0) "Koi call block nahi hui" else "$it roki gayi calls" }, LdIcons.Clock) { onOpen("blockhistory") }
+            SRow("Kabhi block mat karo", com.mandu.liquiddialer.data.ContactControls.blockNeverList(ctx).size.let { if (it == 0) "Koi number nahi" else "$it numbers" }, LdIcons.Check) { onOpen("neverblock") }
             SwitchRow("Unknown numbers block", "Jo contacts me nahi, unki call kat jayegi", s.blockUnknown) { save(K.blockUnknown, it); if (it) act.requestScreeningRole() }
             SwitchRow("Private / hidden numbers block", null, s.blockPrivate, last = (s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty()) && !act.screeningRoleHeld()) { save(K.blockPrivate, it); if (it) act.requestScreeningRole() }
             if ((s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty()) && !act.screeningRoleHeld())
