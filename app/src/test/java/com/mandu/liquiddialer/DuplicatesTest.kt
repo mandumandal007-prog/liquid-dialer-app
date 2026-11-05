@@ -116,7 +116,7 @@ class DuplicatesSheetShotTest {
         rule.onNodeWithText("Possible duplicate contacts", substring = true, useUnmergedTree = true).assertExists()
         // approximation ka saaf dawa + detection-only
         rule.onNodeWithText("aakhri 10 digits same", substring = true, useUnmergedTree = true).assertExists()
-        rule.onNodeWithText("delete ya merge nahi hoga", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithText("koi contact delete nahi hota", substring = true, useUnmergedTree = true).assertExists()
         // HAR contact ki apni row (sirf arbitrary first nahi)
         rule.onNodeWithTag("dup_contact_11", useUnmergedTree = true).assertExists()
         rule.onNodeWithTag("dup_contact_12", useUnmergedTree = true).assertExists()
