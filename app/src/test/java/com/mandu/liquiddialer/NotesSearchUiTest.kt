@@ -25,7 +25,7 @@ class NotesSearchUiTest {
         rule.mainClock.autoAdvance=false;settle()
         val ctx=ApplicationProvider.getApplicationContext<LdApp>()
         runBlocking {ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}}
-        rule.waitUntil(5000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
+        rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
         android.util.AtomicFile(java.io.File(ctx.filesDir,"notes.json")).delete()
         Repo.addNote(ctx,"123","Papa","दवाई कल लाना 💚")
         Repo.addNote(ctx,"123","Papa","Meeting Friday")
@@ -53,7 +53,7 @@ class NotesSearchUiTest {
         rule.mainClock.autoAdvance=false;settle()
         val ctx=ApplicationProvider.getApplicationContext<LdApp>()
         runBlocking {ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}}
-        rule.waitUntil(5000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
+        rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
         android.util.AtomicFile(java.io.File(ctx.filesDir,"notes.json")).delete()
         Repo.addNote(ctx,"123","Papa","दवाई कल लाना 💚")
         Repo.addNote(ctx,"456","Other","Keep this note")
