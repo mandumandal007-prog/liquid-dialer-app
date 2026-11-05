@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import com.mandu.liquiddialer.data.BlockLog
+import com.mandu.liquiddialer.data.ContactControls
 import com.mandu.liquiddialer.data.K
 import com.mandu.liquiddialer.data.ldStore
 import com.mandu.liquiddialer.ui.BlockHistoryPage
@@ -72,6 +73,21 @@ class BlockHistoryUiTest {
         rule.onAllNodesWithTag("blockhistory_row").assertCountEquals(0)
         rule.onNodeWithText("Koi call block nahi hui").assertIsDisplayed()
         assert(BlockLog.list(ctx).isEmpty())
+    }
+
+    @Test fun rowSheetSeNeverBlock() {
+        ctx.getSharedPreferences("contact_controls", android.content.Context.MODE_PRIVATE).edit().clear().apply()
+        show()
+        rule.waitUntil(15000) { rule.onAllNodesWithTag("blockhistory_row").fetchSemanticsNodes().size == 3 }
+        // Private entry (blank display) pe sheet nahi khulti
+        rule.onNodeWithText("Private / hidden number").performClick(); settle()
+        rule.onAllNodesWithTag("blockhistory_action_never", useUnmergedTree = true).assertCountEquals(0)
+        // Number row pe sheet: Call karo + Kabhi block mat karo
+        rule.onNodeWithText("+91 98765 43210", substring = true).performClick(); settle()
+        rule.onNodeWithTag("blockhistory_action_call", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("blockhistory_action_never", useUnmergedTree = true).performClick(); settle()
+        assert(ContactControls.blockNever(ctx, "+91 98765 43210"))
+        rule.onNodeWithText("Ab kabhi block nahi", substring = true, useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test fun largeFontNightRowsReadable() {
