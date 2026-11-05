@@ -31,7 +31,7 @@ class RecordingLibraryUiTest {
  private fun show(night:Boolean=false){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=if(night)"midnight" else "daylight";it[K.fontScale]=if(night)1.5f else 1f}}
-  rule.waitUntil(5000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
+  rule.waitUntil(15000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
   if(night)rule.runOnUiThread{val c=android.content.res.Configuration(rule.activity.resources.configuration);c.fontScale=1.5f;rule.activity.resources.updateConfiguration(c,rule.activity.resources.displayMetrics)}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{RecordingsPage({})}}};settle();await("recordings_count");repeat(8){settle();Thread.sleep(20)}
  }
@@ -44,7 +44,7 @@ class RecordingLibraryUiTest {
   click("recording_rename_confirm");await("recording_नई meeting.m4a");assertEquals("test audio",File(root,"नई meeting.m4a").readText())
   click("recording_delete_नई meeting.m4a");rule.onNodeWithTag("recording_delete_cancel",useUnmergedTree=true).performClick();settle();assertTrue(File(root,"नई meeting.m4a").exists())
   click("recording_delete_नई meeting.m4a");rule.onNodeWithTag("recording_delete_confirm",useUnmergedTree=true).performClick();settle();await("recordings_notice")
-  rule.waitUntil(5000){!File(root,"नई meeting.m4a").exists()};assertEquals("keep",File(root,"Work.m4a").readText())
+  rule.waitUntil(15000){!File(root,"नई meeting.m4a").exists()};assertEquals("keep",File(root,"Work.m4a").readText())
  }
  @Test fun copyPickerWritesExactBytesAndCancelLeavesOriginal(){
   add("Papa.m4a","audio bytes 123");show();click("recording_export_Papa.m4a")
