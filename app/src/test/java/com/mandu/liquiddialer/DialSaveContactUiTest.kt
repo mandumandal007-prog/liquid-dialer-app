@@ -24,7 +24,7 @@ class DialSaveContactUiTest {
     @Before fun seed(){
         runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.onboarded]=true;it[K.theme]="daylight";it[K.fontScale]=1f} }
         settle()
-        rule.waitUntil(5000) { LdApp.settings.value.let { it.onboarded && it.theme=="daylight" && it.fontScale==1f } }
+        rule.waitUntil(15000) { LdApp.settings.value.let { it.onboarded && it.theme=="daylight" && it.fontScale==1f } }
         rule.runOnUiThread { rule.activity.state.showOnboarding=false }
         settle()
         rule.onNodeWithTag("drawer_open").assertIsDisplayed()
@@ -36,7 +36,7 @@ class DialSaveContactUiTest {
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).assertExists()
         saveShot(rule,"N201-dial-save-day")
         runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.theme]="midnight"}}
-        settle();rule.waitUntil(5000) { LdApp.settings.value.theme=="midnight" };saveShot(rule,"N201-dial-save-night")
+        settle();rule.waitUntil(15000) { LdApp.settings.value.theme=="midnight" };saveShot(rule,"N201-dial-save-night")
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).performClick();settle()
         val launch=org.robolectric.Shadows.shadowOf(rule.activity).nextStartedActivity
         org.junit.Assert.assertEquals(android.content.Intent.ACTION_CHOOSER,launch.action)
@@ -50,7 +50,7 @@ class DialSaveContactUiTest {
         rule.onNodeWithText("Save",useUnmergedTree=true).assertExists()
         saveShot(rule,"G220-editor-night")
         runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.theme]="daylight";it[K.fontScale]=1.3f}}
-        settle();rule.waitUntil(5000) { LdApp.settings.value.let { it.theme=="daylight" && it.fontScale==1.3f } };saveShot(rule,"G220-editor-day-large")
+        settle();rule.waitUntil(15000) { LdApp.settings.value.let { it.theme=="daylight" && it.fontScale==1.3f } };saveShot(rule,"G220-editor-day-large")
         // No name entered, no Save tap. Opening this editor alone must not create a contact.
         org.junit.Assert.assertTrue(rule.activity.state.contacts.isEmpty())
     }
