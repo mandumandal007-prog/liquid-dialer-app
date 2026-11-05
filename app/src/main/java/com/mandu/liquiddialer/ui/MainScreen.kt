@@ -349,14 +349,26 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 Spacer(Modifier.height(8.dp))
                 GhostButton("Rehne do") { confirmClear = false }
             }
-            // NAYA: possible duplicates - SIRF detection (koi merge/delete nahi); HAR contact row alag khulti hai
+            // Duplicate contacts: detection + SAFE merge (link). Koi delete nahi - sirf Android link,
+            // "Alag karo" se poora undo. Merge ke baad contacts ek dikhne lagte hain.
             if (showDups) {
                 val dups = remember(st.contacts) { Repo.duplicateGroups(st.contacts) }
                 var showAll by remember { mutableStateOf(false) }
+                var confirmKey by remember { mutableStateOf<String?>(null) }
+                var mergeMsg by remember { mutableStateOf<String?>(null) }
+                val canWrite = act.has(android.Manifest.permission.WRITE_CONTACTS)
+                val linked = remember(st.contacts) { if (canWrite) com.mandu.liquiddialer.data.ContactMerge.linkedGroups(ctx) else emptyList() }
                 val shown = if (showAll) dups else dups.take(30)
                 Sheet(onDismiss = { showDups = false }) {
                     SheetTitle("Possible duplicate contacts")
-                    LdText("In groups ke number ke aakhri 10 digits same hain. Alag country code wale numbers kabhi kabhi same lag sakte hain, isliye khud check karo. Kuch bhi delete ya merge nahi hoga.", 12f, color = p.muted, maxLines = 4, modifier = Modifier.testTag("dups_caveat"))
+                    LdText("In groups ke number ke aakhri 10 digits same hain, isliye khud check karo. Jodo se contacts ek ho jaate hain - koi contact delete nahi hota, Alag karo se wapas alag ho jaate hain.", 12f, color = p.muted, maxLines = 4, modifier = Modifier.testTag("dups_caveat"))
+                    mergeMsg?.let { Spacer(Modifier.height(6.dp)); LdText(it, 12.5f, FontWeight.SemiBold, p.accent, modifier = Modifier.testTag("dups_merge_msg")) }
+                    if (!canWrite) {
+                        Spacer(Modifier.height(8.dp))
+                        LdText("Contacts jodne ke liye contacts likhne ki permission chahiye.", 12f, color = p.muted, maxLines = 2)
+                        Spacer(Modifier.height(6.dp))
+                        GhostButton("Permission do") { act.askPermission(android.Manifest.permission.WRITE_CONTACTS) }
+                    }
                     // expand control TOP pe: lambi list ke bottom pe off-viewport dead control nahi (scroll kiye bina reachable)
                     if (!showAll && dups.size > 30) {
                         Spacer(Modifier.height(8.dp))
@@ -378,7 +390,49 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             }
                             Spacer(Modifier.height(6.dp))
                         }
+                        if (canWrite) {
+                            if (confirmKey == g.numberKey) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    LdText("Pakka jodo?", 12.5f, FontWeight.SemiBold, p.text, modifier = Modifier.weight(1f))
+                                    Box(Modifier.buttonGlass(p, RoundedCornerShape(12.dp)).clickable {
+                                        val ok = com.mandu.liquiddialer.data.ContactMerge.link(ctx, g.contacts.map { it.id })
+                                        mergeMsg = if (ok) "Jod diya - ab ye contacts ek dikhayenge" else "Jod nahi paya - phir try karo"
+                                        confirmKey = null
+                                        if (ok) act.reload()
+                                    }.padding(horizontal = 10.dp, vertical = 7.dp).testTag("dup_merge_yes_" + g.numberKey)) { LdText("Haan, jodo", 12f, FontWeight.Bold, p.accent) }
+                                    Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable { confirmKey = null }.padding(horizontal = 10.dp, vertical = 7.dp).testTag("dup_merge_no_" + g.numberKey)) { LdText("Nahi", 12f, color = p.muted) }
+                                }
+                            } else {
+                                Box(Modifier.buttonGlass(p, RoundedCornerShape(12.dp)).clickable { confirmKey = g.numberKey }.padding(horizontal = 10.dp, vertical = 7.dp).testTag("dup_merge_" + g.numberKey)) {
+                                    LdText("Jodo (${g.count})", 12f, FontWeight.SemiBold, p.accent)
+                                }
+                            }
+                        }
                         Spacer(Modifier.height(10.dp))
+                    }
+                    if (dups.isEmpty()) {
+                        LdText("Koi possible duplicate nahi mila.", 12.5f, color = p.muted, modifier = Modifier.testTag("dups_none"))
+                        Spacer(Modifier.height(10.dp))
+                    }
+                    if (linked.isNotEmpty()) {
+                        Spacer(Modifier.height(6.dp))
+                        LdText("Jude hue contacts", 13f, FontWeight.Bold, p.text, modifier = Modifier.testTag("dups_linked_head"))
+                        Spacer(Modifier.height(6.dp))
+                        linked.take(30).forEach { lg ->
+                            val c = st.contacts.firstOrNull { it.id == lg.contactId }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("dup_linked_" + lg.contactId)) {
+                                Column(Modifier.weight(1f)) {
+                                    LdText(c?.name?.ifBlank { Repo.pretty(c.number) } ?: ("Contact #" + lg.contactId), 13f, FontWeight.SemiBold, maxLines = 1)
+                                    LdText("${lg.rawIds.size} entries jude hain", 11f, color = p.muted, maxLines = 1)
+                                }
+                                Box(Modifier.clip(RoundedCornerShape(12.dp)).background(p.glass).border(1.dp, p.stroke, RoundedCornerShape(12.dp)).clickable {
+                                    val ok = com.mandu.liquiddialer.data.ContactMerge.unlink(ctx, lg.rawIds)
+                                    mergeMsg = if (ok) "Alag kar diya" else "Alag nahi kar paya - phir try karo"
+                                    if (ok) act.reload()
+                                }.padding(horizontal = 10.dp, vertical = 7.dp).testTag("dup_unlink_" + lg.contactId)) { LdText("Alag karo", 12f, FontWeight.SemiBold, p.accent) }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
                     }
                     GhostButton("Band karo") { showDups = false }
                 }
