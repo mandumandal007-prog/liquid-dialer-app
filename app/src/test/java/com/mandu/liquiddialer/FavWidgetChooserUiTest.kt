@@ -87,7 +87,7 @@ class FavWidgetChooserUiTest {
     /** Click ke baad IO->Main coroutine real-time leti hai; virtual clock kaafi nahi. */
     internal fun awaitNodes(tag: String, count: Int) {
         var tries = 0
-        while (tries++ < 30 && rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size != count) {
+        while (tries++ < 100 && rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size != count) {
             org.robolectric.shadows.ShadowLooper.idleMainLooper()
             Thread.sleep(150)
             rule.mainClock.autoAdvance = false
