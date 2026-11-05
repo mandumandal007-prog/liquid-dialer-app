@@ -280,9 +280,9 @@ fun ActionBubble(icon: ImageVector, label: String, on: Boolean = false, onClick:
 }
 
 @Composable
-fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Boolean = false, onLongClick: (() -> Unit)? = null, onClick: () -> Unit) {
+fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Boolean = false, onLongClick: (() -> Unit)? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val p = LocalLd.current
-    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).buttonGlass(p, RoundedCornerShape(16.dp)).combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+    Row(modifier.fillMaxWidth().padding(vertical = 3.dp).buttonGlass(p, RoundedCornerShape(16.dp)).combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background((if (danger) p.danger else p.accent).pct(.16f)), contentAlignment = Alignment.Center) {
             LdIcon(icon, 17.dp, if (danger) p.danger else p.accent)
