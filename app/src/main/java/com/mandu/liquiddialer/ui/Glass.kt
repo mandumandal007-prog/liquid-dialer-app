@@ -43,6 +43,8 @@ val LocalHaze = staticCompositionLocalOf<HazeState?> { null }
 
 /** Accessibility: bold text everywhere when enabled. */
 val LocalBold = staticCompositionLocalOf { false }
+val LocalFontStyle = staticCompositionLocalOf { 0 }
+val LocalIconStyle = staticCompositionLocalOf { 0 }
 
 /** .bg-blobs: three big accent blobs with blur(72px), drifting. */
 @Composable
@@ -148,7 +150,7 @@ fun pressScale(src: MutableInteractionSource, pressed: Float = .92f): Float {
 
 @Composable
 fun LdIcon(v: ImageVector, size: Dp = 22.dp, tint: Color = LocalLd.current.text, modifier: Modifier = Modifier) =
-    Icon(v, null, modifier.size(size), tint = tint)
+    Icon(LdIcons.styled(v, LocalIconStyle.current), null, modifier.size(size), tint = tint)
 
 /** .icon-btn (+ .glass / .danger / .on) */
 @Composable
@@ -202,7 +204,8 @@ fun Avatar(name: String, photo: String?, size: Dp = 46.dp, fontSize: Float = 15f
 fun LdText(text: String, size: Float, weight: FontWeight = FontWeight.Normal, color: Color = LocalLd.current.text, modifier: Modifier = Modifier,
            maxLines: Int = 1, letter: Float = 0f, textAlign: androidx.compose.ui.text.style.TextAlign? = null) {
     val w = if (LocalBold.current && weight < FontWeight.Bold) FontWeight.Bold else weight
-    Text(T(text), modifier, textAlign = textAlign, style = androidx.compose.ui.text.TextStyle(shadow = if(LocalCallPhoto.current) Shadow(Color.Black.copy(alpha=.95f), Offset(0f,1.5f),3f) else null), color = color, fontSize = size.sp, fontWeight = w, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
+    val fam = when (LocalFontStyle.current) { 1 -> androidx.compose.ui.text.font.FontFamily.Serif; 2 -> androidx.compose.ui.text.font.FontFamily.Monospace; 3 -> androidx.compose.ui.text.font.FontFamily.Cursive; else -> null }
+    Text(T(text), modifier, textAlign = textAlign, style = androidx.compose.ui.text.TextStyle(shadow = if(LocalCallPhoto.current) Shadow(Color.Black.copy(alpha=.95f), Offset(0f,1.5f),3f) else null), color = color, fontSize = size.sp, fontWeight = w, fontFamily = fam, maxLines = maxLines, overflow = TextOverflow.Ellipsis, letterSpacing = letter.sp)
 }
 
 /** .switch */
