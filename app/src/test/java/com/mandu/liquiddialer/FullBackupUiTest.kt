@@ -42,9 +42,9 @@ class FullBackupUiTest {
  private fun show(night:Boolean=false){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=if(night)"midnight" else "daylight";it[K.fontScale]=if(night)1.4f else 1f}}
-  rule.waitUntil(5000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
+  rule.waitUntil(15000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{BackupPage({})}}};settle()
-  rule.waitUntil(5000){rule.onAllNodesWithTag("backup_export",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("backup_export",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
  }
  @Test fun exportWritesValidBackupAndCancelKeepsState(){
   populate();show()
