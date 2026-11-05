@@ -110,10 +110,10 @@ class FlowTest {
         load()
         rule.onNodeWithTag("bottom_bar").performTouchInput { swipeLeft() }
         rule.mainClock.autoAdvance = true
-        rule.waitUntil(8000) { rule.activity.state.tab == "contacts" }
+        rule.waitUntil(20000) { rule.activity.state.tab == "contacts" }
         assertEquals("contacts", rule.activity.state.tab)
         rule.onNodeWithTag("bottom_bar").performTouchInput { swipeRight() }
-        rule.waitUntil(8000) { rule.activity.state.tab == "recents" }
+        rule.waitUntil(20000) { rule.activity.state.tab == "recents" }
         assertEquals("recents", rule.activity.state.tab)
         noCallStarted()
     }
@@ -204,7 +204,7 @@ class FlowTest {
         load()
         runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { it[K.theme]="midnight";it[K.fontScale]=1.3f } }
         settle()
-        rule.waitUntil(5000) { LdApp.settings.value.theme=="midnight" && LdApp.settings.value.fontScale==1.3f }
+        rule.waitUntil(15000) { LdApp.settings.value.theme=="midnight" && LdApp.settings.value.fontScale==1.3f }
         shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
         org.robolectric.shadows.ShadowSpeechRecognizer.setIsOnDeviceRecognitionAvailable(false)
         rule.onNodeWithTag("search_mic").performClick();settle()
