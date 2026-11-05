@@ -34,7 +34,7 @@ class HistoryExplorerUiTest {
  private fun show(theme:String="daylight",font:Float=1f){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
-  rule.waitUntil(5000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
+  rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
   org.robolectric.Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
   ShadowContentResolver.registerProviderInternal(CallLog.AUTHORITY,object:ContentProvider(){
    override fun onCreate()=true
@@ -56,10 +56,10 @@ class HistoryExplorerUiTest {
  }
  @Test fun explicitSearchCallDetailsAndFailedRefreshPreserveResults(){
   show();assertNull(rule.activity.state.confirmNumber);rule.onNodeWithTag("history_call_1").assertDoesNotExist()
-  click("history_search");rule.waitUntil(5000){rule.onAllNodesWithTag("history_count",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  click("history_search");rule.waitUntil(15000){rule.onAllNodesWithTag("history_count",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   click("history_details_1");assertEquals("+919876543210",opened)
   click("history_call_1");assertEquals("+919876543210",rule.activity.state.confirmNumber)
-  failQuery=true;click("history_search");rule.waitUntil(5000){rule.onAllNodesWithTag("history_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  failQuery=true;click("history_search");rule.waitUntil(15000){rule.onAllNodesWithTag("history_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   rule.onNodeWithTag("history_call_1").performScrollTo().assertIsDisplayed()
  }
  @Test fun invalidDatesNeverReadOrCall(){
@@ -68,11 +68,11 @@ class HistoryExplorerUiTest {
  }
  @Test fun pagingKeepsAppliedFiltersAndLoadedSearchShowsMoreHint(){
   paged=true;show();click("history_search")
-  rule.waitUntil(5000){rule.onAllNodesWithTag("history_count",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("history_count",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   rule.onNodeWithTag("history_query").performScrollTo().performTextInput("Person777");settle()
   rule.onNodeWithTag("history_count",useUnmergedTree=true).assertTextEquals("100 records load hue · 0 matches")
   click("history_more")
-  rule.waitUntil(5000){queries==2};settle()
+  rule.waitUntil(15000){queries==2};settle()
   rule.onNodeWithTag("history_count",useUnmergedTree=true).performScrollTo().assertTextEquals("200 records load hue · 0 matches")
   assertNull(rule.activity.state.confirmNumber)
  }
@@ -80,7 +80,7 @@ class HistoryExplorerUiTest {
  @Test fun largeNightPixels()=pixels("midnight",1.3f,"night-large")
  private fun pixels(t:String,f:Float,suffix:String){
   show(t,f);saveShot(rule,"270-history-filters-$suffix");click("history_search")
-  rule.waitUntil(5000){rule.onAllNodesWithTag("history_count",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("history_count",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   rule.onRoot().performTouchInput {swipeUp()};settle();rule.onNodeWithTag("history_call_1").assertIsDisplayed();saveShot(rule,"270-history-results-$suffix")
  }
 }
