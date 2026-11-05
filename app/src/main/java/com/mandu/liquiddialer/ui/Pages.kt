@@ -756,43 +756,6 @@ private fun ContactEditor(contactId: Long?, prefill: String, act: MainActivity, 
 }
 
 @Composable
-private fun RecordingsPage(onBack: () -> Unit) {
-    val p = LocalLd.current
-    val ctx = LocalContext.current
-    var files by remember { mutableStateOf(Repo.recordings(ctx)) }
-    var playing by remember { mutableStateOf<File?>(null) }
-    val player = remember { arrayOfNulls<MediaPlayer>(1) }
-    DisposableEffect(Unit) { onDispose { player[0]?.release() } }
-    val df = remember { SimpleDateFormat("d MMM yyyy, h:mm a", Locale.getDefault()) }
-    PageFrame("Recordings", onBack) {
-        LdText("Note: Android 10+ pe doosre ki awaaz tabhi aati hai jab speaker on ho.", 11.5f, color = p.muted, maxLines = 3, modifier = Modifier.padding(start = 4.dp, bottom = 12.dp))
-        if (files.isEmpty()) EmptyState(LdIcons.Record, "Koi recording nahi", "Call ke dauran Record dabao")
-        files.forEach { f ->
-            val isP = playing == f
-            Row(Modifier.fillMaxWidth().padding(bottom = 10.dp).glass(p, RoundedCornerShape(20.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                IconBtn(if (isP) LdIcons.Pause else LdIcons.Play, 40.dp, 18.dp, on = isP) {
-                    player[0]?.release(); player[0] = null
-                    if (isP) playing = null else try {
-                        player[0] = MediaPlayer().apply { setDataSource(f.absolutePath); prepare(); start(); setOnCompletionListener { playing = null } }
-                        playing = f
-                    } catch (_: Exception) { Toast.makeText(ctx, trNow("Play nahi hua"), Toast.LENGTH_SHORT).show() }
-                }
-                Column(Modifier.weight(1f)) {
-                    LdText(f.nameWithoutExtension.removePrefix("Call_").substringBeforeLast("_").substringBeforeLast("_").replace("_", " "), 13.5f, FontWeight.SemiBold)
-                    LdText(df.format(Date(f.lastModified())) + " · ${f.length() / 1024} KB", 11f, color = p.muted)
-                }
-                IconBtn(LdIcons.Share, 38.dp, 17.dp) {
-                    val uri = FileProvider.getUriForFile(ctx, "com.mandu.liquiddialer.files", f)
-                    ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("audio/mp4").putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share"))
-                }
-                IconBtn(LdIcons.Trash, 38.dp, 17.dp) { if (isP) { player[0]?.release(); player[0] = null; playing = null }; f.delete(); files = Repo.recordings(ctx) }
-            }
-        }
-    }
-}
-
-@Composable
 private fun NotesPage(number: String?, onBack: () -> Unit) {
     val p = LocalLd.current
     val ctx = LocalContext.current
