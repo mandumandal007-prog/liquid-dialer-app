@@ -69,7 +69,8 @@ class ReminderCenterUiTest {
   show(theme,font)
   rule.onNodeWithTag("reminder_warning",useUnmergedTree=true).assertIsDisplayed()
   saveShot(rule,"272-reminder-center-$suffix")
-  click("reminder_new");rule.onNodeWithTag("reminder_number").performTextInput("+91 98765 43210")
+  click("reminder_new");rule.waitUntil(5000){rule.onAllNodesWithTag("reminder_number").fetchSemanticsNodes().isNotEmpty()}
+  rule.onNodeWithTag("reminder_number").performTextInput("+91 98765 43210")
   rule.onNodeWithTag("reminder_name").performTextInput("Papa - follow-up");settle()
   saveShot(rule,"272-reminder-editor-$suffix")
  }
