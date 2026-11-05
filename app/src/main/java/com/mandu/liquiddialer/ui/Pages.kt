@@ -122,6 +122,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "calllayout" -> CallLayoutPage(onBack)
         page == "editor" -> ContactEditor(editContactId, editPrefill, act, onBack)
         page == "recordings" -> RecordingsPage(onBack)
+        page == "fullbackup" -> BackupPage(onBack)
         page == "notes" -> NotesPage(null, onBack)
         page.startsWith("notes:") -> NotesPage(page.removePrefix("notes:"), onBack)
         page == "historyexplorer" -> HistoryExplorerPage(st, act, onBack, onOpenNumber)
@@ -459,7 +460,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Contacts export (VCF)", "Saare contacts ek file me", LdIcons.ArrowLeft) { exportVcf.launch("contacts-${SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())}.vcf") }
             SRow("Contacts import (VCF)", "VCF file chuno", LdIcons.Plus) { importVcf.launch(arrayOf("text/x-vcard", "text/vcard", "text/directory", "*/*")) }
             SRow("Settings backup", "Sirf appearance/layout settings (JSON file)", LdIcons.ArrowLeft) { exportSettings.launch("liquid-dialer-settings-${SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())}.json") }
-            SRow("Settings restore", "Backup file se appearance settings wapas lao", LdIcons.Plus, last = true) { restoreSettings.launch(arrayOf("application/json", "text/plain", "*/*")) }
+            SRow("Settings restore", "Backup file se appearance settings wapas lao", LdIcons.Plus) { restoreSettings.launch(arrayOf("application/json", "text/plain", "*/*")) }
+            SRow("Poora app backup", "Settings, notes, reminders aur lists ek file me", LdIcons.ArrowLeft, last = true) { onOpen("fullbackup") }
         }
 
         }
