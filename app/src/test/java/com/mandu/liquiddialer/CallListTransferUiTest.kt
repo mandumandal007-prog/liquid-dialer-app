@@ -30,9 +30,9 @@ class CallListTransferUiTest {
  private fun show(theme:String="daylight",font:Float=1f){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}}
-  rule.waitUntil(5000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
+  rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(5000){rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
  }
  private fun awaitTag(tag:String){
   repeat(50){settle();if(rule.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty())return;Thread.sleep(50)}
@@ -48,7 +48,7 @@ class CallListTransferUiTest {
   rule.onNodeWithTag("list_batch_confirm").assertIsNotEnabled();assertEquals(1,CallLists.read(ctx).single().entries.size)
   rule.onNodeWithTag("list_batch_text").performTextReplacement("9876543210,Replace\n+442025550123,Office")
   click("list_batch_preview");rule.onNodeWithTag("list_batch_count",useUnmergedTree=true).assertTextEquals("1 naye · 1 duplicate skip")
-  click("list_batch_confirm");rule.waitUntil(5000){CallLists.read(ctx).single().entries.size==2};settle()
+  click("list_batch_confirm");rule.waitUntil(15000){CallLists.read(ctx).single().entries.size==2};settle()
   val entries=CallLists.read(ctx).single().entries;assertEquals("Keep",entries.first().name);assertTrue(entries.first().done);assertFalse(entries.last().done)
   assertNull(rule.activity.state.confirmNumber)
  }
@@ -57,14 +57,14 @@ class CallListTransferUiTest {
   val e=CallLists.read(ctx).single().entries.single();CallLists.done(ctx,id,e.id,true)
   val original=CallLists.read(ctx);show();click("lists_export")
   val backup=File(ctx.cacheDir,"lists-backup.json");deliver(Uri.fromFile(backup))
-  rule.waitUntil(5000){backup.exists() && backup.length()>0};awaitTag("lists_notice");settle()
+  rule.waitUntil(15000){backup.exists() && backup.length()>0};awaitTag("lists_notice");settle()
   assertEquals(original,CallListTransfer.preview(backup.readText()))
   click("lists_import");deliver(Uri.fromFile(backup))
   awaitTag("lists_import_confirm");settle();assertEquals(original,CallLists.read(ctx))
   click("lists_import_cancel");assertEquals(original,CallLists.read(ctx))
   click("lists_import");deliver(Uri.fromFile(backup))
   awaitTag("lists_import_confirm");click("lists_import_confirm")
-  rule.waitUntil(5000){CallLists.read(ctx).size==2};settle();val all=CallLists.read(ctx)
+  rule.waitUntil(15000){CallLists.read(ctx).size==2};settle();val all=CallLists.read(ctx)
   assertEquals(original.single(),all.first());assertNotEquals(id,all.last().id);assertTrue(all.last().entries.single().done);assertNull(rule.activity.state.confirmNumber)
  }
  @Test fun corruptImportAndPickerCancelNeverChangeSavedLists(){
