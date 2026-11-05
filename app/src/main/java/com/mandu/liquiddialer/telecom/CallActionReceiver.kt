@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.first
 class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         when (intent.action) {
+            AUTOREDIAL_STOP -> AutoRedial.cancel(ctx)
             DECLINE -> CallManager.reject()
             HANGUP -> CallManager.end()
             MUTE -> CallManager.toggleMute()
@@ -60,6 +61,7 @@ class CallActionReceiver : BroadcastReceiver() {
         const val MISSED_DISMISS = "com.mandu.liquiddialer.MISSED_DISMISS"
         const val MISSED_REMIND = "com.mandu.liquiddialer.MISSED_REMIND"
         const val CALL_REMIND = "com.mandu.liquiddialer.CALL_REMIND"
+        const val AUTOREDIAL_STOP = "com.mandu.liquiddialer.AUTOREDIAL_STOP"
         const val BIRTHDAY_CHECK = "com.mandu.liquiddialer.BIRTHDAY_CHECK"
     }
 }
