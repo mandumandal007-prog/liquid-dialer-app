@@ -145,8 +145,10 @@ class LdInCallService : InCallService() {
         if (wasRinging.contains(call) && !answered.contains(call) && cause == DisconnectCause.MISSED && s.missedAlerts) {
             CallNotifier.missed(this, CallManager.number(call), CallManager.nameFor(this, call), s.missedRemind)
         }
-        // outgoing call that never connected (busy/error): suggest redial
-        if (wasOutgoing.contains(call) && !answered.contains(call) && s.redialSuggest &&
+        // auto-redial session (user ne khud start kiya tha): retry/cap/finish decide karta hai
+        if (wasOutgoing.contains(call)) AutoRedial.onCallRemoved(this, CallManager.number(call), answered.contains(call), cause)
+        // outgoing call that never connected (busy/error): suggest redial (session active ho to suggest nahi - session khud sambhalta hai)
+        if (wasOutgoing.contains(call) && !answered.contains(call) && s.redialSuggest && AutoRedial.session.value == null &&
             (cause == DisconnectCause.BUSY || cause == DisconnectCause.ERROR)) {
             CallNotifier.redial(this, CallManager.number(call), CallManager.nameFor(this, call))
         }
