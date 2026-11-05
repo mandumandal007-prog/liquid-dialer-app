@@ -227,6 +227,41 @@ object CallNotifier {
         try { NotificationManagerCompat.from(ctx).notify(43, n) } catch (e: Exception) { }
     }
 
+    const val ID_AUTOREDIAL = 46
+
+    /** Auto-redial session ka progress (koshish n/5, countdown). "Rok do" action user cancel karta hai. */
+    fun autoRedialProgress(ctx: Context, s: AutoRedial.Session, gapSec: Int) {
+        val stop = receiverPi(ctx, CallActionReceiver.AUTOREDIAL_STOP, 0, s.number)
+        val open = PendingIntent.getActivity(ctx, 320, Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val who = s.name.ifBlank { s.number }
+        val state = if (s.waitingUntil > 0) "${gapSec}s me koshish ${s.attempt}/${AutoRedial.MAX_ATTEMPTS}" else "Koshish ${s.attempt}/${AutoRedial.MAX_ATTEMPTS} chal rahi"
+        val n = NotificationCompat.Builder(ctx, CH_ONGOING)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle("Auto-redial · $who")
+            .setContentText(state)
+            .setOngoing(true)
+            .setContentIntent(open)
+            .addAction(0, "Rok do", stop)
+            .build()
+        try { NotificationManagerCompat.from(ctx).notify(ID_AUTOREDIAL, n) } catch (e: Exception) { }
+    }
+
+    fun autoRedialDone(ctx: Context, who: String, msg: String) {
+        val open = PendingIntent.getActivity(ctx, 321, Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags())
+        val n = NotificationCompat.Builder(ctx, CH_MISSED)
+            .setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle("Auto-redial · $who")
+            .setContentText(msg)
+            .setAutoCancel(true)
+            .setContentIntent(open)
+            .build()
+        try { NotificationManagerCompat.from(ctx).notify(ID_AUTOREDIAL + 1, n) } catch (e: Exception) { }
+    }
+
+    fun cancelAutoRedial(ctx: Context) {
+        try { NotificationManagerCompat.from(ctx).cancel(ID_AUTOREDIAL) } catch (e: Exception) { }
+    }
+
     /** Manual call reminder due: user ne khud set kiya tha.
      *  Body tap = dialer khulta hai number bhara hua (koi call nahi).
      *  Sirf "Call karo" action seedha call lagata hai. Koi auto-call nahi. */
