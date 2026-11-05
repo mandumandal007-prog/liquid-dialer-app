@@ -12,9 +12,11 @@ class LdScreeningService : CallScreeningService() {
         val n = details.handle?.schemeSpecificPart ?: ""
         val incoming = android.os.Build.VERSION.SDK_INT < 29 || details.callDirection == Call.Details.DIRECTION_INCOMING
         val hasContacts = checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        // User ka never-block pin unknown/series se upar; private ka number hota hi nahi isliye wo hamesha rule ke neeche
+        val never = n.isNotBlank() && com.mandu.liquiddialer.data.ContactControls.blockNever(this, n)
         val privateHit = incoming && s.blockPrivate && n.isBlank()
-        val unknownHit = incoming && s.blockUnknown && n.isNotBlank() && hasContacts && Repo.lookupName(this, n) == null
-        val seriesHit = incoming && n.isNotBlank() && SeriesBlock.matches(n, s.blockedPrefixes)
+        val unknownHit = incoming && s.blockUnknown && n.isNotBlank() && hasContacts && Repo.lookupName(this, n) == null && !never
+        val seriesHit = incoming && n.isNotBlank() && !never && SeriesBlock.matches(n, s.blockedPrefixes)
         val block = privateHit || unknownHit || seriesHit
         val cal = java.util.Calendar.getInstance()
         val nowMin = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
