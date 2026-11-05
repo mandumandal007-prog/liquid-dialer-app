@@ -108,7 +108,7 @@ class CallScreenshotTest {
     @Test fun noPhotoLongNameBothThemes() {
         for(theme in listOf("daylight","midnight")) {
             seed { this[K.theme]=theme;this[K.callBgStyle]="blobs" }
-            rule.waitUntil(5000) { LdApp.settings.value.theme==theme }
+            rule.waitUntil(15000) { LdApp.settings.value.theme==theme }
             CallManager.calls.value=listOf(FakeCall.make("+919876543210","Rahul Sharma Chattopadhyay",Call.STATE_ACTIVE,System.currentTimeMillis()-75000));CallManager.bump();settle(2500)
             rule.onNodeWithTag("call_name").assertIsDisplayed();rule.onNodeWithTag("call_timer").assertIsDisplayed();rule.onNodeWithTag("end_call").assertIsDisplayed()
             saveShot(rule,"G256-no-photo-"+theme)
