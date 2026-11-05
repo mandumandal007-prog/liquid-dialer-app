@@ -73,6 +73,12 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
         }
     }
     Spacer(Modifier.height(16.dp))
+    if (number.isNotBlank()) Box(Modifier.testTag("autoredial_start")) {
+        SheetRow(LdIcons.Phone, "Auto-redial", "Busy/na lage to khud 5 baar dobara try - Rok do se band") {
+            onClose()
+            com.mandu.liquiddialer.telecom.AutoRedial.start(ctx, number, contact?.name ?: "")
+        }
+    }
     detail?.phones?.filter { Repo.key(it.first) != Repo.key(number) }?.forEach { (n, _) ->
         SheetRow(LdIcons.Phone, Repo.pretty(n), "Doosra number · dabake rakho = options", onLongClick = { onLongNumber(n) }) { onClose(); act.call(n) }
     }
