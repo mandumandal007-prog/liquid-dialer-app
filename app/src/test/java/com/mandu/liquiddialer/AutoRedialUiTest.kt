@@ -92,8 +92,18 @@ class AutoRedialUiTest {
 
     @Test
     fun largeFontCardFits() {
-        openNumberSheet(fontScale = 1.3f)
-        rule.onNodeWithTag("autoredial_start", useUnmergedTree = true).performClick()
+        // Sirf card ka 1.3x fit check: click-path upar ke 2 tests cover karte hain. Animated card ke
+        // saath performClick loaded CI par measure-race flake karta tha, isliye session seedha set karo.
+        val ctx = ApplicationProvider.getApplicationContext<LdApp>()
+        runBlocking { ctx.ldStore.edit { p -> p[K.fontScale] = 1.3f } }
+        Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CONTACTS, android.Manifest.permission.READ_CALL_LOG)
+        val act = rule.activity
+        act.state.showOnboarding = false
+        act.state.isDefault = true
+        act.state.contacts = listOf(Contact(11, "lk1", "Rahul", "", "+91 98765 43210", "MOBILE", false, null))
+        act.state.tab = "contacts"
+        settle()
+        AutoRedial.session.value = AutoRedial.Session("+91 98765 43210", "Rahul", attempt = 1, waitingUntil = 0)
         settle()
         rule.onNodeWithTag("autoredial_card", useUnmergedTree = true).assertExists()
         rule.onNodeWithTag("autoredial_stop", useUnmergedTree = true).assertExists()
