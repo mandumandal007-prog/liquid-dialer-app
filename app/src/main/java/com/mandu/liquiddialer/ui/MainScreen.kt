@@ -534,14 +534,14 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         if (query.isNotBlank() && contactHits.isNotEmpty()) {
             item(key = "contacts-head") { LdText("CONTACTS", 12f, FontWeight.Bold, p.muted, Modifier.padding(start = 4.dp, top = 4.dp), letter = 1.2f) }
             items(contactHits, key = { "c" + it.id }) { c ->
-                GlassRow(onClick = { onFav(c) }, onLongClick = { onLong(c.number) }) {
+                GlassRow(onClick = { onFav(c) }, onLongClick = { onLong(c.number) }, tight = true) {
                     Avatar(c.name, c.photo, seed = c.name)
                     Column(Modifier.weight(1f)) {
                         LdText(c.name, 14.5f, FontWeight.SemiBold)
                         LdText(c.label + "  ·  " + Repo.pretty(c.number), 11.5f, color = p.muted, modifier = Modifier.padding(top = 3.dp))
                     }
-                    VideoMini { act.videoCall(c.number) }
-                    CallMini { act.callUi(c.number) }
+                    VideoMini(40.dp) { act.videoCall(c.number) }
+                    CallMini(40.dp) { act.callUi(c.number) }
                 }
             }
         }
@@ -595,7 +595,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             BirthdayStripLoader(st, onOpenNumber)
         }
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 0.dp)) {
+            // horizontalScroll: bade font-scale pe bhi chips kabhi truncate nahi hote (parent pixel-gate flag: "Inco...")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 0.dp).horizontalScroll(rememberScrollState())) {
                 chipLabels.forEachIndexed { i, label ->
                     val on = filter == i
                     Box(Modifier.clip(RoundedCornerShape(999.dp))
@@ -617,8 +618,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
                     val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
                     val simLabel = if (st.sims.size > 1 && s.showSimInRecents) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
-                    GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact, extraVerticalPadding = 4.dp) {
-                        Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 42.dp, fontSize = if (s.recentsCompact) 12f else 14f, seed = name)
+                    GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact, extraVerticalPadding = 4.dp, tight = true) {
+                        Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 38.dp, fontSize = if (s.recentsCompact) 12f else 13f, seed = name)
                         Column(Modifier.weight(1f)) {
                             LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
                             Row(Modifier.padding(top = if (s.recentsCompact) 1.dp else 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -641,8 +642,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = 2)
                             }
                         }
-                        VideoMini { act.videoCall(r.number) }
-                        CallMini { act.callUi(r.number) }
+                        VideoMini(40.dp) { act.videoCall(r.number) }
+                        CallMini(40.dp) { act.callUi(r.number) }
                     }
                 }
             }
@@ -700,34 +701,34 @@ private fun InsightRow(value: String, label: String) {
 
 /** .row glass list item */
 @Composable
-fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Boolean = false, modifier: Modifier = Modifier, extraVerticalPadding: androidx.compose.ui.unit.Dp = 0.dp, content: @Composable RowScope.() -> Unit) {
+fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Boolean = false, modifier: Modifier = Modifier, extraVerticalPadding: androidx.compose.ui.unit.Dp = 0.dp, tight: Boolean = false, content: @Composable RowScope.() -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .985f)
     Row(modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s }.glass(p, RoundedCornerShape(20.dp), 8.dp, .20f)
         .combinedClickable(src, null, onLongClick = onLongClick, onClick = onClick)
-        .padding(horizontal = 12.dp, vertical = (if (dense) 3.dp else 6.dp) + extraVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp), content = content)
+        .padding(horizontal = if (tight) 10.dp else 12.dp, vertical = (if (dense) 3.dp else 6.dp) + extraVerticalPadding),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (tight) 8.dp else 12.dp), content = content)
 }
 
 /** .call-mini */
 @Composable
-fun CallMini(onClick: () -> Unit) {
+fun CallMini(size: androidx.compose.ui.unit.Dp = 44.dp, onClick: () -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).testTag("call_mini").buttonGlass(p,CircleShape,p.accent)
-        .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, 20.dp, p.accent) }
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).testTag("call_mini").buttonGlass(p,CircleShape,p.accent)
+        .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, size * .45f, p.accent) }
 }
 
 /** .video-mini: seedhi native video call (ViLTE); support na mile to call screen saaf batata hai */
 @Composable
-fun VideoMini(onClick: () -> Unit) {
+fun VideoMini(size: androidx.compose.ui.unit.Dp = 44.dp, onClick: () -> Unit) {
     val p = LocalLd.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(44.dp).buttonGlass(p,CircleShape,p.accent)
-        .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, 20.dp, p.accent) }
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).buttonGlass(p,CircleShape,p.accent)
+        .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, size * .45f, p.accent) }
 }
 
 @Composable
