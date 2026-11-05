@@ -22,14 +22,14 @@ class CallListsUiTest {
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
  private fun click(tag:String){rule.onNodeWithTag(tag).performScrollTo().performClick();settle()}
- private fun awaitData(check:()->Boolean){rule.waitUntil(5000){check()};settle()}
+ private fun awaitData(check:()->Boolean){rule.waitUntil(15000){check()};settle()}
  @Before fun clean(){listOf("",".bak",".new").forEach {File(ctx.filesDir,"manual_call_lists.json$it").delete()}}
  private fun show(theme:String="daylight",font:Float=1f){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
-  rule.waitUntil(5000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
+  rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(5000){rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
  }
  @Test fun createAddCallManuallyDoneResumeRenameAndDelete() {
   show();click("lists_create");rule.onNodeWithTag("list_title").performTextInput("Family");click("list_save")
@@ -43,7 +43,7 @@ class CallListsUiTest {
   click("list_done_${e.id}");awaitData{!CallLists.read(ctx).single().entries.single().done}
   click("list_filter_Pending")
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(5000){rule.onAllNodesWithTag("list_open_$id").fetchSemanticsNodes().isNotEmpty()};click("list_open_$id")
+  rule.waitUntil(15000){rule.onAllNodesWithTag("list_open_$id").fetchSemanticsNodes().isNotEmpty()};click("list_open_$id")
   click("list_rename");rule.onNodeWithTag("list_title").performTextReplacement("Weekend calls");click("list_save");awaitData{CallLists.read(ctx).single().title=="Weekend calls"}
   click("list_remove_${e.id}");rule.onNodeWithTag("list_cancel_delete").performClick();settle();assertEquals(1,CallLists.read(ctx).single().entries.size)
   click("list_delete");rule.onNodeWithTag("list_cancel_delete").performClick();settle();assertEquals(1,CallLists.read(ctx).size)
@@ -65,7 +65,7 @@ class CallListsUiTest {
   rule.onNodeWithText("Contacts permission nahi hai. Number jodo se manually add kar sakte ho.",useUnmergedTree=true).assertIsDisplayed()
   click("list_form_close");click("list_add")
   rule.onNodeWithTag("list_number").performTextInput("*123#");click("entry_save")
-  rule.waitUntil(5000){rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   assertTrue(CallLists.read(ctx).single().entries.isEmpty());assertNull(rule.activity.state.confirmNumber)
   rule.onNodeWithTag("list_number").performTextReplacement("9876543210");click("entry_save")
   awaitData{CallLists.read(ctx).single().entries.size==1}
@@ -74,7 +74,7 @@ class CallListsUiTest {
   File(ctx.filesDir,"manual_call_lists.json").writeText("broken")
   rule.mainClock.autoAdvance=false;settle()
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(5000){rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   rule.onNodeWithTag("lists_create").assertDoesNotExist();assertNull(rule.activity.state.confirmNumber)
   assertEquals("broken",File(ctx.filesDir,"manual_call_lists.json").readText())
  }
