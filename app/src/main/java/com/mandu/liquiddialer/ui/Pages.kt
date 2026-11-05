@@ -34,8 +34,10 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.datastore.preferences.core.Preferences
 import com.mandu.liquiddialer.AppState
@@ -596,7 +598,45 @@ private fun AppearancePage(onBack: () -> Unit) {
         GlassCard {
             val opts = listOf(.9f, 1f, 1.1f, 1.2f)
             Segmented(listOf("Chhota", "Normal", "Bada", "Bahut bada"), opts.indexOfFirst { it == s.fontScale }.coerceAtLeast(1)) { save(K.fontScale, opts[it]) }
+            LdText("Font style", 13f, FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp, bottom = 8.dp))
+            val fonts = listOf("Default" to null, "Serif" to FontFamily.Serif, "Mono" to FontFamily.Monospace, "Cursive" to FontFamily.Cursive)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                fonts.forEachIndexed { i, (label, fam) ->
+                    val on = s.fontStyle == i
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                        .border(if (on) 1.5.dp else 1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(14.dp))
+                        .clickable(remember { MutableInteractionSource() }, null) { save(K.fontStyle, i) }
+                        .padding(vertical = 10.dp).testTag("font_style_" + i), horizontalAlignment = Alignment.CenterHorizontally) {
+                        androidx.compose.material3.Text("Aa", fontFamily = fam, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = if (on) p.accent else p.text)
+                        LdText(label, 10f, color = if (on) p.accent else p.muted, modifier = Modifier.padding(top = 4.dp))
+                    }
+                }
+            }
             SwitchRow("Text bold karo", "Poori app me moti likhai", s.boldText, last = true) { save(K.boldText, it) }
+        }
+        SecTitle("Icon style")
+        GlassCard {
+            LdIcons.ICON_STYLES.chunked(3).forEach { rowItems ->
+                Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    rowItems.forEach { label ->
+                        val i = LdIcons.ICON_STYLES.indexOf(label)
+                        val on = s.iconStyle == i
+                        Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                            .border(if (on) 1.5.dp else 1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(14.dp))
+                            .clickable(remember { MutableInteractionSource() }, null) { save(K.iconStyle, i) }
+                            .padding(vertical = 10.dp).testTag("icon_style_" + i), horizontalAlignment = Alignment.CenterHorizontally) {
+                            CompositionLocalProvider(LocalIconStyle provides i) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    LdIcon(LdIcons.Phone, 16.dp, if (on) p.accent else p.text)
+                                    LdIcon(LdIcons.Search, 16.dp, if (on) p.accent else p.text)
+                                    LdIcon(LdIcons.Settings, 16.dp, if (on) p.accent else p.text)
+                                }
+                            }
+                            LdText(label, 10f, color = if (on) p.accent else p.muted, modifier = Modifier.padding(top = 5.dp))
+                        }
+                    }
+                }
+            }
         }
         SecTitle("Motion")
         GlassCard { SwitchRow("Animations", "Blobs, floating avatar aur button press movement", s.motion, last = true) { save(K.motion, it) } }
