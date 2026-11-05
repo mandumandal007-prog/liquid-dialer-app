@@ -138,7 +138,8 @@ class ChromeOverlapShotTest {
     private fun seedRecentsForIntercept() {
         Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(
             android.Manifest.permission.READ_CONTACTS, android.Manifest.permission.READ_CALL_LOG)
-        val rec = (1..8).map { i -> Recent(i + 100L, "90000001%02d".format(i), "Cover $i", 1, 2000L + i * 60_000L, 30_000L, null, null) }
+        // 12 rows: v280 se rows thodi chhoti (40dp minis, tight spacing) - itni rows ki scroll ke baad bhi ek row chrome ke peeche aaye
+        val rec = (1..12).map { i -> Recent(i + 100L, "90000001%02d".format(i), "Cover $i", 1, 2000L + i * 60_000L, 30_000L, null, null) }
         rule.runOnUiThread {
             rule.activity.state.showOnboarding = false
             rule.activity.state.isDefault = true
@@ -167,7 +168,7 @@ class ChromeOverlapShotTest {
 
     private fun ensureCoveredRow() {
         var swipes = 0
-        while (!coveredRowExists() && swipes < 6) {
+        while (!coveredRowExists() && swipes < 8) {
             rule.onAllNodesWithTag("main_list", useUnmergedTree = true)[0]
                 .performTouchInput { swipeUp(durationMillis = 200) }
             settle(600); swipes++
