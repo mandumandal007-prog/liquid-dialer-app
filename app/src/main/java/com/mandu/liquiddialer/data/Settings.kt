@@ -48,6 +48,8 @@ data class LdSettings(
     val bottomScale: Float = 1f,
     val tabSwipe: Boolean = true,
     val boldText: Boolean = false,
+    val fontStyle: Int = 0,      // 0=Default, 1=Serif, 2=Monospace, 3=Cursive
+    val iconStyle: Int = 0,      // LdIcons.ICON_STYLES index (0=Default)
     val callCardScale: Float = 1f,       // calling card: naam + photo ka size
     val dialerScale: Float = 1f,         // dialer keypad ka size
     val callAvatarShape: String = "circle",   // "circle" | "squircle"
@@ -154,6 +156,8 @@ object K {
     val bottomScale = floatPreferencesKey("bottomScale")
     val tabSwipe = booleanPreferencesKey("tabSwipe")
     val boldText = booleanPreferencesKey("boldText")
+    val fontStyle = intPreferencesKey("font_style")
+    val iconStyle = intPreferencesKey("icon_style")
     val callCardScale = floatPreferencesKey("callCardScale")
     val dialerScale = floatPreferencesKey("dialerScale")
     val callAvatarShape = stringPreferencesKey("callAvatarShape")
@@ -256,6 +260,8 @@ fun Preferences.toSettings(): LdSettings {
         bottomScale = this[K.bottomScale] ?: 1f,
         tabSwipe = this[K.tabSwipe] ?: true,
         boldText = this[K.boldText] ?: false,
+        fontStyle = (this[K.fontStyle] ?: 0).coerceIn(0, 3),
+        iconStyle = (this[K.iconStyle] ?: 0).coerceIn(0, 5),
         callCardScale = this[K.callCardScale] ?: 1f,
         dialerScale = this[K.dialerScale] ?: 1f,
         callAvatarShape = this[K.callAvatarShape] ?: "circle",
