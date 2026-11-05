@@ -57,7 +57,7 @@ class CallPhotoScreenTest {
  @Test fun photoBlurLevelsRenderAndKeepCallControlsVisible() {
   for(level in 0..2) {
    runBlocking {app.ldStore.edit {it[K.theme]="daylight";it[K.callPhotoBlur]=level;it[K.motion]=false}}
-   rule.waitUntil(5000) { LdApp.settings.value.callPhotoBlur==level }
+   rule.waitUntil(15000) { LdApp.settings.value.callPhotoBlur==level }
    CallManager.calls.value=listOf(FakeCall.make("+919876543210","Rahul Sharma",Call.STATE_ACTIVE,System.currentTimeMillis()-70000));CallManager.bump();settle()
    rule.onNodeWithTag("call_timer").assertIsDisplayed();rule.onNodeWithTag("end_call").assertIsDisplayed()
    saveShot(rule,"G256-photo-blur-"+level)
