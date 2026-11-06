@@ -62,12 +62,21 @@ class FavWidgetChooserUiTest {
         override fun getType(uri: Uri): String? = null
     }
 
+    private val validationStarted = java.util.concurrent.CountDownLatch(1)
+    private val validationRelease = java.util.concurrent.CountDownLatch(1)
+    private val validationDone = java.util.concurrent.CountDownLatch(1)
+    @Volatile private var blockValidation = false
     private val queryTrace = java.util.concurrent.CopyOnWriteArrayList<String>()
     internal val fakeProvider = object : FakeDetailProvider() {
         override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
+            if (blockValidation && uri == ContactsContract.CommonDataKinds.Phone.CONTENT_URI) {
+                validationStarted.countDown()
+                check(validationRelease.await(10, java.util.concurrent.TimeUnit.SECONDS)) { "validation release timed out" }
+            }
             queryTrace.add("start ${uri.path} ids=${selectionArgs?.toList()} thread=${Thread.currentThread().name}")
             return super.query(uri, projection, selection, selectionArgs, sortOrder).also {
                 queryTrace.add("done ${uri.path} rows=${it?.count} at=${System.currentTimeMillis() % 1000000}")
+                if (blockValidation) validationDone.countDown()
             }
         }
     }
@@ -132,6 +141,44 @@ class FavWidgetChooserUiTest {
         assertNull("chooser kabhi call nahi karta", act.state.pendingCall)
         assertNull(act.state.confirmNumber)
         assertNull(act.state.numberChoiceRequest)
+    }
+
+    @Test fun dismissedChooserCannotFillAfterSlowValidation() {
+        settle(2500)
+        openChooser()
+        blockValidation = true
+        try {
+            rule.onAllNodesWithTag("chooser_num", useUnmergedTree = true)[0].performClick()
+            org.junit.Assert.assertTrue("click validation started", validationStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            rule.onNodeWithTag("chooser_cancel", useUnmergedTree = true).performClick()
+            settle()
+            assertNull(rule.activity.state.numberChoiceRequest)
+            validationRelease.countDown()
+            org.junit.Assert.assertTrue("query completed", validationDone.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            // Let the IO continuation and its Main publication run after dismissal.
+            repeat(8) { Thread.sleep(100); settle(200) }
+            assertEquals("dismissed dialog must not fill later", "", rule.activity.state.dial)
+            assertNull(rule.activity.state.pendingCall)
+        } finally { validationRelease.countDown() }
+    }
+
+    @Test fun replacedChooserCannotBeOverwrittenBySlowValidation() {
+        settle(2500)
+        openChooser()
+        blockValidation = true
+        try {
+            rule.onAllNodesWithTag("chooser_num", useUnmergedTree = true)[0].performClick()
+            org.junit.Assert.assertTrue("click validation started", validationStarted.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            rule.runOnUiThread { rule.activity.state.numberChoiceRequest = 99L to "Different contact" }
+            settle()
+            awaitNodes("chooser_missing", 1)
+            validationRelease.countDown()
+            org.junit.Assert.assertTrue("query completed", validationDone.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            repeat(8) { Thread.sleep(100); settle(200) }
+            assertEquals("new request must remain open", 99L to "Different contact", rule.activity.state.numberChoiceRequest)
+            assertEquals("old choice must not fill", "", rule.activity.state.dial)
+            assertNull(rule.activity.state.pendingCall)
+        } finally { validationRelease.countDown() }
     }
 
     @Test fun cancelIsNoOp() {
