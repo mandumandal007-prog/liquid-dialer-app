@@ -318,7 +318,7 @@ object Repo {
     }
 
     // ---------------- call log ----------------
-    fun recents(ctx: Context, limit: Int = 300): List<Recent> {
+    fun recents(ctx: Context, limit: Int = 300, strict: Boolean = false): List<Recent> {
         val out = mutableListOf<Recent>()
         // This load only: avoid repeated provider work for repeated call-log numbers.
         // Keep exact provider strings separate and cache misses too. Next reload resolves afresh.
@@ -326,14 +326,17 @@ object Repo {
         try {
             val proj = arrayOf(CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME, CallLog.Calls.TYPE, CallLog.Calls.DATE,
                 CallLog.Calls.DURATION, CallLog.Calls.PHONE_ACCOUNT_ID, CallLog.Calls.CACHED_PHOTO_URI)
-            ctx.contentResolver.query(CallLog.Calls.CONTENT_URI, proj, null, null, CallLog.Calls.DATE + " DESC")?.use { c ->
+            val cursor = ctx.contentResolver.query(CallLog.Calls.CONTENT_URI, proj, null, null, CallLog.Calls.DATE + " DESC")
+            if (strict && cursor == null) error("Call log provider returned no cursor")
+            cursor?.use { c ->
                 while (c.moveToNext() && out.size < limit) {
                     val number = c.getString(1) ?: ""
                     if (!receivedNames.containsKey(number)) receivedNames[number] = ReceivedNames.display(ctx, number)
                     out += Recent(c.getLong(0), number, receivedNames[number] ?: c.getString(2)?.takeIf { it.isNotBlank() }, c.getInt(3), c.getLong(4), c.getLong(5), c.getString(6), c.getString(7))
                 }
             }
-        } catch (e: Exception) { }
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (e: Exception) { if (strict) throw e }
         return out
     }
 
