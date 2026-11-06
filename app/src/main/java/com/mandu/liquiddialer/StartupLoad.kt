@@ -30,3 +30,11 @@ internal suspend fun loadStartupSources(
     publishRecents(dRecents.await())
     publishRest(dContacts.await(), dBlocked.await(), dSims.await())
 }
+
+/** Data and load outcome share the same generation gate, on the caller's UI context. */
+internal fun publishRecentLoad(state: AppState, rows: List<Recent>, failed: Boolean, generation: Int, currentGeneration: Int) {
+    if (generation != currentGeneration) return
+    state.recents = rows
+    state.recentsError = failed
+    state.recentsLoaded = true
+}
