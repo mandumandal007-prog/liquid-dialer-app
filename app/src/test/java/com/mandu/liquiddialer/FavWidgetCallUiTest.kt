@@ -27,8 +27,7 @@ import org.robolectric.shadows.ShadowContentResolver
 @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class FavWidgetCallUiTest {
-    @get:Rule(order = 0) val flakyRetry = FlakyRetryRule()
-    @get:Rule(order = 1) val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private val queryTrace=java.util.concurrent.CopyOnWriteArrayList<String>()
     private val fake = object : android.content.ContentProvider() {
         val delegate=FavWidgetChooserUiTest.FakeDetailProvider()
