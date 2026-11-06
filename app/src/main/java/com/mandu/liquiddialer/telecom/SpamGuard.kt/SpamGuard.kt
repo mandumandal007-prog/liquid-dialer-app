@@ -6,29 +6,33 @@ object SpamGuard {
 
     fun digits(s: String): String = s.filter { it.isDigit() }
 
-    /** Country/trunk code hatakar national number: +91 / 0091 / 91 / leading 0 sab handle. */
-    fun nsn(number: String): String {
-        var d = digits(number)
-        if (d.startsWith("00")) d = d.drop(2)
-        if (d.startsWith("91") && d.length > 10) d = d.drop(2)
-        if (d.startsWith("0") && d.length > 10) d = d.drop(1)
-        return d
+    /** Indian 10-digit national number, ya null agar number is format me pehchana nahi gaya.
+     * Sirf ye shapes: +91/0091 + 10 digit, 91 + 10 digit (12), 0 + 10 digit (11), seedha 10 digit.
+     * Koi bhi aur lambai ya +/00 ke saath non-91 country code -> null (foreign/ajeeb numbers kabhi Indian nahi maane jaate). */
+    fun nsn(number: String): String? {
+        val raw = number.trim()
+        var d = digits(raw)
+        if (d.isEmpty()) return null
+        val explicitIntl = raw.startsWith("+") || raw.startsWith("00")
+        if (raw.startsWith("00")) d = d.drop(2)
+        if (explicitIntl) return if (d.length == 12 && d.startsWith("91")) d.drop(2) else null
+        return when {
+            d.length == 10 -> d
+            d.length == 11 && d.startsWith("0") -> d.drop(1)
+            d.length == 12 && d.startsWith("91") -> d.drop(2)
+            else -> null
+        }
     }
 
-    /** 140 = promotional telemarketing, 160 = service/transactional (TRAI series, regulated entities).
-     * Sirf Indian context me apply hota hai: explicit foreign number (+1 404...) pe kabhi nahi.
-     * 160 ko kabhi block mat karo - verified service calls ki series hai. */
+    /** 140 = promotional telemarketing, 160 = service/transactional series (TRAI numbering, sirf PREFIX).
+     * Ye caller ki verification NAHI hai - koi bhi is prefix ka dawa nahi kar sakta ye hum jaanch nahi sakte.
+     * Sirf 10-digit Indian national number pe lagta hai; foreign (+1 404...) ya ajeeb lambai pe kabhi nahi.
+     * 160 ko kabhi block mat karo. */
     fun series(number: String): Int? {
-        val raw = number.trim()
-        if (raw.startsWith("+") || raw.startsWith("00")) {
-            var d = digits(raw)
-            if (d.startsWith("00")) d = d.drop(2)
-            if (!d.startsWith("91")) return null
-        }
-        val n = nsn(number)
+        val n = nsn(number) ?: return null
         return when {
-            n.length >= 10 && n.startsWith("140") -> 140
-            n.length >= 10 && n.startsWith("160") -> 160
+            n.startsWith("140") -> 140
+            n.startsWith("160") -> 160
             else -> null
         }
     }
