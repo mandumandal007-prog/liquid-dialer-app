@@ -31,7 +31,8 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class StyleStudioShotTest {
 
-    @get:Rule val rule = createAndroidComposeRule<CallActivity>()
+    // Page/composable coverage must not use CallActivity: it finishes itself when calls are empty.
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private val ctx get() = ApplicationProvider.getApplicationContext<LdApp>()
 
     private fun settle(ms: Long = 1500) {
