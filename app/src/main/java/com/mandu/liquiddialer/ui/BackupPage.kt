@@ -4,12 +4,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.mandu.liquiddialer.LdApp
+import com.mandu.liquiddialer.data.AutoBackup
 import com.mandu.liquiddialer.data.FullBackup
+import com.mandu.liquiddialer.data.K
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,6 +28,7 @@ import java.util.*
  */
 @Composable fun BackupPage(onBack:()->Unit) {
     val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope()
+    val s by LdApp.settings.collectAsState()
     var busy by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf("")};var notice by remember {mutableStateOf("")}
     var preview by remember {mutableStateOf<FullBackup.Plan?>(null)}
@@ -58,6 +63,20 @@ import java.util.*
         PrimaryButton("Backup file se restore karo",enabled=!busy,modifier=Modifier.padding(top=10.dp).testTag("backup_restore")){
             error="";notice=""
             restoreLauncher.launch(arrayOf("application/json","text/plain","*/*"))
+        }
+        // Opt-in khud backup: switch + status; files sirf is phone ke private folder me rehti hain
+        GlassCard(Modifier.padding(top=12.dp).testTag("autobackup_card")) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    LdText("Khud backup har hafte",15f,FontWeight.Bold)
+                    LdText("App khulne par, pichla backup 7 din se purana ho to khud phone ke private folder me save hota hai (aakhri 3 files rakhta hai). Sirf isi phone par rehta hai. Recordings, photos aur call history isme nahi hain.",12f,color=p.muted,maxLines=8,modifier=Modifier.padding(top=4.dp))
+                }
+                LdSwitch(s.autoBackup){on->scope.launch{LdApp.instance.repo.set(K.autoBackup,on)}}
+            }
+            if(s.autoBackup) {
+                val autoFiles=remember(s.lastAutoBackupAt){AutoBackup.files(ctx)}
+                LdText(if(s.lastAutoBackupAt<=0L) "Abhi tak auto-backup nahi bana - agli baar app khulne par ban jayega." else "Aakhri auto-backup: ${SimpleDateFormat("d MMM, h:mm a",Locale.getDefault()).format(Date(s.lastAutoBackupAt))} · ${autoFiles.size} ${if(autoFiles.size==1)"file" else "files"} phone me saved",12f,color=p.accent,maxLines=4,modifier=Modifier.padding(top=8.dp).testTag("autobackup_status"))
+            }
         }
         preview?.let{plan->
             GlassCard(Modifier.padding(top=12.dp).testTag("backup_preview")) {
