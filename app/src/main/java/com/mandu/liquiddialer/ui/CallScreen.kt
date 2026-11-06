@@ -54,6 +54,7 @@ import com.mandu.liquiddialer.data.Repo
 import com.mandu.liquiddialer.data.Note
 import com.mandu.liquiddialer.data.ContactControls
 import com.mandu.liquiddialer.telecom.CallManager
+import com.mandu.liquiddialer.telecom.SpamGuard
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.delay
@@ -638,6 +639,9 @@ private fun CallerNoteCard(number: String, onOpen: () -> Unit) {
     }
 }
 
+/** Round D spam badge data: TRAI series (140/160), unknown-international, STIR/SHAKEN verification. */
+private data class SpamInfo(val series: Int?, val intlUnknown: Boolean, val verification: Int)
+
 @Composable
 private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, onNotes: () -> Unit) {
     val p = LocalLd.current
@@ -645,11 +649,39 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
     val sim = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { "SIM ${it.slot}" } ?: "SIM"
+    val s by LdApp.settings.collectAsState()
+    // offline spam pehchan: contacts lookup IO pe; verification status sirf API 30+ (0 = koi jankari nahi)
+    val spam by produceState<SpamInfo?>(null, call) {
+        val num = CallManager.number(call)
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            if (num.isBlank()) null else {
+                val known = Repo.lookupName(ctx, num) != null
+                val ver = if (android.os.Build.VERSION.SDK_INT >= 30)
+                    (try { call.details?.callerNumberVerificationStatus } catch (_: Throwable) { null }) ?: 0 else 0
+                SpamInfo(SpamGuard.series(num), SpamGuard.isInternational(num) && !known, ver)
+            }
+        }
+    }
     Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
         TopChips(call, false, onMinimize = {})
         // hero upar ki third me (jaise asli dialers) - beech ka dead space kam, actions ko saans
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = androidx.compose.ui.BiasAlignment(0f, -0.32f)) {
-            Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, p.accent, null, true)
+            Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, if (spam?.series == 140) p.danger else p.accent, null, true)
+        }
+        run {
+            val sp = spam
+            if (s.spamBadges && sp != null) {
+                val chips = buildList {
+                    if (sp.series == 140) add("Telemarketer · 140" to p.danger)
+                    if (sp.series == 160) add("Verified · 160" to Color(0xFF059669))
+                    if (sp.intlUnknown && s.intlUnknownWarn) add("International" to Color(0xFFF59E0B))
+                    SpamGuard.verificationLabel(sp.verification)?.let { add(it to if (sp.verification == SpamGuard.VERIFY_PASSED) p.ok else p.danger) }
+                }
+                if (chips.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).horizontalScroll(rememberScrollState()).testTag("spam_badges"),
+                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    chips.forEachIndexed { i, (ct, cc) -> if (i > 0) Spacer(Modifier.width(6.dp)); BadgeChip(ct, cc) }
+                }
+            }
         }
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CallerNoteCard(CallManager.number(call), onOpen = onNotes) }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
