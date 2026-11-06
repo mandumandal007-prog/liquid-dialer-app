@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) return
+        com.mandu.liquiddialer.data.FakeCalls.cancel(ctx) // Never resurrect a simulated call after reboot/update.
         // Birthday alarm re-arm (cold process - DataStore se sync read, StateFlow default pe nahi)
         val bdayOn = kotlinx.coroutines.runBlocking {
             try { com.mandu.liquiddialer.data.SettingsRepo(ctx).flow.first().birthdayRemind } catch (e: Exception) { false }
