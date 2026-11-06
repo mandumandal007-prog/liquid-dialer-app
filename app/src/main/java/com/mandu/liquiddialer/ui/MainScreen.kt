@@ -688,10 +688,12 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
                     val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
                     val simLabel = if (st.sims.size > 1 && s.showSimInRecents) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
-                    GlassRow(onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact, extraVerticalPadding = 4.dp, tight = true) {
+                    val rstyle = recentsStyleFor(s.recentsStyle)
+                    RecentsRowShell(rstyle, onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact, extraVerticalPadding = 4.dp, tight = true) {
                         Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 38.dp, fontSize = if (s.recentsCompact) 12f else 13f, seed = name)
                         Column(Modifier.weight(1f)) {
-                            LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text)
+                            // maxLines=2: lamba naam truncate na ho, doosri line pe wrap (bade font-scale pe bhi poora naam)
+                            LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text, maxLines = 2)
                             Row(Modifier.padding(top = if (s.recentsCompact) 1.dp else 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 // icon hata diya: text label ("Outgoing"/"Missed") already batata hai, aur
                                 // jagah bachti hai taaki time + duration bina truncate dikhe
@@ -712,8 +714,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = 2)
                             }
                         }
-                        VideoMini(40.dp) { act.videoCall(r.number) }
-                        CallMini(40.dp) { act.callUi(r.number) }
+                        VideoMini(40.dp, tint = rstyle.tint) { act.videoCall(r.number) }
+                        CallMini(40.dp, tint = rstyle.tint) { act.callUi(r.number) }
                     }
                 }
             }
@@ -783,22 +785,24 @@ fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Bool
 
 /** .call-mini */
 @Composable
-fun CallMini(size: androidx.compose.ui.unit.Dp = 44.dp, onClick: () -> Unit) {
+fun CallMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, onClick: () -> Unit) {
     val p = LocalLd.current
+    val c = tint ?: p.accent
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).testTag("call_mini").buttonGlass(p,CircleShape,p.accent)
-        .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, size * .45f, p.accent) }
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).testTag("call_mini").buttonGlass(p,CircleShape,c)
+        .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, size * .45f, c) }
 }
 
 /** .video-mini: seedhi native video call (ViLTE); support na mile to call screen saaf batata hai */
 @Composable
-fun VideoMini(size: androidx.compose.ui.unit.Dp = 44.dp, onClick: () -> Unit) {
+fun VideoMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, onClick: () -> Unit) {
     val p = LocalLd.current
+    val c = tint ?: p.accent
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).buttonGlass(p,CircleShape,p.accent)
-        .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, size * .45f, p.accent) }
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).buttonGlass(p,CircleShape,c)
+        .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, size * .45f, c) }
 }
 
 @Composable
@@ -1034,6 +1038,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         item(LdIcons.Palette, "Theme & appearance") { onOpen("appearance") }
         item(LdIcons.User, "My profile (naam + photo)") { onOpen("profile") }
         item(LdIcons.Dialpad, "Calling card layout") { onOpen("calllayout") }
+        item(LdIcons.Palette, "Call & Recents style") { onOpen("stylestudio") }
         item(LdIcons.Clock, "History Explorer") { onOpen("historyexplorer") }
         item(LdIcons.Clock, "Reminder Center") { onOpen("reminders") }
         item(LdIcons.Users, "Call Lists") { onOpen("calllists") }
