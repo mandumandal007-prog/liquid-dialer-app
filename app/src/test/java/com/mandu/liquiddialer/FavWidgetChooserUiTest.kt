@@ -30,9 +30,10 @@ import org.robolectric.shadows.ShadowContentResolver
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h1440dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class FavWidgetChooserUiTest {
 
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
 
     internal open class FakeDetailProvider(var phones: List<Pair<String, Int>> = listOf("+91 90000 11111" to 2, "+91 90000 22222" to 2)) : ContentProvider() {
         override fun onCreate() = true
