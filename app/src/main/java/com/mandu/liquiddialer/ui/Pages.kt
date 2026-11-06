@@ -385,7 +385,9 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         SecTitle("Caller pehchan")
         GlassCard {
             SwitchRow("Pichli call ki jankari", "Incoming screen pe pichli call ka time", s.showLastCall) { save(K.showLastCall, it) }
-            SwitchRow("Contact ka label", "Mobile/Work aur Favourite badge incoming pe", s.showContactType, last = true) { save(K.showContactType, it) }
+            SwitchRow("Contact ka label", "Mobile/Work aur Favourite badge incoming pe", s.showContactType) { save(K.showContactType, it) }
+            SwitchRow("Spam & verification badges", "Telemarketer 140, Verified 160 aur network-verification badge incoming screen pe", s.spamBadges) { save(K.spamBadges, it) }
+            SwitchRow("International warning", "Contacts se bahar ka international number ho to amber badge (sirf warning, block nahi)", s.intlUnknownWarn, last = true) { save(K.intlUnknownWarn, it) }
         }
 
         }
@@ -397,8 +399,10 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Block history", BlockLog.list(ctx).size.let { if (it == 0) "Koi call block nahi hui" else "$it roki gayi calls" }, LdIcons.Clock) { onOpen("blockhistory") }
             SRow("Kabhi block mat karo", com.mandu.liquiddialer.data.ContactControls.blockNeverList(ctx).size.let { if (it == 0) "Koi number nahi" else "$it numbers" }, LdIcons.Check) { onOpen("neverblock") }
             SwitchRow("Unknown numbers block", "Jo contacts me nahi, unki call kat jayegi", s.blockUnknown) { save(K.blockUnknown, it); if (it) act.requestScreeningRole() }
-            SwitchRow("Private / hidden numbers block", null, s.blockPrivate, last = (s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty()) && !act.screeningRoleHeld()) { save(K.blockPrivate, it); if (it) act.requestScreeningRole() }
-            if ((s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty()) && !act.screeningRoleHeld())
+            SwitchRow("Private / hidden numbers block", null, s.blockPrivate) { save(K.blockPrivate, it); if (it) act.requestScreeningRole() }
+            SwitchRow("Telemarketing (140) block", "TRAI promotional series ki calls khud reject ho jayengi", s.spamPromoBlock) { save(K.spamPromoBlock, it); if (it) act.requestScreeningRole() }
+            SwitchRow("Unknown international block", "Contacts me na ho aur +91 ke bahar ka number ho to reject", s.intlUnknownBlock, last = (s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty() || s.spamPromoBlock || s.intlUnknownBlock) && !act.screeningRoleHeld()) { save(K.intlUnknownBlock, it); if (it) act.requestScreeningRole() }
+            if ((s.blockUnknown || s.blockPrivate || s.blockedPrefixes.isNotEmpty() || s.spamPromoBlock || s.intlUnknownBlock) && !act.screeningRoleHeld())
                 SRow("Screening role nahi mila", "Blocking abhi kaam nahi karegi — tap karke role do", LdIcons.Info, last = true) { act.requestScreeningRole() }
         }
 
