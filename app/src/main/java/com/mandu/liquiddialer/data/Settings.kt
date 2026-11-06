@@ -75,6 +75,10 @@ data class LdSettings(
     val quietEnd: Int = 420,                 // quiet hours khatam (minute of day, default 07:00)
     val quietAllowFav: Boolean = true,       // favourite contacts quiet hours me bhi bajenge
     val blockedPrefixes: List<String> = emptyList(), // spam series block: user-added prefixes, default khali = off
+    val spamPromoBlock: Boolean = false,     // opt-in: 140 telemarketing series auto-reject (screening role chahiye)
+    val intlUnknownBlock: Boolean = false,   // opt-in: unknown international calls reject (contacts permission chahiye)
+    val intlUnknownWarn: Boolean = true,     // unknown international pe sirf warning badge (block nahi)
+    val spamBadges: Boolean = true,          // incoming pe 140/160/international/network-verification badges
     val callSummary: Boolean = false,        // opt-in: call end par naam+duration notification (lock screen private)
     val keypadLetters: Boolean = true,       // keypad pe ABC letters
     val defaultTab: String = "recents",      // "recents" | "dialer"
@@ -147,6 +151,10 @@ object K {
     val missedAlerts = booleanPreferencesKey("missedAlerts")
     val blockUnknown = booleanPreferencesKey("blockUnknown")
     val blockPrivate = booleanPreferencesKey("blockPrivate")
+    val spamPromoBlock = booleanPreferencesKey("spamPromoBlock")
+    val intlUnknownBlock = booleanPreferencesKey("intlUnknownBlock")
+    val intlUnknownWarn = booleanPreferencesKey("intlUnknownWarn")
+    val spamBadges = booleanPreferencesKey("spamBadges")
     val voicemail = stringPreferencesKey("voicemail")
     val quickReplies = stringPreferencesKey("quickReplies")
     val speedDial = stringPreferencesKey("speedDial")
@@ -254,6 +262,10 @@ fun Preferences.toSettings(): LdSettings {
         missedAlerts = this[K.missedAlerts] ?: d.missedAlerts,
         blockUnknown = this[K.blockUnknown] ?: d.blockUnknown,
         blockPrivate = this[K.blockPrivate] ?: d.blockPrivate,
+        spamPromoBlock = this[K.spamPromoBlock] ?: d.spamPromoBlock,
+        intlUnknownBlock = this[K.intlUnknownBlock] ?: d.intlUnknownBlock,
+        intlUnknownWarn = this[K.intlUnknownWarn] ?: d.intlUnknownWarn,
+        spamBadges = this[K.spamBadges] ?: d.spamBadges,
         voicemail = this[K.voicemail] ?: d.voicemail,
         quickReplies = this[K.quickReplies]?.split("\n")?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() } ?: d.quickReplies,
         speedDial = this[K.speedDial]?.split(";")?.mapNotNull { s ->
