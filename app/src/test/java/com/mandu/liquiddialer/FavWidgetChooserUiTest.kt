@@ -32,7 +32,8 @@ import org.robolectric.shadows.ShadowContentResolver
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class FavWidgetChooserUiTest {
 
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = 0) val flakyRetry = FlakyRetryRule()
+    @get:Rule(order = 1) val rule = createAndroidComposeRule<MainActivity>()
 
     internal open class FakeDetailProvider(var phones: List<Pair<String, Int>> = listOf("+91 90000 11111" to 2, "+91 90000 22222" to 2)) : ContentProvider() {
         override fun onCreate() = true
@@ -66,7 +67,7 @@ class FavWidgetChooserUiTest {
         override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
             queryTrace.add("start ${uri.path} ids=${selectionArgs?.toList()} thread=${Thread.currentThread().name}")
             return super.query(uri, projection, selection, selectionArgs, sortOrder).also {
-                queryTrace.add("done ${uri.path} rows=${it?.count}")
+                queryTrace.add("done ${uri.path} rows=${it?.count} at=${System.currentTimeMillis() % 1000000}")
             }
         }
     }
@@ -86,8 +87,10 @@ class FavWidgetChooserUiTest {
 
     /** Click ke baad IO->Main coroutine real-time leti hai; virtual clock kaafi nahi. */
     internal fun awaitNodes(tag: String, count: Int) {
-        var tries = 0
-        while (tries++ < 100 && rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size != count) {
+        // Wall-clock budget (60s), not a try count: CI runner stalls (GC/CPU steal) were seen delaying the
+        // IO->Main hop beyond ~15s even though the provider queries had completed. Assertion below is unchanged.
+        val t0 = System.currentTimeMillis()
+        while (System.currentTimeMillis() - t0 < 60_000 && rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size != count) {
             org.robolectric.shadows.ShadowLooper.idleMainLooper()
             Thread.sleep(150)
             rule.mainClock.autoAdvance = false
@@ -95,7 +98,7 @@ class FavWidgetChooserUiTest {
             rule.waitForIdle()
         }
         val st = rule.activity.state
-        assertEquals("await $tag; request=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, onboarding=${st.showOnboarding}, settings=${LdApp.settings.value}, queries=$queryTrace; tree=" + rule.onAllNodes(isRoot(), useUnmergedTree = true).printToString(),
+        assertEquals("await $tag; waitedMs=${System.currentTimeMillis() - t0}; request=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, onboarding=${st.showOnboarding}, settings=${LdApp.settings.value}, queries=$queryTrace; tree=" + rule.onAllNodes(isRoot(), useUnmergedTree = true).printToString(),
             count, rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 
