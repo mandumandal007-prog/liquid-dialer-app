@@ -387,7 +387,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Pichli call ki jankari", "Incoming screen pe pichli call ka time", s.showLastCall) { save(K.showLastCall, it) }
             SwitchRow("Contact ka label", "Mobile/Work aur Favourite badge incoming pe", s.showContactType) { save(K.showContactType, it) }
             SwitchRow("Spam & verification badges", "Telemarketer 140, Service call 160 (sirf number series, caller verify nahi) aur network-verification badge incoming screen pe", s.spamBadges) { save(K.spamBadges, it) }
-            SwitchRow("International warning", "Contacts se bahar ka international number ho to amber badge (sirf warning, block nahi)", s.intlUnknownWarn, last = true) { save(K.intlUnknownWarn, it) }
+            SwitchRow("International warning", "Contacts se bahar ka international number ho to amber badge (sirf warning, block nahi)", s.intlUnknownWarn) { save(K.intlUnknownWarn, it) }
+            SwitchRow("WhatsApp kholo pill", "Unknown number ki incoming screen pe: us number ka WhatsApp chat kholne ka button (number WhatsApp pe hai ya nahi, ye app nahi jaanta)", s.waPill, last = true) { save(K.waPill, it) }
         }
 
         }
