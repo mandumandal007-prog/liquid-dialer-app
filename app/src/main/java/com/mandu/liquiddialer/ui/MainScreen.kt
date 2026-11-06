@@ -308,6 +308,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             // ===== widget favorite: multi-number chooser - selection SIRF dialer fill karta hai (kabhi call nahi); cancel/dismiss no-op =====
             val nc = st.numberChoiceRequest
             if (nc != null) key(nc.first) {
+                val requestNonce = st.numberChoiceNonce
                 val ncx = LocalContext.current
                 val chooserInstance = remember(nc.first, st.numberChoiceNonce) { Any() }
                 val phState = produceState<List<Pair<String, Int>>?>(initialValue = null, nc.first, st.numberChoiceNonce) {
@@ -352,12 +353,14 @@ fun MainScreen(st: AppState, act: MainActivity) {
                                         act.widgetTapCall(cid, numC, nc.second, deliberateSelection = true)
                                         return@clickable
                                     }
+                                    // A slow provider may return after dismissal or a different chooser opens.
                                     LdApp.instance.scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                         val stillValid = try {
                                             androidx.core.content.ContextCompat.checkSelfPermission(ncx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED &&
                                                 Repo.phonesOf(ncx, cid).any { Repo.key(it.first) == Repo.key(numC) }
                                         } catch (_: Exception) { false }
                                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                            if (st.numberChoiceRequest !== nc || st.numberChoiceNonce != requestNonce) return@withContext
                                             if (stillValid) { st.numberChoiceRequest = null; st.dial = numC; st.tab = "dialer" }
                                             else {
                                                 st.numberChoiceNonce++
