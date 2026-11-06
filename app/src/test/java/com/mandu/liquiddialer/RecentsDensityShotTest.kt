@@ -25,8 +25,7 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class RecentsDensityShotTest {
 
-    @get:Rule(order = 0) val flakyRetry = FlakyRetryRule()
-    @get:Rule(order = 1) val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
     private fun settle(ms: Long = 1200) {
         rule.mainClock.autoAdvance = false
