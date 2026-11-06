@@ -10,6 +10,7 @@ import com.mandu.liquiddialer.data.K
 import com.mandu.liquiddialer.data.ldStore
 import com.mandu.liquiddialer.telecom.CallManager
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -84,5 +85,32 @@ class SpamBadgeShotTest {
             settle(2500); show("1409876543"); waitBadges()
             saveShot(rule, "D-spam-140-largefont")
         } finally { org.robolectric.RuntimeEnvironment.setFontScale(1.0f) }
+    }
+
+    private fun waitPill() {
+        rule.mainClock.autoAdvance = false
+        val t0 = System.currentTimeMillis()
+        while (System.currentTimeMillis() - t0 < 6000) {
+            rule.mainClock.advanceTimeBy(200); rule.waitForIdle()
+            if (rule.onAllNodesWithTag("wa_pill", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) return
+            Thread.sleep(80)
+        }
+        throw AssertionError("wa_pill nahi dikha")
+    }
+
+    @Test fun waPillUnknownIndian() {
+        settle(2500); show("9876543210"); waitPill()
+        saveShot(rule, "E-wa-pill-day")
+    }
+
+    @Test fun waPillLargeFont() {
+        org.robolectric.RuntimeEnvironment.setFontScale(1.3f)
+        try { settle(2500); show("9876543210"); waitPill(); saveShot(rule, "E-wa-pill-largefont") }
+        finally { org.robolectric.RuntimeEnvironment.setFontScale(1.0f) }
+    }
+
+    @Test fun noPillFor160AndShortNumbers() {
+        settle(2500); show("1609876543"); waitBadges()
+        assertEquals(0, rule.onAllNodesWithTag("wa_pill", useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 }
