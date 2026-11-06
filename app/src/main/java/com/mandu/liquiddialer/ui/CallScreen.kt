@@ -71,11 +71,12 @@ fun nowTicker(): Long {
 
 /** Call screen background: "blobs" (default), "photo" (caller photo, blurred), "solid" (flat). */
 @Composable
-fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo: String? = null, custom: Boolean = false) {
+fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo: String? = null, custom: Boolean = false, forceTop: Color? = null, forceBottom: Color? = null) {
     val p = LocalLd.current
     val settings by LdApp.settings.collectAsState()
     Box(modifier.fillMaxSize()) {
         when (style) {
+            "force" -> Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(forceTop ?: p.bg2, forceBottom ?: p.bg))))
             "solid" -> Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(p.bg2, p.bg))))
             "photo" -> {
                 val bmp = rememberCallPhoto(photo, settings.callPhotoBlur)
@@ -99,19 +100,29 @@ fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo
 @Composable
 fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68.dp, enabled: Boolean = true, flat: Boolean = false, onClick: () -> Unit) {
     val p = LocalLd.current
+    val sty = LocalCallStyle.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .93f)
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.alpha(if (enabled) 1f else .4f)) {
         val base = Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
-        val m = when {
-            flat && on -> base.callGlass(p, CircleShape).background(p.accent.copy(alpha=.42f),CircleShape)
-            flat -> base.callGlass(p, CircleShape)
-            on -> base.callGlass(p,CircleShape)
-                .background(Brush.linearGradient(listOf(p.accent.copy(alpha=.52f),p.accent.copy(alpha=.30f))),CircleShape)
-            else -> base.callGlass(p, CircleShape)  // off-state bhi glass disc jaisa padhe, flat white nahi
+        val m = when (sty.btnKind) {
+            // GLASS: approved look, bilkul untouched
+            BtnKind.GLASS -> when {
+                flat && on -> base.callGlass(p, CircleShape).background(p.accent.copy(alpha=.42f),CircleShape)
+                flat -> base.callGlass(p, CircleShape)
+                on -> base.callGlass(p,CircleShape)
+                    .background(Brush.linearGradient(listOf(p.accent.copy(alpha=.52f),p.accent.copy(alpha=.30f))),CircleShape)
+                else -> base.callGlass(p, CircleShape)  // off-state bhi glass disc jaisa padhe, flat white nahi
+            }
+            BtnKind.FLAT -> base.flatDisc(p, CircleShape, on, p.accent)
+            BtnKind.SQUIRCLE -> base.flatDisc(p, RoundedCornerShape(size * .30f), on, p.accent)
+            BtnKind.OUTLINE -> base.outlineDisc(p, CircleShape, on, p.accent)
         }
         Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
-            LdIcon(icon, size * .38f, if (on) Color.White else if (flat) p.text else mix(p.text, p.accent, .82f))
+            LdIcon(icon, size * .38f, when (sty.btnKind) {
+                BtnKind.GLASS -> if (on) Color.White else if (flat) p.text else mix(p.text, p.accent, .82f)
+                else -> if (on) Color.White else p.text
+            })
         }
         LdText(label, (size.value * .165f).coerceIn(9.5f, 12.5f), FontWeight.SemiBold, p.muted, maxLines = 1)
     }
@@ -166,11 +177,18 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
 
     Box(Modifier.fillMaxSize()) {
         val customPhoto = call?.let { com.mandu.liquiddialer.data.CallPhotos.get(ctx, CallManager.number(it)) }
-        CallBackground(Modifier.haze(haze), if(customPhoto != null) "photo" else s.callBgStyle, customPhoto ?: call?.let { CallManager.photoFor(it) }, custom = customPhoto != null)
+        val cardStyle0 = callStyleFor(s.callCardStyle)
+        val effBg0 = when {
+            customPhoto != null -> "photo"
+            cardStyle0.bgMode == "force" -> "force"
+            cardStyle0.bgMode == "flat" -> "solid"
+            else -> s.callBgStyle
+        }
+        CallBackground(Modifier.haze(haze), effBg0, customPhoto ?: call?.let { CallManager.photoFor(it) }, custom = customPhoto != null, forceTop = cardStyle0.bgTop, forceBottom = cardStyle0.bgBottom)
         val basePalette = LocalLd.current
         val photoSurface = customPhoto != null || s.callBgStyle=="photo"
-        val callPalette = if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette
-        CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette) {
+        val callPalette = cardStyle0.restyle(if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette)
+        CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette, LocalCallStyle provides cardStyle0) {
             if (call == null) {
                 CallEndedScreen(lastEnded)
             } else {
@@ -327,10 +345,20 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
             LdText(status, 12.5f * k, FontWeight.SemiBold, statusColor)
         }
         // timer hi active call ka hero hai: bada + bold taaki door se padh jaye; k scale se tight height pe bhi poora dikhta hai
-        if (timer != null) Box(Modifier.padding(top = 2.dp * k)
-            .callGlass(p, RoundedCornerShape(18.dp)).padding(horizontal = 18.dp * k, vertical = 4.dp * k),
+        if (timer != null) run {
+            val sty = LocalCallStyle.current
+            val chipShape = if (sty.btnKind == BtnKind.SQUIRCLE) RoundedCornerShape(10.dp * k) else RoundedCornerShape(18.dp)
+            val chipMod = when (sty.btnKind) {
+                BtnKind.GLASS -> Modifier.callGlass(p, chipShape)
+                BtnKind.FLAT -> Modifier.flatDisc(p, chipShape, false, p.accent)
+                BtnKind.SQUIRCLE -> Modifier.flatDisc(p, chipShape, false, p.accent)
+                BtnKind.OUTLINE -> Modifier.outlineDisc(p, chipShape, false, p.accent)
+            }
+            Box(Modifier.padding(top = 2.dp * k)
+            .then(chipMod).padding(horizontal = 18.dp * k, vertical = 4.dp * k),
             contentAlignment = Alignment.Center) {
             LdText(timer, timerF * k, FontWeight.Bold, letter = 1f, modifier = Modifier.testTag("call_timer"))
+            }
         }
     }
 }
@@ -340,7 +368,15 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
 @Composable
 private fun BadgeChip(t: String, c: Color) {
     val p = LocalLd.current
-    Row(Modifier.callGlass(p, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
+    val sty = LocalCallStyle.current
+    val bShape = if (sty.btnKind == BtnKind.SQUIRCLE) RoundedCornerShape(10.dp) else RoundedCornerShape(999.dp)
+    val bMod = when (sty.btnKind) {
+        BtnKind.GLASS -> Modifier.callGlass(p, bShape)
+        BtnKind.FLAT -> Modifier.flatDisc(p, bShape, false, p.accent)
+        BtnKind.SQUIRCLE -> Modifier.flatDisc(p, bShape, false, p.accent)
+        BtnKind.OUTLINE -> Modifier.outlineDisc(p, bShape, false, p.accent)
+    }
+    Row(bMod.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         if (t.startsWith("REC")) {
             val inf2 = rememberInfiniteTransition(label = "blink")
@@ -671,11 +707,17 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                 }
             }
             // flat Google-Dialer style circle
+            val sty = LocalCallStyle.current
             Box(Modifier
                 .graphicsLayer { scaleX = 1f + .08f * pull; scaleY = 1f + .08f * pull }
                 .size(btn)
-                .callGlass(p,CircleShape)
-                .background(Brush.verticalGradient(listOf(base.copy(alpha=.85f),base.copy(alpha=.68f))),CircleShape).border(1.dp,Color.White.copy(alpha=.5f),CircleShape), contentAlignment = Alignment.Center) {
+                .then(when (sty.btnKind) {
+                    BtnKind.GLASS -> Modifier.callGlass(p,CircleShape)
+                        .background(Brush.verticalGradient(listOf(base.copy(alpha=.85f),base.copy(alpha=.68f))),CircleShape).border(1.dp,Color.White.copy(alpha=.5f),CircleShape)
+                    BtnKind.FLAT -> Modifier.clip(CircleShape).background(Brush.verticalGradient(listOf(base, mix(base, Color.Black, .84f))))
+                    BtnKind.SQUIRCLE -> Modifier.clip(RoundedCornerShape(btn * .30f)).background(Brush.verticalGradient(listOf(base, mix(base, Color.Black, .84f))))
+                    BtnKind.OUTLINE -> Modifier.clip(CircleShape).background(base.copy(alpha = .26f)).border(2.dp, base, CircleShape)
+                }), contentAlignment = Alignment.Center) {
                 // handset (red = handset down)
                 val ic = btn * .42f
                 LdIcon(if (danger) LdIcons.CallEnd else LdIcons.Phone, ic, Color.White)
