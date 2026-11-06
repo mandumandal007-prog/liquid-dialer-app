@@ -116,17 +116,30 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 LaunchedEffect(st.tab) { if (st.tab in tabKeys) { val i = tabKeys.indexOf(st.tab); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) } }
                 HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
-                        "recents" -> RecentsScreen(st, act, query, 86.dp + bannerPad, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
+                        "recents" -> RecentsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = if (s.searchBottom) 156.dp else 90.dp, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
                             onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } },
                             onClear = { confirmClear = true }, onInsights = { openPage("stats") })
-                        else -> ContactsScreen(st, act, query, 86.dp + bannerPad, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
+                        else -> ContactsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = if (s.searchBottom) 156.dp else 90.dp, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
                     }
                 }
             }
             // ===== top bar =====
-            AnimatedVisibility(st.tab != "dialer", enter = fadeIn() + slideInVertically { -it / 4 }, exit = fadeOut() + slideOutVertically { -it / 4 }) {
-                Row(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp).testTag("top_bar"),
+            val barBottom = s.searchBottom
+            // Neeche wali controls ke peeche opaque (theme-matched) scrim: rows ke text/icons bar ya nav ke peeche se padhe na jaayein.
+            // Blur ho ya na ho, scrim hamesha rehta hai (blur-unavailable fallback). Sirf opt-in mode me.
+            if (barBottom && st.tab != "dialer") {
+                Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .height(154.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to androidx.compose.ui.graphics.Color.Transparent, 0.16f to p.bg, 1f to p.bg))
+                    .testTag("bottom_scrim"))
+            }
+            // keyboard khula ho to bar keyboard ke thik upar (bottom nav keyboard ke peeche hota hai), warna nav pill ke upar
+            val imeUp = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+            AnimatedVisibility(st.tab != "dialer", modifier = if (barBottom) Modifier.align(Alignment.BottomCenter) else Modifier,
+                enter = fadeIn() + slideInVertically { if (barBottom) it / 4 else -it / 4 }, exit = fadeOut() + slideOutVertically { if (barBottom) it / 4 else -it / 4 }) {
+                Row((if (barBottom) Modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = if (imeUp) 8.dp else 90.dp)
+                    else Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)).testTag("top_bar"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(Modifier.size(42.dp).buttonGlass(p,CircleShape).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu) }
                     Row(Modifier.weight(1f).height(46.dp).liquid(RoundedCornerShape(18.dp), 8.dp).padding(horizontal = 12.dp),
@@ -153,7 +166,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== ongoing call banner =====
             if (showBanner) {
-                CallBanner(live!!, if (st.tab == "dialer") 8.dp else 94.dp, onHeight = { bannerHPx = it })
+                CallBanner(live!!, if (st.tab == "dialer" || s.searchBottom) 8.dp else 94.dp, onHeight = { bannerHPx = it })
             }
             // ===== auto-redial session card (user-started, har waqt Rok do) =====
             val arSession by com.mandu.liquiddialer.telecom.AutoRedial.session.collectAsState()
@@ -544,7 +557,7 @@ private fun dayLabel(ts: Long): String {
 }
 
 @Composable
-private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit, onOpenNumber: (String) -> Unit = {}, onClear: () -> Unit = {}, onInsights: () -> Unit = {}) {
+private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, bottomPad: androidx.compose.ui.unit.Dp = 90.dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit, onOpenNumber: (String) -> Unit = {}, onClear: () -> Unit = {}, onInsights: () -> Unit = {}) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val s by LdApp.settings.collectAsState()
@@ -578,7 +591,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val contactHits = remember(contactSearch, query) { if (query.isBlank()) emptyList() else contactSearch.find(query,8) }
     val hasLog = act.has(android.Manifest.permission.READ_CALL_LOG)
     val chipLabels = listOf("Sab", "Missed", "Outgoing", "Incoming")
-    LazyColumn(Modifier.fillMaxSize().testTag("main_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = 90.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(Modifier.fillMaxSize().testTag("main_list"), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPad, bottom = bottomPad), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (!st.isDefault) item { DefaultBanner(act) }
         if (s.showFavourites && favs.isNotEmpty() && query.isBlank() && filter == 0) item {
             Column(Modifier.padding(bottom = 4.dp)) {
@@ -809,7 +822,7 @@ fun VideoMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, on
 }
 
 @Composable
-private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, onOpen: (Contact) -> Unit, onAdd: () -> Unit, onLong: (String) -> Unit, onShowDups: () -> Unit = {}) {
+private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, bottomPad: androidx.compose.ui.unit.Dp = 90.dp, onOpen: (Contact) -> Unit, onAdd: () -> Unit, onLong: (String) -> Unit, onShowDups: () -> Unit = {}) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val contactSearch = remember(st.contacts) { com.mandu.liquiddialer.data.ContactSearch(st.contacts) }
@@ -822,7 +835,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     val railEntries = remember(list, s.lastNameFirst) { AlphaIndex.indexOf(list.map { if (s.lastNameFirst) it.altName else it.name }, headItems = 1) }
     val showRail = hasPerm && query.isBlank() && railEntries.size >= 4
     Box(Modifier.fillMaxSize()) {
-    LazyColumn(Modifier.fillMaxSize().testTag("main_list"), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = 90.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    LazyColumn(Modifier.fillMaxSize().testTag("main_list"), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = bottomPad), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item {
             SectionHead("Contacts") {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
