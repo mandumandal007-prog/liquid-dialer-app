@@ -157,6 +157,7 @@ object CallManager {
             call.videoCall?.sendSessionModifyResponse(
                 VideoProfile(if (accept) VideoProfile.STATE_BIDIRECTIONAL else VideoProfile.STATE_AUDIO_ONLY))
         } catch (_: Throwable) { }
+        if (accept) service?.chooseCameraFor(call)   // user ne video accept kiya: abhi camera chuno (voice pe kabhi nahi)
         if (videoUpgradeFrom.value == call) videoUpgradeFrom.value = null
         bump()
     }
@@ -226,7 +227,9 @@ object CallManager {
         val vc = try { call.videoCall } catch (_: Throwable) { null }
         if (vc == null) { videoNotice.value = "Video is call par is phone/SIM se uplabdh nahi"; return false }
         return try {
-            vc.sendSessionModifyRequest(VideoProfile(VideoProfile.STATE_BIDIRECTIONAL)); true
+            vc.sendSessionModifyRequest(VideoProfile(VideoProfile.STATE_BIDIRECTIONAL))
+            service?.chooseCameraFor(call)   // user ne video maanga: camera ab chuno (pehle nahi tha - voice call camera-free rehta hai)
+            true
         } catch (_: Throwable) { videoNotice.value = "Video request nahi bhej paayi"; false }
     }
 
