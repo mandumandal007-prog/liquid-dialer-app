@@ -673,7 +673,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
             if (s.spamBadges && sp != null) {
                 val chips = buildList {
                     if (sp.series == 140) add("Telemarketer · 140" to p.danger)
-                    if (sp.series == 160) add("Verified · 160" to Color(0xFF059669))
+                    if (sp.series == 160) add("Service call · 160" to p.accent) // sirf number prefix: caller verified NAHI hota
                     if (sp.intlUnknown && s.intlUnknownWarn) add("International" to Color(0xFFF59E0B))
                     SpamGuard.verificationLabel(sp.verification)?.let { add(it to if (sp.verification == SpamGuard.VERIFY_PASSED) p.ok else p.danger) }
                 }
