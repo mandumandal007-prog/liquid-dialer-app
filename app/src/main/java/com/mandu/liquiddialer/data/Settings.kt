@@ -79,6 +79,7 @@ data class LdSettings(
     val intlUnknownBlock: Boolean = false,   // opt-in: unknown international calls reject (contacts permission chahiye)
     val intlUnknownWarn: Boolean = true,     // unknown international pe sirf warning badge (block nahi)
     val spamBadges: Boolean = true,          // incoming pe 140/160/international/network-verification badges
+    val waPill: Boolean = true,              // unknown number ki incoming screen pe "WhatsApp kholo" pill
     val callSummary: Boolean = false,        // opt-in: call end par naam+duration notification (lock screen private)
     val keypadLetters: Boolean = true,       // keypad pe ABC letters
     val defaultTab: String = "recents",      // "recents" | "dialer"
@@ -155,6 +156,7 @@ object K {
     val intlUnknownBlock = booleanPreferencesKey("intlUnknownBlock")
     val intlUnknownWarn = booleanPreferencesKey("intlUnknownWarn")
     val spamBadges = booleanPreferencesKey("spamBadges")
+    val waPill = booleanPreferencesKey("waPill")
     val voicemail = stringPreferencesKey("voicemail")
     val quickReplies = stringPreferencesKey("quickReplies")
     val speedDial = stringPreferencesKey("speedDial")
@@ -266,6 +268,7 @@ fun Preferences.toSettings(): LdSettings {
         intlUnknownBlock = this[K.intlUnknownBlock] ?: d.intlUnknownBlock,
         intlUnknownWarn = this[K.intlUnknownWarn] ?: d.intlUnknownWarn,
         spamBadges = this[K.spamBadges] ?: d.spamBadges,
+        waPill = this[K.waPill] ?: d.waPill,
         voicemail = this[K.voicemail] ?: d.voicemail,
         quickReplies = this[K.quickReplies]?.split("\n")?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() } ?: d.quickReplies,
         speedDial = this[K.speedDial]?.split(";")?.mapNotNull { s ->
