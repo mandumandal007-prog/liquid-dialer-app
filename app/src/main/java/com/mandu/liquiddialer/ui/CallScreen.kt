@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.*
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Repo
+import com.mandu.liquiddialer.data.Note
 import com.mandu.liquiddialer.data.ContactControls
 import com.mandu.liquiddialer.telecom.CallManager
 import dev.chrisbanes.haze.HazeState
@@ -193,7 +195,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                 CallEndedScreen(lastEnded)
             } else {
                 val st = CallManager.state(call)
-                if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" })
+                if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" }, onNotes = { sheet = "notes" })
                 else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { sheet = it },
                     onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) })
                 if (st == Call.STATE_SELECT_PHONE_ACCOUNT && sheet == null) sheet = "sim"
@@ -585,7 +587,10 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                 Column(Modifier.fillMaxWidth()
                     .onGloballyPositioned { heroContentH = it.size.height }
                     .graphicsLayer { scaleX = fitScale; scaleY = fitScale; transformOrigin = TransformOrigin(0.5f, 0f) },
-                    horizontalAlignment = Alignment.CenterHorizontally) { Hero(call, status, p.accent, timer, false, maxH = heroH - 8.dp) }
+                    horizontalAlignment = Alignment.CenterHorizontally) {
+                        Hero(call, status, p.accent, timer, false, maxH = heroH - 8.dp)
+                        CallerNoteCard(CallManager.number(call)) { openSheet("notes") }
+                    }
             }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
@@ -609,7 +614,32 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     }
 }
 @Composable
-private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
+private fun CallerNoteCard(number: String, onOpen: () -> Unit) {
+    val p = LocalLd.current
+    val ctx = LocalContext.current
+    // file-backed notes IO ko main thread se door (call screen perf-sensitive)
+    val notes by produceState<List<Note>?>(null, number) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Repo.notesFor(ctx, number) }
+    }
+    val list = notes
+    if (list.isNullOrEmpty()) return
+    val latest = list.maxByOrNull { it.time } ?: return
+    Row(
+        Modifier.padding(top = 8.dp).fillMaxWidth(0.94f).glass(p, RoundedCornerShape(20.dp))
+            .clickable(onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp).testTag("caller_note_card"),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        LdIcon(LdIcons.Edit, 18.dp, p.accent)
+        Column(Modifier.weight(1f)) {
+            LdText(if (list.size > 1) "Note (${list.size}) · kholo" else "Note · kholo", 11f, FontWeight.Bold, p.accent)
+            LdText(latest.text, 13f, FontWeight.Medium, maxLines = 2)
+        }
+        LdIcon(LdIcons.ChevronDown, 16.dp, p.muted, Modifier.rotate(-90f))
+    }
+}
+
+@Composable
+private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, onNotes: () -> Unit) {
     val p = LocalLd.current
     val incomingVideo = ((try { call.details?.videoState } catch (_: Throwable) { null }) ?: VideoProfile.STATE_AUDIO_ONLY) != VideoProfile.STATE_AUDIO_ONLY
     val ctx = LocalContext.current
@@ -621,6 +651,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit) {
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = androidx.compose.ui.BiasAlignment(0f, -0.32f)) {
             Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, p.accent, null, true)
         }
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CallerNoteCard(CallManager.number(call), onOpen = onNotes) }
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
