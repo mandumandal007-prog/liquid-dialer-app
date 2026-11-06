@@ -105,6 +105,8 @@ data class LdSettings(
     val simUse: Map<String, String> = emptyMap(), // number -> SIM handle id (memory me; call dispatch pe disk read nahi)
     val appLock: Boolean = false,            // opt-in: app kholne pe device credential (phone ka PIN/pattern/fingerprint)
     val appLockDelaySec: Int = 0,            // background ke kitne sec baad relock (0 = turant)
+    val callCardStyle: String = "glass",      // CALL_STYLES key (ui/CallStyles.kt); unknown -> glass fallback
+    val recentsStyle: String = "glass",       // RECENTS_STYLES key; unknown -> glass fallback
     val autoBackup: Boolean = false,          // app khulne par hafte-me-ek khud backup (device-local)
     val lastAutoBackupAt: Long = 0L,          // aakhri safal auto-backup ka time
     val lastAutoBackupTry: Long = 0L,         // aakhri koshish ka time (retry-storm rokne ke liye)
@@ -213,6 +215,8 @@ object K {
     val simUse = stringPreferencesKey("simUse")   // "digits=handleId;digits=handleId"
     val appLock = booleanPreferencesKey("appLock")
     val appLockDelaySec = intPreferencesKey("appLockDelaySec")
+    val callCardStyle = stringPreferencesKey("callCardStyle")
+    val recentsStyle = stringPreferencesKey("recentsStyle")
     val autoBackup = booleanPreferencesKey("autoBackup")
     val lastAutoBackupAt = longPreferencesKey("lastAutoBackupAt")
     val lastAutoBackupTry = longPreferencesKey("lastAutoBackupTry")
@@ -320,6 +324,8 @@ fun Preferences.toSettings(): LdSettings {
         simUse = simUseMapOf(this),
         appLock = this[K.appLock] ?: false,
         appLockDelaySec = (this[K.appLockDelaySec] ?: 0).coerceIn(0, 300),
+        callCardStyle = this[K.callCardStyle] ?: d.callCardStyle,
+        recentsStyle = this[K.recentsStyle] ?: d.recentsStyle,
         autoBackup = this[K.autoBackup] ?: false,
         lastAutoBackupAt = this[K.lastAutoBackupAt] ?: 0L,
         lastAutoBackupTry = this[K.lastAutoBackupTry] ?: 0L,
