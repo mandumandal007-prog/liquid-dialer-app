@@ -44,6 +44,8 @@ import java.util.Locale
                             when (e.reason) {
                                 BlockLog.REASON_PRIVATE -> "Private number block"
                                 BlockLog.REASON_UNKNOWN -> "Unknown number block"
+                                BlockLog.REASON_PROMO -> "Telemarketing (140) block"
+                                BlockLog.REASON_INTL -> "Unknown international block"
                                 else -> "Spam series block"
                             } + " · " + SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()).format(Date(e.ts)) + if (neverTick >= 0 && e.display.isNotBlank() && ContactControls.blockNever(ctx, e.display)) " · Ab kabhi block nahi" else "",
                             11.5f, color = p.muted, maxLines = 2
