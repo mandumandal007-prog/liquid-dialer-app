@@ -254,21 +254,23 @@ class MainActivity : ComponentActivity() {
             // contacts permission revoke hote hi purani birthday state turant saaf (private data retain NAHI), chahe user kisi bhi tab pe ho
             if (!has(Manifest.permission.READ_CONTACTS) && state.birthdays?.isNotEmpty() == true) state.birthdays = emptyList()
             val s = LdApp.settings.value
+            var recentsFailure = false // Owned by this reload; published only after its awaited IO completes.
             loadStartupSources(
                 contacts = { if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList() },
                 recents = {
                     if (has(Manifest.permission.READ_CALL_LOG)) {
                         try {
-                            Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit).also { state.recentsError = false }
-                        } catch (t: Throwable) {
-                            state.recentsError = true
+                            Repo.recents(this@MainActivity, s.recentLimit, strict = true)
+                        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) {
+                            recentsFailure = true
                             emptyList()
                         }
                     } else emptyList()
                 },
                 blocked = { if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList() },
                 sims = { if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList() },
-                publishRecents = { r -> if (gen == reloadGen) { state.recents = r; state.recentsLoaded = true } },
+                publishRecents = { r -> publishRecentLoad(state, r, recentsFailure, gen, reloadGen) },
                 publishRest = { c, b, sims ->
                     if (gen == reloadGen) {
                         state.contacts = c; state.blocked = b; state.sims = sims
