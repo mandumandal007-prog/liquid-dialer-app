@@ -18,6 +18,14 @@ class FakeCallsTest {
     private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
     @Before fun clear(){FakeCalls.cancel(ctx);Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS);FakeCalls.notificationsAllowed(ctx)}
     @After fun cleanup(){FakeCalls.cancel(ctx)}
+    @Test fun cleanupFailureCannotSkipOtherStepsOrEscapeToRealCall(){
+        for(failure in 0..2) {
+            val steps=mutableListOf<Int>()
+            fun step(i:Int){steps+=i;if(i==failure)throw SecurityException("service unavailable")}
+            FakeCalls.cleanupIndependently({step(0)},{step(1)},{step(2)})
+            assertEquals(listOf(0,1,2),steps)
+        }
+    }
     @Test fun schedulePersistsAndCancellationRetiresToken(){
         val p=FakeCalls.schedule(ctx,"Local demo",30_000,100_000)
         assertEquals(p,FakeCalls.current(ctx));assertFalse(p.ready)
