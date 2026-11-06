@@ -62,9 +62,19 @@ object FakeCalls {
         return Plan(UUID.randomUUID().toString(),"Demo caller",System.currentTimeMillis(),true).also { write(ctx,it) }
     }
     @Synchronized fun cancel(ctx: Context) {
-        current(ctx)?.let { ctx.getSystemService(AlarmManager::class.java).cancel(alarm(ctx,it)) }
-        file(ctx).delete()
-        ctx.getSystemService(NotificationManager::class.java).cancel(NOTICE)
+        val plan = current(ctx)
+        // Optional simulation cleanup must never stop real-call setup. Try durable retirement first,
+        // then independently attempt both system cleanup steps.
+        cleanupIndependently(
+            retire = { file(ctx).delete() },
+            cancelAlarm = { plan?.let { ctx.getSystemService(AlarmManager::class.java).cancel(alarm(ctx,it)) } },
+            cancelNotification = { ctx.getSystemService(NotificationManager::class.java).cancel(NOTICE) }
+        )
+    }
+    internal fun cleanupIndependently(retire: () -> Unit, cancelAlarm: () -> Unit, cancelNotification: () -> Unit) {
+        for (step in listOf(retire, cancelAlarm, cancelNotification)) {
+            try { step() } catch (_: Exception) { /* Real calls take precedence; no private data in logs. */ }
+        }
     }
     @Synchronized fun usable(ctx: Context, token: String, now: Long = System.currentTimeMillis()): Plan? {
         val p=current(ctx) ?: return null
