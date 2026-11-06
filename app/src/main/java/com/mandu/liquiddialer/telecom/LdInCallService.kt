@@ -119,6 +119,7 @@ class LdInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
+        com.mandu.liquiddialer.data.FakeCalls.cancel(this) // Real calls retire pending/posted simulations.
         com.mandu.liquiddialer.data.ReceivedNames.observe(this,call)
         CallManager.service = this
         com.mandu.liquiddialer.media.BoostService.pauseForCall(this)
