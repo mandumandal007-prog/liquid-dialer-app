@@ -64,8 +64,9 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             ActionBubble(LdIcons.Phone, "Call", true) { onClose(); act.call(number) }
             ActionBubble(LdIcons.Message, "SMS") { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
             ActionBubble(LdIcons.Message, "WhatsApp") {
-                val digits = number.filter { it.isDigit() }.let { if (it.length == 10) "91$it" else it }
-                try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits"))) } catch (_: Exception) { }
+                val wa = com.mandu.liquiddialer.data.WhatsAppLink.url(number)
+                if (wa == null) Toast.makeText(ctx, "Is number ke liye WhatsApp link nahi ban sakta", Toast.LENGTH_SHORT).show()
+                else try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(wa))) } catch (_: Exception) { Toast.makeText(ctx, "WhatsApp nahi khul paya", Toast.LENGTH_SHORT).show() }
             }
             if (contact != null) ActionBubble(if (starred) LdIcons.StarFill else LdIcons.Star, if (starred) "Favourite" else "Fav karo", starred) {
                 starred = !starred; Repo.setStarred(ctx, contact.id, starred); act.reload()
@@ -318,8 +319,9 @@ fun NumberMenu(number: String, st: AppState, act: MainActivity, onClose: () -> U
     SheetRow(LdIcons.Video, "Video call", "ViLTE - SIM/phone support chahiye") { onClose(); act.videoCall(number) }
     SheetRow(LdIcons.Message, "Message (SMS)") { onClose(); go(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
     SheetRow(LdIcons.Message, "WhatsApp") {
-        val digits = number.filter { it.isDigit() }.let { if (it.length == 10) "91$it" else it.removePrefix("00") }
-        onClose(); go(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits")))
+        val wa = com.mandu.liquiddialer.data.WhatsAppLink.url(number)
+        if (wa == null) { Toast.makeText(ctx, "Is number ke liye WhatsApp link nahi ban sakta", Toast.LENGTH_SHORT).show(); return@SheetRow }
+        onClose(); go(Intent(Intent.ACTION_VIEW, Uri.parse(wa)))
     }
     SheetRow(LdIcons.Check, "Number copy karo") {
         ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
