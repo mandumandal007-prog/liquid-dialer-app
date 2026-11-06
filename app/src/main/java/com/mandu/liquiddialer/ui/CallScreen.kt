@@ -640,7 +640,7 @@ private fun CallerNoteCard(number: String, onOpen: () -> Unit) {
 }
 
 /** Round D spam badge data: TRAI series (140/160), unknown-international, STIR/SHAKEN verification. */
-private data class SpamInfo(val series: Int?, val intlUnknown: Boolean, val verification: Int)
+private data class SpamInfo(val series: Int?, val intlUnknown: Boolean, val verification: Int, val known: Boolean = true)
 
 @Composable
 private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, onNotes: () -> Unit) {
@@ -658,7 +658,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
                 val known = Repo.lookupName(ctx, num) != null
                 val ver = if (android.os.Build.VERSION.SDK_INT >= 30)
                     (try { call.details?.callerNumberVerificationStatus } catch (_: Throwable) { null }) ?: 0 else 0
-                SpamInfo(SpamGuard.series(num), SpamGuard.isInternational(num) && !known, ver)
+                SpamInfo(SpamGuard.series(num), SpamGuard.isInternational(num) && !known, ver, known)
             }
         }
     }
@@ -680,6 +680,19 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
                 if (chips.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).horizontalScroll(rememberScrollState()).testTag("spam_badges"),
                     horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                     chips.forEachIndexed { i, (ct, cc) -> if (i > 0) Spacer(Modifier.width(6.dp)); BadgeChip(ct, cc) }
+                }
+            }
+        }
+        run {
+            // unknown number + valid link: WhatsApp chat kholne ka pill. Call ringing rehti hai; app badalne se pehle Answer/Cut yahin hai.
+            val waUrl = spam?.let { sp -> if (!sp.known && s.waPill && sp.series == null) com.mandu.liquiddialer.data.WhatsAppLink.url(CallManager.number(call)) else null }
+            if (waUrl != null) Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp)
+                    .clickable { try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(waUrl)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { } }
+                    .padding(horizontal = 14.dp, vertical = 7.dp).testTag("wa_pill"),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LdIcon(LdIcons.Message, 13.dp, p.accent)
+                    LdText("WhatsApp kholo", 11.5f, FontWeight.Bold, p.accent)
                 }
             }
         }
