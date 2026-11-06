@@ -19,8 +19,7 @@ import java.util.*
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class ReminderCenterUiTest {
- @get:Rule(order = 0) val flakyRetry = FlakyRetryRule()
- @get:Rule(order = 1) val rule = createAndroidComposeRule<MainActivity>()
+ @get:Rule val rule=createAndroidComposeRule<MainActivity>()
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
  private fun click(tag:String){rule.onNodeWithTag(tag).performScrollTo().performClick();settle()}
