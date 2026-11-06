@@ -97,7 +97,7 @@ class FavWidgetChooserUiTest {
             rule.waitForIdle()
         }
         val st = rule.activity.state
-        assertEquals("await $tag; waitedMs=${System.currentTimeMillis() - t0}; request=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, onboarding=${st.showOnboarding}, settings=${LdApp.settings.value}, queries=$queryTrace; flags=loading:${rule.onAllNodesWithTag("chooser_loading", useUnmergedTree = true).fetchSemanticsNodes().size},missing:${rule.onAllNodesWithTag("chooser_missing", useUnmergedTree = true).fetchSemanticsNodes().size},title:${rule.onAllNodesWithTag("chooser_title", useUnmergedTree = true).fetchSemanticsNodes().size}; tree=" + rule.onAllNodes(isRoot(), useUnmergedTree = true).printToString(maxDepth = 12),
+        assertEquals("await $tag; waitedMs=${System.currentTimeMillis() - t0}; request=${st.numberChoiceRequest}, nonce=${st.numberChoiceNonce}, onboarding=${st.showOnboarding}, settings=${LdApp.settings.value}, queries=$queryTrace; loadTrace=${org.robolectric.shadows.ShadowLog.getLogsForTag("ChooserLoad")}; flags=loading:${rule.onAllNodesWithTag("chooser_loading", useUnmergedTree = true).fetchSemanticsNodes().size},missing:${rule.onAllNodesWithTag("chooser_missing", useUnmergedTree = true).fetchSemanticsNodes().size},title:${rule.onAllNodesWithTag("chooser_title", useUnmergedTree = true).fetchSemanticsNodes().size}; tree=" + rule.onAllNodes(isRoot(), useUnmergedTree = true).printToString(maxDepth = 12),
             count, rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 
