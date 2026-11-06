@@ -586,20 +586,12 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     val s by LdApp.settings.collectAsState()
     val scope = rememberCoroutineScope()
     var filter by remember { mutableIntStateOf(0) }
-    val favs = st.contacts.filter { it.starred }
+    val favs = remember(st.contacts) { st.contacts.filter { it.starred } }
+    val recentSearch = remember(st.recents) { com.mandu.liquiddialer.data.RecentSearch(st.recents) }
     val rows = remember(st.recents, query, filter, s.groupByDay, s.recentsHideBlocked) {
         val out = mutableListOf<RItem>()
         var lastKey = ""; var lastDay = ""
-        st.recents.filter { r ->
-            val qok = query.isBlank() || (r.name ?: "").contains(query, true) || r.number.filter { it.isDigit() }.contains(query.filter { it.isDigit() }.ifEmpty { "\u0000" })
-            val fok = when (filter) {
-                1 -> r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
-                2 -> r.type == CallLog.Calls.OUTGOING_TYPE
-                3 -> r.type == CallLog.Calls.INCOMING_TYPE || r.type == CallLog.Calls.VOICEMAIL_TYPE
-                else -> true
-            }
-            qok && fok && (!s.recentsHideBlocked || r.type != CallLog.Calls.BLOCKED_TYPE)
-        }.forEach { r ->
+        recentSearch.find(query, filter, s.recentsHideBlocked).forEach { r ->
             val day = dayLabel(r.date)
             if (s.groupByDay && day != lastDay) { out += RHead(day); lastDay = day; lastKey = "" }
             val k = Repo.key(r.number) + ":" + r.type
