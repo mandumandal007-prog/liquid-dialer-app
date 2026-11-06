@@ -309,9 +309,10 @@ fun MainScreen(st: AppState, act: MainActivity) {
             val nc = st.numberChoiceRequest
             if (nc != null) key(nc.first) {
                 val ncx = LocalContext.current
-                val ph by produceState<List<Pair<String, Int>>?>(initialValue = null, nc.first, st.numberChoiceNonce) {
+                val chooserInstance = remember(nc.first, st.numberChoiceNonce) { Any() }
+                val phState = produceState<List<Pair<String, Int>>?>(initialValue = null, nc.first, st.numberChoiceNonce) {
                     // Debug-only load stages. Do not log contact identities or numbers.
-                    val loadToken = System.identityHashCode(this)
+                    val loadToken = System.identityHashCode(chooserInstance)
                     fun trace(event: String) {
                         if ((ncx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
                             android.util.Log.d("ChooserLoad", "$loadToken $event")
@@ -325,8 +326,13 @@ fun MainScreen(st: AppState, act: MainActivity) {
                         } catch (e: Exception) { trace("caught ${e.javaClass.simpleName}"); null } ?: emptyList()
                         trace("resumed active=${kotlinx.coroutines.currentCoroutineContext().isActive}")
                         value = result
-                        trace("assigned rows=${result.size}")
+                        trace("assigned rows=${result.size} readback=${value?.size} thread=${Thread.currentThread().name} snapshot=${androidx.compose.runtime.snapshots.Snapshot.current.id}")
                     } finally { trace("finally active=${kotlinx.coroutines.currentCoroutineContext().isActive}") }
+                }
+                val ph by phState
+                SideEffect {
+                    if ((ncx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+                        android.util.Log.d("ChooserLoad", "${System.identityHashCode(chooserInstance)} composed rows=${ph?.size} state=${System.identityHashCode(phState)} snapshot=${androidx.compose.runtime.snapshots.Snapshot.current.id}")
                 }
                 androidx.compose.material3.AlertDialog(onDismissRequest = { st.numberChoiceRequest = null },
                     title = { LdText(if (st.numberChoiceCalls) "Kis number par call karein?" else "Kaunsa number?", 17f, FontWeight.Bold, modifier = Modifier.testTag("chooser_title")) },
