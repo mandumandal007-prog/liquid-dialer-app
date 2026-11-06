@@ -99,6 +99,7 @@ data class LdSettings(
     val recentsShowDuration: Boolean = true, // recents me call ki duration
     val showSimInRecents: Boolean = true,    // recents me SIM label
     val recentsCompact: Boolean = false,     // recents ki choti rows
+    val rowSwipe: Boolean = false,           // recents row swipe: right = call, left = SMS (opt-in)
     val recentLimit: Int = 300,              // recents me kitni entries (100/300/500)
     val announceOnlyFav: Boolean = false,    // sirf favourite ka naam bolo
     val flashOnlyFav: Boolean = false,       // sirf favourite pe flash
@@ -215,6 +216,7 @@ object K {
     val recentsShowDuration = booleanPreferencesKey("recentsShowDuration")
     val showSimInRecents = booleanPreferencesKey("showSimInRecents")
     val recentsCompact = booleanPreferencesKey("recentsCompact")
+    val rowSwipe = booleanPreferencesKey("rowSwipe")
     val recentLimit = intPreferencesKey("recentLimit")
     val announceOnlyFav = booleanPreferencesKey("announceOnlyFav")
     val flashOnlyFav = booleanPreferencesKey("flashOnlyFav")
@@ -327,6 +329,7 @@ fun Preferences.toSettings(): LdSettings {
         recentsShowDuration = this[K.recentsShowDuration] ?: true,
         showSimInRecents = this[K.showSimInRecents] ?: true,
         recentsCompact = this[K.recentsCompact] ?: false,
+        rowSwipe = this[K.rowSwipe] ?: false,
         recentLimit = (this[K.recentLimit] ?: 300).let { if (it == 100 || it == 300 || it == 500) it else 300 },
         announceOnlyFav = this[K.announceOnlyFav] ?: false,
         flashOnlyFav = this[K.flashOnlyFav] ?: false,
