@@ -1073,6 +1073,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         item(LdIcons.Dialpad, "Calling card layout") { onOpen("calllayout") }
         item(LdIcons.Palette, "Call & Recents style") { onOpen("stylestudio") }
         item(LdIcons.Clock, "History Explorer") { onOpen("historyexplorer") }
+        item(LdIcons.Phone, "Fake call (simulation)") { onOpen("fakecall") }
         item(LdIcons.Clock, "Reminder Center") { onOpen("reminders") }
         item(LdIcons.Users, "Call Lists") { onOpen("calllists") }
         item(LdIcons.Phone, "Wapas call karna") { onOpen("callbacks") }
