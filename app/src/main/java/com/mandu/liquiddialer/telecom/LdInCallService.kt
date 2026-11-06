@@ -54,18 +54,34 @@ class LdInCallService : InCallService() {
     private fun bindVideoProvider(call: Call) {
         val vc = try { call.videoCall } catch (_: Throwable) { null } ?: return
         VideoLink.bind { d, p -> try { vc.setDisplaySurface(d); vc.setPreviewSurface(p) } catch (_: Throwable) { } }
-        if (!cameraChosen) {
+        // USER BUG (voice call pe camera indicator on): kai phones (MediaTek IMS jaise Realme C25s) par
+        // audio-only call me bhi videoCall provider milta hai, aur setCamera() bhejte hi telephony stack
+        // camera khol deta hai -> privacy indicator voice call pe bhi on. Camera sirf tab chuno jab call
+        // sach me video ho ya user ne video request/accept kiya ho.
+        if (!cameraChosen && videoActiveOrPending(call)) {
             cameraChosen = true
-            // provider contract: sirf camera ID bhejo; capture IMS/telephony stack karta hai.
-            // cameraIdList/getCameraCharacteristics ke liye CAMERA permission nahi chahiye.
-            try {
-                val cm = getSystemService(android.hardware.camera2.CameraManager::class.java)
-                val front = cm.cameraIdList.firstOrNull {
-                    runCatching { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT }.getOrDefault(false)
-                } ?: cm.cameraIdList.firstOrNull()
-                if (front != null) vc.setCamera(front)
-            } catch (_: Throwable) { }
+            pickCamera(vc)
         }
+    }
+
+    /** User ne video upgrade bheja ya accept kiya - ab camera chuno (voice call pe KABHI nahi). */
+    fun chooseCameraFor(call: Call) {
+        if (cameraChosen) return
+        val vc = try { call.videoCall } catch (_: Throwable) { null } ?: return
+        cameraChosen = true
+        pickCamera(vc)
+    }
+
+    private fun pickCamera(vc: InCallService.VideoCall) {
+        // provider contract: sirf camera ID bhejo; capture IMS/telephony stack karta hai.
+        // cameraIdList/getCameraCharacteristics ke liye CAMERA permission nahi chahiye.
+        try {
+            val cm = getSystemService(android.hardware.camera2.CameraManager::class.java)
+            val front = cm.cameraIdList.firstOrNull {
+                runCatching { cm.getCameraCharacteristics(it).get(android.hardware.camera2.CameraCharacteristics.LENS_FACING) == android.hardware.camera2.CameraCharacteristics.LENS_FACING_FRONT }.getOrDefault(false)
+            } ?: cm.cameraIdList.firstOrNull()
+            if (front != null) vc.setCamera(front)
+        } catch (_: Throwable) { }
     }
 
     private fun watchVideo(call: Call) {
@@ -307,4 +323,11 @@ class LdInCallService : InCallService() {
         if (!sensorOn) return
         getSystemService(SensorManager::class.java)?.unregisterListener(flip); sensorOn = false
     }
+}
+
+/** Call sach me video hai (incoming/upgrade settle) ya user ne video maanga hai (request bheji/place-with-video).
+ *  Camera selection isi gate se hota hai - voice call par telephony stack ko camera ID kabhi nahi bhejte. */
+internal fun videoActiveOrPending(call: Call): Boolean {
+    val vs = try { call.details?.videoState } catch (_: Throwable) { null } ?: VideoProfile.STATE_AUDIO_ONLY
+    return vs != VideoProfile.STATE_AUDIO_ONLY || CallManager.pendingVideoRequest
 }
