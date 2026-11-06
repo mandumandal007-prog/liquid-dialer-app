@@ -15,12 +15,14 @@ object BlockLog {
     const val REASON_PRIVATE = "private"
     const val REASON_UNKNOWN = "unknown"
     const val REASON_SERIES = "series"
+    const val REASON_PROMO = "promo140"
+    const val REASON_INTL = "intl_unknown"
 
     data class Entry(val display: String, val idn: String, val reason: String, val ts: Long)
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREF, Context.MODE_PRIVATE)
 
-    private fun validReason(r: String) = r == REASON_PRIVATE || r == REASON_UNKNOWN || r == REASON_SERIES
+    private fun validReason(r: String) = r == REASON_PRIVATE || r == REASON_UNKNOWN || r == REASON_SERIES || r == REASON_PROMO || r == REASON_INTL
 
     /** Screening se block hone pe call karo. number blank ho sakta hai (private/hidden). */
     @Synchronized fun append(ctx: Context, number: String, reason: String, ts: Long = System.currentTimeMillis()) {
