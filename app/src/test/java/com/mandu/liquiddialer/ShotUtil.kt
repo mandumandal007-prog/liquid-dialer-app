@@ -10,7 +10,7 @@ fun saveShot(rule: AndroidComposeTestRule<*, out androidx.activity.ComponentActi
     val w = if (view.width > 0) view.width else 720
     val h = if (view.height > 0) view.height else 1600
     val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    view.draw(android.graphics.Canvas(bmp))
+    rule.runOnUiThread { view.draw(android.graphics.Canvas(bmp)) }
     val f = File((System.getenv("SHOT_DIR") ?: "build/shots") + "/$name.png")
     f.parentFile?.mkdirs()
     f.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
