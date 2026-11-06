@@ -117,6 +117,8 @@ class MainActivity : ComponentActivity() {
         LdApp.instance.scope.launch {
             val s0 = LdApp.settings.first()
             if (s0.defaultTab == "dialer") state.tab = "dialer"
+            // Opt-in hafte-ka auto-backup (device-local); kabhi bhi app start ko block nahi karta
+            runCatching { com.mandu.liquiddialer.data.AutoBackup.maybe(this@MainActivity) }
         }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
