@@ -56,6 +56,7 @@ import java.util.Locale
 import dev.chrisbanes.haze.haze
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -309,7 +310,23 @@ fun MainScreen(st: AppState, act: MainActivity) {
             if (nc != null) key(nc.first) {
                 val ncx = LocalContext.current
                 val ph by produceState<List<Pair<String, Int>>?>(initialValue = null, nc.first, st.numberChoiceNonce) {
-                    value = try { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Repo.contactDetail(ncx, nc.first)?.phones } } catch (_: Exception) { null } ?: emptyList()
+                    // Debug-only load stages. Do not log contact identities or numbers.
+                    val loadToken = System.identityHashCode(this)
+                    fun trace(event: String) {
+                        if ((ncx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
+                            android.util.Log.d("ChooserLoad", "$loadToken $event")
+                    }
+                    trace("start")
+                    try {
+                        val result = try {
+                            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                Repo.contactDetail(ncx, nc.first)?.phones.also { trace("io_done rows=${it?.size}") }
+                            }
+                        } catch (e: Exception) { trace("caught ${e.javaClass.simpleName}"); null } ?: emptyList()
+                        trace("resumed active=${kotlinx.coroutines.currentCoroutineContext().isActive}")
+                        value = result
+                        trace("assigned rows=${result.size}")
+                    } finally { trace("finally active=${kotlinx.coroutines.currentCoroutineContext().isActive}") }
                 }
                 androidx.compose.material3.AlertDialog(onDismissRequest = { st.numberChoiceRequest = null },
                     title = { LdText(if (st.numberChoiceCalls) "Kis number par call karein?" else "Kaunsa number?", 17f, FontWeight.Bold, modifier = Modifier.testTag("chooser_title")) },
