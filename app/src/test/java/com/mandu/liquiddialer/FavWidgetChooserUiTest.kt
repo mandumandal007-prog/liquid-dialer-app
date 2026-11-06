@@ -86,10 +86,11 @@ class FavWidgetChooserUiTest {
 
     /** Click ke baad IO->Main coroutine real-time leti hai; virtual clock kaafi nahi. */
     internal fun awaitNodes(tag: String, count: Int) {
-        // Wall-clock budget (60s), not a try count: CI runner stalls (GC/CPU steal) were seen delaying the
-        // IO->Main hop beyond ~15s even though the provider queries had completed. Assertion below is unchanged.
+        // Advance snapshot notifications and UI frames as well as the looper. A completed producer
+        // assignment alone does not prove the dialog has observed that snapshot. Assertions unchanged.
         val t0 = System.currentTimeMillis()
         while (System.currentTimeMillis() - t0 < 60_000 && rule.onAllNodesWithTag(tag, useUnmergedTree = true).fetchSemanticsNodes().size != count) {
+            rule.runOnUiThread { androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications() }
             org.robolectric.shadows.ShadowLooper.idleMainLooper()
             Thread.sleep(150)
             rule.mainClock.autoAdvance = false
