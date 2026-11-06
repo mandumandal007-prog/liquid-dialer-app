@@ -19,19 +19,35 @@ class SpamGuardTest {
         assertEquals("9876543210", SpamGuard.nsn("98765 43210"))
     }
 
+    @Test fun nsnRejectsUnrecognisedShapes() {
+        assertNull(SpamGuard.nsn("14045551234"))      // 11 digit, 0 se shuru nahi: foreign-jaisa, Indian nahi
+        assertNull(SpamGuard.nsn("+14045551234"))
+        assertNull(SpamGuard.nsn("+9114098765"))       // +91 ke baad 10 digit nahi
+        assertNull(SpamGuard.nsn("140987654"))         // 9 digit
+        assertNull(SpamGuard.nsn("1409876543210"))     // 13 digit
+        assertNull(SpamGuard.nsn(""))
+    }
+
     @Test fun seriesDetects140And160() {
         assertEquals(140, SpamGuard.series("1409876543"))
         assertEquals(140, SpamGuard.series("+91 140 9876543"))
         assertEquals(160, SpamGuard.series("1609876543"))
         assertEquals(160, SpamGuard.series("00911609876543"))
+        assertEquals(160, SpamGuard.series("911609876543"))
+        assertEquals(140, SpamGuard.series("01409876543"))
     }
 
-    @Test fun seriesIgnoresForeignAndShort() {
-        // +1 404... (US) digits 1404... se shuru hote hain - TRAI series apply nahi hoti
-        assertNull(SpamGuard.series("+14045551234"))
+    @Test fun seriesIgnoresForeignShortAndOddLengths() {
+        assertNull(SpamGuard.series("+14045551234"))      // US +1 404...
+        assertNull(SpamGuard.series("14045551234"))       // bina plus ka US-jaisa 11 digit: 140 tag nahi
+        assertNull(SpamGuard.series("16045551234"))       // bina plus ka Canada-jaisa 11 digit: 160 tag nahi
+        assertNull(SpamGuard.series("+16045551234"))
         assertNull(SpamGuard.series("0044207946000"))
-        assertNull(SpamGuard.series("140"))               // short code, 10-digit series nahi
+        assertNull(SpamGuard.series("14012345678901"))    // lambai galat
+        assertNull(SpamGuard.series("140"))
+        assertNull(SpamGuard.series("1609"))
         assertNull(SpamGuard.series("9876543210"))
+        assertNull(SpamGuard.series("9140987654"))        // beech me 140 hai, prefix nahi
         assertNull(SpamGuard.series(""))
     }
 
