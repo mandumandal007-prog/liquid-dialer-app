@@ -17,7 +17,12 @@ class LdScreeningService : CallScreeningService() {
         val privateHit = incoming && s.blockPrivate && n.isBlank()
         val unknownHit = incoming && s.blockUnknown && n.isNotBlank() && hasContacts && Repo.lookupName(this, n) == null && !never
         val seriesHit = incoming && n.isNotBlank() && !never && SeriesBlock.matches(n, s.blockedPrefixes)
-        val block = privateHit || unknownHit || seriesHit
+        // 140 telemarketing / unknown-international auto-reject (dono opt-in). intl ke liye contacts
+        // permission zaroori: permission nahi to known=false maan ke kisi saved contact ko block karna galti hogi.
+        val spamReason = if (incoming && n.isNotBlank() && !never)
+            SpamGuard.rejectReason(n, known = hasContacts && Repo.lookupName(this, n) != null, never = false,
+                promoBlock = s.spamPromoBlock, intlBlock = s.intlUnknownBlock && hasContacts) else null
+        val block = privateHit || unknownHit || seriesHit || spamReason != null
         val cal = java.util.Calendar.getInstance()
         val nowMin = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
         // Contacts permission ke bina favourite check nahi ho sakta: bypass ON hai to silence mat karo (favourite miss na ho)
@@ -32,7 +37,8 @@ class LdScreeningService : CallScreeningService() {
             com.mandu.liquiddialer.data.BlockLog.append(this, n, when {
                 privateHit -> com.mandu.liquiddialer.data.BlockLog.REASON_PRIVATE
                 unknownHit -> com.mandu.liquiddialer.data.BlockLog.REASON_UNKNOWN
-                else -> com.mandu.liquiddialer.data.BlockLog.REASON_SERIES
+                seriesHit -> com.mandu.liquiddialer.data.BlockLog.REASON_SERIES
+                else -> spamReason ?: com.mandu.liquiddialer.data.BlockLog.REASON_SERIES
             })
         }
         if (silence) r.setSilenceCall(true)
