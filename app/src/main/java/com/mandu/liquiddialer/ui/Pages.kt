@@ -302,6 +302,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Call duration dikhao", "Recents me kitni der baat hui", s.recentsShowDuration) { save(K.recentsShowDuration, it) }
             SwitchRow("SIM label dikhao", "Multi-SIM pe recents me SIM 1/2", s.showSimInRecents) { save(K.showSimInRecents, it) }
             SwitchRow("Compact recents", "Choti rows, ek screen pe zyada entries", s.recentsCompact) { save(K.recentsCompact, it) }
+            SwitchRow("Search bar neeche", "Menu, search aur profile ki patti upar ki jagah neeche (bottom bar ke upar) aa jaati hai - ek haath se pahunch ke liye. Sirf Recents/Contacts screen; baaki layout wahi", s.searchBottom) { save(K.searchBottom, it) }
             SwitchRow("Row swipe actions", "Recents row ko dayein khinchne se Call, bayein khinchne se SMS (lamba khinchna padta hai). Call par 'Call se pehle poochho' setting lagu rehti hai", s.rowSwipe) { save(K.rowSwipe, it) }
             SwitchRow("Blocked calls chhupao", "Blocked number ki entries recents me na dikhein", s.recentsHideBlocked) { save(K.recentsHideBlocked, it) }
             LdText("Recents me kitni entries", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
