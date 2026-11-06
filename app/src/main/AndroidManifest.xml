@@ -104,6 +104,9 @@
             android:screenOrientation="portrait"
             android:theme="@style/Theme.LiquidDialer" />
 
+        <activity android:name=".FakeCallActivity" android:exported="false" android:excludeFromRecents="true" android:theme="@style/Theme.LiquidDialer" />
+        <receiver android:name=".data.FakeCallReceiver" android:exported="false" />
+
         <service
             android:name=".telecom.LdInCallService"
             android:exported="true"
