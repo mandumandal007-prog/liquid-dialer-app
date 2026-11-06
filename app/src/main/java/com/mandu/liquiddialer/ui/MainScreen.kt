@@ -689,6 +689,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE || r.type == CallLog.Calls.BLOCKED_TYPE
                     val simLabel = if (st.sims.size > 1 && s.showSimInRecents) st.sims.firstOrNull { it.handle.id == r.accountId }?.let { "SIM ${it.slot}" } else null
                     val rstyle = recentsStyleFor(s.recentsStyle)
+                    RowSwipeActions(enabled = s.rowSwipe && r.number.isNotBlank(), onCall = { act.callUi(r.number) },
+                        onSms = { try { act.startActivity(android.content.Intent(android.content.Intent.ACTION_SENDTO, android.net.Uri.parse("smsto:" + r.number))) } catch (_: Exception) { } }) {
                     RecentsRowShell(rstyle, onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact, extraVerticalPadding = 4.dp, tight = true) {
                         Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 38.dp, fontSize = if (s.recentsCompact) 12f else 13f, seed = name)
                         Column(Modifier.weight(1f)) {
@@ -716,6 +718,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         }
                         VideoMini(40.dp, tint = rstyle.tint) { act.videoCall(r.number) }
                         CallMini(40.dp, tint = rstyle.tint) { act.callUi(r.number) }
+                    }
                     }
                 }
             }
@@ -1054,5 +1057,48 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
             LdText("v${com.mandu.liquiddialer.BuildConfigHelper.version} · Frosted glass calling", 11.5f, color = p.muted)
             LdText(if (st.isDefault) "Default phone app ✓" else "Abhi default phone app nahi hai", 11.5f, color = if (st.isDefault) p.ok else p.danger)
         }
+    }
+}
+
+
+/** Recents row swipe (opt-in, default OFF). Dayein = Call, bayein = SMS. Action sirf tab jab row threshold (~35% width) paar kare;
+ *  chhota/ vertical scroll gesture kuch nahi karta. Row wapas apni jagah spring hoti hai; Call 'Call se pehle poochho' setting se hi guzarta hai.
+ *  Disabled hone par bilkul purani row (koi gesture modifier nahi). */
+@Composable
+private fun RowSwipeActions(enabled: Boolean, onCall: () -> Unit, onSms: () -> Unit, content: @Composable () -> Unit) {
+    if (!enabled) { content(); return }
+    val p = LocalLd.current
+    val offset = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var widthPx by remember { mutableStateOf(1) }
+    val threshold = widthPx * 0.35f
+    Box(Modifier.fillMaxWidth().onSizeChanged { widthPx = it.width.coerceAtLeast(1) }.testTag("swipe_row")) {
+        val x = offset.value
+        if (x != 0f) {
+            val call = x > 0f
+            val armed = kotlin.math.abs(x) >= threshold
+            val tint = if (call) p.ok else p.accent
+            Box(Modifier.matchParentSize().clip(RoundedCornerShape(20.dp)).background(tint.copy(alpha = if (armed) .35f else .18f)).padding(horizontal = 20.dp),
+                contentAlignment = if (call) Alignment.CenterStart else Alignment.CenterEnd) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    LdIcon(if (call) LdIcons.Phone else LdIcons.Message, 18.dp, tint)
+                    LdText(if (call) "Call" else "SMS", 12f, FontWeight.Bold, tint)
+                }
+            }
+        }
+        Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(offset.value.toInt(), 0) }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        val v = offset.value
+                        if (kotlin.math.abs(v) >= threshold) { if (v > 0f) onCall() else onSms() }
+                        scope.launch { offset.animateTo(0f, androidx.compose.animation.core.spring(stiffness = 500f)) }
+                    },
+                    onDragCancel = { scope.launch { offset.animateTo(0f) } },
+                    onHorizontalDrag = { change, amount ->
+                        change.consume()
+                        scope.launch { offset.snapTo((offset.value + amount).coerceIn(-widthPx * 0.55f, widthPx * 0.55f)) }
+                    })
+            }) { content() }
     }
 }
