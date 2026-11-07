@@ -44,7 +44,14 @@ class FullBackupUiTest {
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=if(night)"midnight" else "daylight";it[K.fontScale]=if(night)1.4f else 1f}}
   rule.waitUntil(30000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{BackupPage({})}}};settle()
-  rule.waitUntil(30000){rule.onAllNodesWithTag("backup_export",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  // A frozen Compose clock needs snapshot notifications and frames while IO settings publish.
+  // Keep the existing 30-second bound and the same screen-ready assertion.
+  rule.waitUntil(30000){
+   rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()}
+   org.robolectric.shadows.ShadowLooper.idleMainLooper()
+   rule.mainClock.advanceTimeBy(100);rule.waitForIdle()
+   rule.onAllNodesWithTag("backup_export",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()
+  };settle()
  }
  @Test fun exportWritesValidBackupAndCancelKeepsState(){
   populate();show()
