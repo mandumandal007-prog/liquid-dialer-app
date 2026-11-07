@@ -3,11 +3,16 @@ package com.mandu.liquiddialer.data
 /** Immutable per-contact-snapshot search index. No provider calls or persistent cache.
  * Rebuilt when contacts change, so edits and permission-driven clearing take effect immediately. */
 class ContactSearch(contacts: List<Contact>) {
-    private data class Tokens(val name:String,val number:String,val words:List<String>,val joined:String,val initials:String)
-    private class Entry(val contact: Contact) {
-        val tokens by lazy(LazyThreadSafetyMode.NONE) {
+    private data class T9(val words:List<String>,val joined:String,val initials:String)
+    internal var t9Builds = 0
+        private set
+    private inner class Entry(val contact: Contact) {
+        val name by lazy(LazyThreadSafetyMode.NONE) { contact.name.lowercase() }
+        val number by lazy(LazyThreadSafetyMode.NONE) { contact.number.filter { it.isDigit() } }
+        val t9 by lazy(LazyThreadSafetyMode.NONE) {
+            t9Builds++
             val words=contact.name.split(" ","-",".").filter { it.isNotBlank() }
-            Tokens(contact.name.lowercase(),contact.number.filter { it.isDigit() },words.map(Repo::t9Of),Repo.t9Of(contact.name.replace(" ","")),words.joinToString("") { Repo.t9Of(it.take(1)) })
+            T9(words.map(Repo::t9Of),Repo.t9Of(contact.name.replace(" ","")),words.joinToString("") { Repo.t9Of(it.take(1)) })
         }
     }
     private val entries=contacts.map(::Entry)
@@ -24,8 +29,7 @@ class ContactSearch(contacts: List<Contact>) {
         val out=ArrayList<Contact>()
         for(e in entries) {
             lastExamined++
-            val t=e.tokens
-            if(blank || t.name.contains(q) || numeric && (t.number.contains(digits) || t.words.any { it.startsWith(digits) } || t.joined.contains(digits) || t.initials.startsWith(digits))) {
+            if(blank || e.name.contains(q) || numeric && (e.number.contains(digits) || e.t9.let { t -> t.words.any { it.startsWith(digits) } || t.joined.contains(digits) || t.initials.startsWith(digits) })) {
                 out+=e.contact
                 if(out.size==limit) break
             }
