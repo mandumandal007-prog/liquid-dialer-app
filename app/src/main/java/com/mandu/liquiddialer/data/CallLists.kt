@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.AtomicFile
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.io.File
 import java.util.UUID
 
@@ -33,7 +34,13 @@ object CallLists {
     }
     internal fun decode(text:String):List<ListItem> {
         require(text.toByteArray().size<=1024*1024) {"Saved lists bahut badi hain"}
-        val root=JSONObject(text);require(root.get("version") is Int && root.getInt("version") in 1..2)
+        // Do not silently import the first object of a damaged/concatenated backup.
+        // JSONTokener uses NUL as its end marker; raw NUL is never valid JSON text.
+        require('\u0000' !in text) {"Backup format sahi nahi hai"}
+        val tokener=JSONTokener(text)
+        val root=tokener.nextValue() as? JSONObject ?: error("Backup format sahi nahi hai")
+        require(tokener.nextClean()=='\u0000') {"Backup format sahi nahi hai"}
+        require(root.get("version") is Int && root.getInt("version") in 1..2)
         val a=root.getJSONArray("lists");require(a.length()<=MAX_LISTS)
         val ids=HashSet<String>()
         return (0 until a.length()).map { i ->
