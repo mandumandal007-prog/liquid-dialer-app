@@ -88,13 +88,13 @@ class AppLockUiTest {
         rule.onNodeWithText("Unlock karo", useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("Fingerprint ya phone ka PIN/Pattern/Password se kholo", substring = true, useUnmergedTree = true).assertExists()
         assertTrue("locked me recents content compose nahi hona chahiye",
-            rule.onAllNodesWithText("Search contacts or numbers", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isEmpty())
+            rule.onAllNodesWithText("Khojo", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isEmpty())
         saveShot(rule, "52-app-lock-gate-360x800")
         // unlock -> auth success -> content aata hai
         rule.onNodeWithText("Unlock karo", useUnmergedTree = true).performClick()
         settle(1800)
         assertEquals(1, authCalls)
-        waitFor { rule.onAllNodesWithText("Search contacts or numbers", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() || rule.onAllNodesWithText("Baad me", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        waitFor { rule.onAllNodesWithText("Khojo", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() || rule.onAllNodesWithText("Baad me", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
         assertTrue(AppLock.unlockedThisSession)
         Unit
     }
@@ -111,7 +111,7 @@ class AppLockUiTest {
         assertEquals(1, authCalls)
         // abhi bhi locked, content nahi
         rule.onNodeWithText("Liquid Dialer lock", useUnmergedTree = true).assertIsDisplayed()
-        assertTrue(rule.onAllNodesWithText("Search contacts or numbers", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isEmpty())
+        assertTrue(rule.onAllNodesWithText("Khojo", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isEmpty())
         assertFalse(AppLock.unlockedThisSession)
         Unit
     }
