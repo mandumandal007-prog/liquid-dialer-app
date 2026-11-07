@@ -71,6 +71,8 @@ object FullBackup {
 
     private fun strict(text: String): JSONObject {
         require(text.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Backup 5 MB se bada hai" }
+        // JSONTokener uses raw NUL as its end marker; escaped NUL inside strings is valid data.
+        require('\u0000' !in text) { "Backup format sahi nahi hai" }
         val t = JSONTokener(text); val o = t.nextValue() as? JSONObject ?: error("Backup format sahi nahi hai")
         require(t.nextClean() == '\u0000') { "Backup format sahi nahi hai" }
         return o
