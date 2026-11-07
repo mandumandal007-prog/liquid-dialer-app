@@ -5,7 +5,6 @@ import android.Manifest
 import android.app.role.RoleManager
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -97,13 +96,11 @@ class MainActivity : ComponentActivity() {
         reload()
     }
 
-    private val providerReload = Runnable { reload() }
-
-    private val observer = object : ContentObserver(handler) {
-        override fun onChange(selfChange: Boolean) {
-            // Contacts/call-log writes often notify several times. Collapse only that burst.
-            handler.removeCallbacks(providerReload)
-            handler.postDelayed(providerReload, 180)
+    private val providerReloads by lazy {
+        ProviderReloads(handler) { contactsChanged ->
+            clearUnavailableSources()
+            recentReload.request()
+            if (contactsChanged) contactReload.request()
         }
     }
 
@@ -144,10 +141,7 @@ class MainActivity : ComponentActivity() {
             if (!s.onboarded) state.showOnboarding = true
         }
         handleIntent(intent)
-        try {
-            contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, observer)
-            contentResolver.registerContentObserver(ContactsContract.Contacts.CONTENT_URI, true, observer)
-        } catch (_: Exception) { }
+        providerReloads.register(contentResolver)
         try {
             @Suppress("DEPRECATION")
             if (has(Manifest.permission.READ_PHONE_STATE))
@@ -186,8 +180,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        handler.removeCallbacks(providerReload)
-        try { contentResolver.unregisterContentObserver(observer) } catch (_: Exception) { }
+        providerReloads.close(contentResolver)
         try { getSystemService(android.telephony.SubscriptionManager::class.java).removeOnSubscriptionsChangedListener(subListener) } catch (_: Exception) { }
         super.onDestroy()
     }
@@ -272,7 +265,7 @@ class MainActivity : ComponentActivity() {
         if(gen==simReload.generation) state.sims=rows
     } }
 
-    fun reload() {
+    private fun clearUnavailableSources() {
         if(!has(Manifest.permission.READ_CONTACTS)) {
             state.contacts=emptyList()
             if(state.birthdays?.isNotEmpty()==true) state.birthdays=emptyList()
@@ -280,6 +273,10 @@ class MainActivity : ComponentActivity() {
         if(!has(Manifest.permission.READ_CALL_LOG)) { state.recents=emptyList();state.recentsError=false;state.recentsLoaded=true }
         if(!has(Manifest.permission.READ_PHONE_STATE)) state.sims=emptyList()
         if(!state.isDefault) state.blocked=emptyList()
+    }
+
+    fun reload() {
+        clearUnavailableSources()
         recentReload.request();contactReload.request();blockedReload.request();simReload.request()
     }
 
