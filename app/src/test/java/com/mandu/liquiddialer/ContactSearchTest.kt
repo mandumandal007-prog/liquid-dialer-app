@@ -17,4 +17,13 @@ class ContactSearchTest {
         assertTrue(ContactSearch(emptyList()).find("rah").isEmpty())
         assertTrue(ContactSearch(listOf(c(1,"Changed","123"))).find("rah").isEmpty())
     }
+    @Test fun nameAndNumberMatchesSkipUnusedT9Work() {
+        val cs=(1L..10000L).map{c(it,"Rahul Sharma $it","+91 98765 43210")}
+        val ix=ContactSearch(cs)
+        assertEquals(10000,ix.find("rahul").size);assertEquals(0,ix.t9Builds)
+        assertEquals(10000,ix.find("98765").size);assertEquals(0,ix.t9Builds)
+        assertEquals(10000,ix.find("74276").size);assertEquals(10000,ix.t9Builds)
+        ix.find("74276");assertEquals(10000,ix.t9Builds)
+        println("PERF 10000 contacts: name/number query T9 builds=0, T9 query builds once per entry")
+    }
 }
