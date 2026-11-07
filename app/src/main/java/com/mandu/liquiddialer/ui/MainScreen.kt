@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -245,7 +247,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             }
             // ===== half-screen frosted dialer sheet =====
-            if (st.tab == "dialer") Sheet(onDismiss = { st.tab = lastTab }) {
+            if (st.tab == "dialer") Sheet(onDismiss = { st.tab = lastTab }, opaqueBacking = true) {
                 DialerSheet(st, act, onAddContact = { openEditor(null, it) }, onLong = { menuNumber = it }, onOpen = { openPage(it) })
             }
             // search-bar voice overlays
@@ -582,6 +584,7 @@ private fun dayLabel(ts: Long): String {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, bottomPad: androidx.compose.ui.unit.Dp = 90.dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit, onOpenNumber: (String) -> Unit = {}, onClear: () -> Unit = {}, onInsights: () -> Unit = {}) {
     val p = LocalLd.current
@@ -646,14 +649,43 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 }
             }
         }
-        item {
-            SectionHead("Recent calls") {
-                if (st.recents.isNotEmpty()) Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onInsights() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("insights_open")) {
-                        LdText("Hisab", 12.5f, FontWeight.SemiBold, p.accent)
+        item(key = "recent-controls") {
+            // Keep the call filters with their title instead of below variable-length strips.
+            Column(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(22.dp), 0.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp).testTag("recent_controls"),
+                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LdText("Recent calls", 17f, FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 2)
+                    if (st.recents.isNotEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(Modifier.heightIn(min = 44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
+                                .clickable { onInsights() }.padding(horizontal = 10.dp, vertical = 10.dp)
+                                .testTag("insights_open"), contentAlignment = Alignment.Center) {
+                                LdText("Hisab", 12.5f, FontWeight.SemiBold, p.accent)
+                            }
+                            Box(Modifier.heightIn(min = 44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
+                                .clickable { onClear() }.padding(horizontal = 10.dp, vertical = 10.dp)
+                                .testTag("recent_clear"), contentAlignment = Alignment.Center) {
+                                LdText("Clear", 12.5f, FontWeight.SemiBold, p.muted)
+                            }
+                        }
                     }
-                    Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onClear() }.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                        LdText("Clear", 12.5f, FontWeight.SemiBold, p.accent)
+                }
+                // Larger text gets two rows so every filter label stays visible.
+                val largeFilters = LocalDensity.current.fontScale > 1.15f
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp),
+                    maxItemsInEachRow = if (largeFilters) 2 else 4,
+                    modifier = Modifier.fillMaxWidth().testTag("recent_filters")) {
+                    chipLabels.forEachIndexed { i, label ->
+                        val on = filter == i
+                        Box(Modifier.weight(1f).heightIn(min = 40.dp).clip(RoundedCornerShape(14.dp))
+                            .background(if (on) p.accent.pct(.30f) else p.glass)
+                            .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(14.dp))
+                            .clickable { filter = i }.padding(horizontal = 7.dp, vertical = 9.dp)
+                            .testTag("recent_filter_$i"), contentAlignment = Alignment.Center) {
+                            LdText(label, 12f, FontWeight.SemiBold, if (on) p.text else p.muted)
+                        }
                     }
                 }
             }
@@ -694,20 +726,6 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         // NAYA: birthdays strip - LAZY load (startup pe query NAHI, recents gate nahi hota), tap = number sheet
         item(key = "birthdays-strip") {
             BirthdayStripLoader(st, onOpenNumber)
-        }
-        item {
-            // horizontalScroll: bade font-scale pe bhi chips kabhi truncate nahi hote (parent pixel-gate flag: "Inco...")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 0.dp).horizontalScroll(rememberScrollState())) {
-                chipLabels.forEachIndexed { i, label ->
-                    val on = filter == i
-                    Box(Modifier.clip(RoundedCornerShape(999.dp))
-                        .background(if (on) p.accent.pct(.30f) else p.glass)
-                        .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(999.dp))
-                        .clickable { filter = i }.padding(horizontal = 14.dp, vertical = 5.dp)) {
-                        LdText(label, 12f, FontWeight.SemiBold, if (on) p.text else p.muted)
-                    }
-                }
-            }
         }
         if (!hasLog) item { EmptyState(LdIcons.Clock, "Call history ki permission chahiye", "Recents dikhane ke liye Call log permission do", "Permission do") { act.askPermissions() } }
         else if (rows.isEmpty() && contactHits.isEmpty()) item { EmptyState(LdIcons.Clock, if (query.isBlank()) "Abhi koi call nahi" else "Kuch nahi mila", if (query.isBlank()) "Aapki calls yahan dikhengi" else "Doosra naam ya number try karo") }
@@ -939,17 +957,17 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         val keyByW = (maxWidth.value - 16f) / 3.55f
         var dialMenu by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 0.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("dial_toolbar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
-                Row(Modifier, horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                Row(Modifier.glass(p,RoundedCornerShape(999.dp),0.dp).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).buttonGlass(p,CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
                     LdIcon(LdIcons.Mic, 21.dp, if (voice.ui.listening) p.accent else p.muted)
                 }
-                Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
+                Box(Modifier.size(40.dp).buttonGlass(p,CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
             }
             }
-            Box(Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
-            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Box(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(20.dp),0.dp).testTag("dial_number_panel").padding(horizontal = 8.dp, vertical = 8.dp).heightIn(min = 64.dp)) {
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
                 LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
                     modifier = Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
@@ -962,16 +980,16 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             }
                         }
                     }
-                } else LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Pichhla: " + Repo.pretty(it.number) + " - call button se bharo" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 2)
+                } else if (dial.isEmpty() || nameMatch != null) LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Pichhla: " + Repo.pretty(it.number) + " - call button se bharo" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 2)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
                     Row(Modifier.fillMaxWidth().padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1.4f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp),p.accent).clickable { onAddContact(dial) }.testTag("dial_save_contact").padding(horizontal = 10.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
                             LdText("Contact save karo", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
-                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").padding(horizontal = 10.dp, vertical = 2.dp)) {
-                            LdText("+ Pause (,)", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
+                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").semantics { contentDescription = "Pause add karo (,)" }.padding(horizontal = 10.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
+                            LdText("+ Pause", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
-                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp)) {
+                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
                             LdText("Meet call", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
                         }
                     }
