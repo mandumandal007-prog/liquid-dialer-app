@@ -572,19 +572,6 @@ private sealed interface RItem
 private data class RHead(val label: String) : RItem
 private data class RRow(val r: Recent, val count: Int) : RItem
 
-private fun dayLabel(ts: Long): String {
-    val then = java.util.Calendar.getInstance().apply { timeInMillis = ts }
-    val today = java.util.Calendar.getInstance()
-    val yest = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, -1) }
-    fun sameDay(a: java.util.Calendar, b: java.util.Calendar) =
-        a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) && a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR)
-    return when {
-        sameDay(then, today) -> "Aaj"
-        sameDay(then, yest) -> "Kal"
-        else -> SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(ts))
-    }
-}
-
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad: androidx.compose.ui.unit.Dp, bottomPad: androidx.compose.ui.unit.Dp = 90.dp, onOpen: (Recent) -> Unit, onFav: (Contact) -> Unit, onLong: (String) -> Unit, onOpenNumber: (String) -> Unit = {}, onClear: () -> Unit = {}, onInsights: () -> Unit = {}) {
@@ -595,11 +582,13 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
     var filter by remember { mutableIntStateOf(0) }
     val favs = remember(st.contacts) { st.contacts.filter { it.starred } }
     val recentSearch = remember(st.recents) { com.mandu.liquiddialer.data.RecentSearch(st.recents) }
-    val rows = remember(st.recents, query, filter, s.groupByDay, s.recentsHideBlocked) {
+    val dayToken = java.util.concurrent.TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis() + java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()))
+    val dayLabels = remember(st.recents, dayToken) { com.mandu.liquiddialer.data.RecentDayLabels() }
+    val rows = remember(st.recents, query, filter, s.groupByDay, s.recentsHideBlocked, dayLabels) {
         val out = mutableListOf<RItem>()
         var lastKey = ""; var lastDay = ""
         recentSearch.find(query, filter, s.recentsHideBlocked).forEach { r ->
-            val day = dayLabel(r.date)
+            val day = if(s.groupByDay) dayLabels.label(r.date) else ""
             if (s.groupByDay && day != lastDay) { out += RHead(day); lastDay = day; lastKey = "" }
             val k = Repo.key(r.number) + ":" + r.type
             val prev = out.lastOrNull()
@@ -913,6 +902,19 @@ fun formatDial(v: String): String {
 }
 
 @Composable
+private fun DialShortcut(label:String, description:String, icon:androidx.compose.ui.graphics.vector.ImageVector,
+    modifier:Modifier, tag:String, onClick:()->Unit) {
+    val p=LocalLd.current
+    Row(modifier.heightIn(min=48.dp).buttonGlass(p,RoundedCornerShape(12.dp))
+        .clickable(onClick=onClick).testTag(tag).semantics { contentDescription=description }
+        .padding(horizontal=6.dp,vertical=8.dp), horizontalArrangement=Arrangement.spacedBy(6.dp,Alignment.CenterHorizontally),
+        verticalAlignment=Alignment.CenterVertically) {
+        LdIcon(icon,16.dp,p.accent)
+        LdText(label,11.5f,FontWeight.SemiBold,p.accent,maxLines=1)
+    }
+}
+
+@Composable
 private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) -> Unit, onLong: (String) -> Unit, onOpen: (String) -> Unit) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
@@ -932,12 +934,13 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
     val dialMatches = remember(dial, contactSearch) { if (dial.length < 2) emptyList() else contactSearch.find(dial,6) }
     val matches = dialMatches.take(3)
     // live suggestions while typing: saved contacts first, then numbers from call history (local data only; tapping fills the number, never calls)
+    val suggestionHistory = remember(st.recents) { st.recents.map { it to it.number.filter(Char::isDigit) } }
     val suggest = remember(dial, st.contacts, st.recents) {
         if (dial.length < 2) emptyList() else {
             val dd = dial.filter { it.isDigit() }
             val out = LinkedHashMap<String, Pair<String, String>>()
             dialMatches.forEach { out.putIfAbsent(Repo.key(it.number), it.name to it.number) }
-            if (dd.length >= 2) st.recents.asSequence().filter { r -> r.number.filter { it.isDigit() }.contains(dd) }.take(40).forEach { r ->
+            if (dd.length >= 2) suggestionHistory.asSequence().filter { it.second.contains(dd) }.take(40).forEach { (r, _) ->
                 out.putIfAbsent(Repo.key(r.number), (r.name?.takeIf { it.isNotBlank() } ?: Repo.pretty(r.number)) to r.number)
             }
             out.values.filter { Repo.key(it.second) != Repo.key(dial) }.take(4).toList()
@@ -983,15 +986,9 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 } else if (dial.isEmpty() || nameMatch != null) LdText(when { dial.isEmpty() -> lastOutgoing?.let { "Pichhla: " + Repo.pretty(it.number) + " - call button se bharo" } ?: "Number likho"; nameMatch != null -> nameMatch.name; else -> "" }, 12.5f, color = p.muted, letter = .4f, maxLines = 2)
                 if (dial.isNotEmpty() && nameMatch == null && dial.length >= 3 && DialerCodes.detect(dial) == null) {
                     Row(Modifier.fillMaxWidth().padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1.4f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp),p.accent).clickable { onAddContact(dial) }.testTag("dial_save_contact").padding(horizontal = 10.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-                            LdText("Contact save karo", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
-                        }
-                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { st.dial = "$dial," }.testTag("dial_pause").semantics { contentDescription = "Pause add karo (,)" }.padding(horizontal = 10.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
-                            LdText("+ Pause", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
-                        }
-                        Box(Modifier.weight(1f).heightIn(min = 48.dp).buttonGlass(p,RoundedCornerShape(12.dp)).clickable { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }.testTag("dial_meet").padding(horizontal = 10.dp, vertical = 2.dp), contentAlignment = Alignment.Center) {
-                            LdText("Meet call", 12f, FontWeight.SemiBold, p.accent, maxLines = 2)
-                        }
+                        DialShortcut("Save", "Contact save karo", LdIcons.User, Modifier.weight(1f), "dial_save_contact") { onAddContact(dial) }
+                        DialShortcut("Pause", "Pause add karo (,)", LdIcons.Pause, Modifier.weight(1f), "dial_pause") { st.dial = "$dial," }
+                        DialShortcut("Meet", "Meet call", LdIcons.Video, Modifier.weight(1f), "dial_meet") { if (!CallManager.meetCallNumber(ctx, dial)) CallManager.openMeet(ctx) }
                     }
                 }
             }
