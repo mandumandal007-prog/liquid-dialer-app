@@ -36,7 +36,7 @@ object SettingsBackup {
         "callBgStyle" to setOf("blobs", "photo", "solid"),
         "defaultTab" to setOf("recents", "dialer"),
     )
-    private val INT_RANGES = mapOf("blur" to (0..40), "glassDepth" to (0..2), "glassFrost" to (0..2), "callPhotoBlur" to (0..2), "fontStyle" to (0..3), "iconStyle" to (0..5))
+    private val INT_RANGES = mapOf("blur" to (0..40), "glassDepth" to (0..2), "glassFrost" to (0..2), "callPhotoBlur" to (0..2), "fontStyle" to (0..3), "iconStyle" to (0..7), "dialerLayout" to (0..2))
     private val FLOAT_RANGES = mapOf(
         "fontScale" to (0.8f..1.5f),
         "gridScale" to (0.8f..1.2f),
@@ -56,6 +56,7 @@ object SettingsBackup {
         v.put("blur", s.blur); v.put("motion", s.motion); v.put("fontScale", s.fontScale.toDouble())
         v.put("sortByLast", s.sortByLast); v.put("lastNameFirst", s.lastNameFirst)
         v.put("tabSwipe", s.tabSwipe); v.put("boldText", s.boldText)
+        v.put("dialerLayout", s.dialerLayout)
         v.put("fontStyle", s.fontStyle); v.put("iconStyle", s.iconStyle)
         v.put("showFavourites", s.showFavourites); v.put("showLastCall", s.showLastCall)
         v.put("showContactType", s.showContactType); v.put("favStarBadge", s.favStarBadge)
