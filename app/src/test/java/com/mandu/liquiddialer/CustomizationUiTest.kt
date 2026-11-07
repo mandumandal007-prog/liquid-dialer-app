@@ -57,7 +57,7 @@ class CustomizationUiTest {
         openAppearance()
         // saare chips composed hain (verticalScroll page); click-save path wahi save() hai jo Segmented controls use karte hain (unpe existing coverage)
         for(i in 0..3) assertEquals(1,rule.onAllNodesWithTag("font_style_$i",useUnmergedTree=true).fetchSemanticsNodes().size)
-        for(i in 0..5) assertEquals(1,rule.onAllNodesWithTag("icon_style_$i",useUnmergedTree=true).fetchSemanticsNodes().size)
+        for(i in 0..7) assertEquals(1,rule.onAllNodesWithTag("icon_style_$i",useUnmergedTree=true).fetchSemanticsNodes().size)
         runBlocking{app.ldStore.edit{it[K.fontStyle]=2;it[K.iconStyle]=2}}
         await{LdApp.settings.value.fontStyle==2 && LdApp.settings.value.iconStyle==2};settle()
         // nayi sections viewport me lao (repo-proven scroll pattern), phir shot
@@ -71,7 +71,7 @@ class CustomizationUiTest {
     }
 
     @Test fun fontAndIconStylesRenderOnHome(){
-        for(i in listOf(1,2,4)){
+        for(i in listOf(1,2,4,6,7)){
             runBlocking{app.ldStore.edit{it[K.iconStyle]=i;it[K.fontStyle]=0;it[K.fontScale]=1f}}
             await{LdApp.settings.value.iconStyle==i && LdApp.settings.value.fontScale==1f};settle()
             saveShot(rule,"280-icons-style$i")
@@ -96,6 +96,6 @@ class CustomizationUiTest {
         assertEquals(2,(ok as SettingsBackup.ParseResult.Ok).values["fontStyle"])
         assertEquals(5,ok.values["iconStyle"])
         assertFalse(SettingsBackup.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"fontStyle":4}}""") is SettingsBackup.ParseResult.Ok)
-        assertFalse(SettingsBackup.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"iconStyle":6}}""") is SettingsBackup.ParseResult.Ok)
+        assertFalse(SettingsBackup.parse("""{"app":"liquid-dialer","kind":"appearance-settings","version":1,"values":{"iconStyle":8}}""") is SettingsBackup.ParseResult.Ok)
     }
 }
