@@ -47,7 +47,7 @@ class DialSaveContactUiTest {
         org.junit.Assert.assertNull(target.component)
         rule.onNodeWithText("Naya contact",useUnmergedTree=true).assertExists()
         rule.onNodeWithText("9876543210",useUnmergedTree=true).assertExists()
-        rule.onNodeWithText("Save",useUnmergedTree=true).assertExists()
+        rule.onNode(hasText("Save") and !hasAnyAncestor(hasTestTag("dial_save_contact")),useUnmergedTree=true).assertExists()
         saveShot(rule,"G220-editor-night")
         runBlocking{ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit{it[K.theme]="daylight";it[K.fontScale]=1.3f}}
         settle();rule.waitUntil(15000) { LdApp.settings.value.let { it.theme=="daylight" && it.fontScale==1.3f } };saveShot(rule,"G220-editor-day-large")
@@ -60,9 +60,9 @@ class DialSaveContactUiTest {
         rule.runOnUiThread { rule.activity.state.dial="9876543210";rule.activity.state.tab="dialer" };settle()
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).assertIsDisplayed()
         for(tag in listOf("dial_save_contact","dial_pause","dial_meet","call_btn")) rule.onNodeWithTag(tag,useUnmergedTree=true).assertIsDisplayed()
-        for((tag,text) in listOf("dial_save_contact" to "Contact save karo","dial_pause" to "+ Pause","dial_meet" to "Meet call")) {
+        for((tag,text) in listOf("dial_save_contact" to "Save","dial_pause" to "Pause","dial_meet" to "Meet")) {
             val button=rule.onNodeWithTag(tag,useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-            val label=rule.onNodeWithText(text,useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+            val label=rule.onNode(hasText(text) and hasAnyAncestor(hasTestTag(tag)),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
             org.junit.Assert.assertTrue("$tag label contained at large font",label.left>=button.left && label.right<=button.right && label.top>=button.top && label.bottom<=button.bottom)
         }
         saveShot(rule,"N201-dial-save-large")
