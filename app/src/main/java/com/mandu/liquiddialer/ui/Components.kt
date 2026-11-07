@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
 
 /** .sheet bottom sheet with scrim */
 @Composable
-fun Sheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun Sheet(onDismiss: () -> Unit, opaqueBacking: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalLd.current
     BackHandler { onDismiss() }
     var shown by remember { mutableStateOf(false) }
@@ -55,7 +55,7 @@ fun Sheet(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
                 .onSizeChanged { sheetH = it.height }
                 .graphicsLayer { translationY = size.height * y + dragY.value }
                 .liquid(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp), blur = false)
-                .background(p.bg2.copy(alpha = if (p.isLight) .99f else .98f))
+                .background(p.bg2.copy(alpha = if (opaqueBacking) 1f else if (p.isLight) .99f else .98f))
                 .clickable(remember { MutableInteractionSource() }, null) {}
                 .navigationBarsPadding().imePadding()
                 .heightIn(max = (LocalConfiguration.current.screenHeightDp * .88f).dp)
