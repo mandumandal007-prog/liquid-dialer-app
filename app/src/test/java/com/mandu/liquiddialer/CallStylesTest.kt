@@ -12,8 +12,8 @@ import org.junit.Test
 /** Style presets ka structure: 11 calling-card + 11 recents, glass default, fallback safe. */
 class CallStylesTest {
 
-    @Test fun elevenCardStylesUniqueKeysGlassFirst() {
-        assertEquals(11, CALL_STYLES.size)
+    @Test fun seventeenCardStylesUniqueKeysGlassFirst() {
+        assertEquals(17, CALL_STYLES.size)
         assertEquals(CALL_STYLES.size, CALL_STYLES.map { it.key }.toSet().size)
         assertEquals("glass", CALL_STYLES[0].key)
         assertTrue(CALL_STYLES.any { it.key == "google" })
@@ -27,8 +27,9 @@ class CallStylesTest {
         assertEquals("glass", RECENTS_STYLES[0].key)
     }
 
-    @Test fun cardAndRecentsKeysMatch() {
-        assertEquals(CALL_STYLES.map { it.key }, RECENTS_STYLES.map { it.key })
+    @Test fun existingCardAndRecentsKeysRemainAvailable() {
+        assertTrue(CALL_STYLES.map { it.key }.containsAll(RECENTS_STYLES.map { it.key }))
+        assertEquals(6, com.mandu.liquiddialer.ui.REFERENCE_CALL_KEYS.size)
     }
 
     @Test fun unknownKeyFallsBackToGlass() {
