@@ -88,7 +88,7 @@ class FlowTest {
     @Test
     fun searchThenRecentsClearsQueryAndShowsHistory() {
         load()
-        rule.onNodeWithText("Search contacts or numbers").performClick()
+        rule.onNodeWithText("Khojo").performClick()
         rule.onNode(hasSetTextAction()).performTextInput("Papa")
         settle()
         rule.onNodeWithText("CONTACTS").assertExists()
@@ -99,7 +99,7 @@ class FlowTest {
         // Recents tap clears the query and shows call history
         rule.onNodeWithText("Recents").performClick(); settle(1500)
         assertEquals("recents", rule.activity.state.tab)
-        rule.onNodeWithText("Search contacts or numbers").assertExists()
+        rule.onNodeWithText("Khojo").assertExists()
         rule.onNodeWithText("Recent calls").assertExists()
         rule.onNodeWithText("Rahul Sharma").assertExists()
         noCallStarted()
@@ -125,7 +125,7 @@ class FlowTest {
         rule.onNode(hasSetTextAction()).performTextInput("Pap"); settle()
         rule.onNodeWithTag("bottom_bar").performTouchInput { swipeRight() }; settle(1500)
         assertEquals("recents", rule.activity.state.tab)
-        rule.onNodeWithText("Search contacts or numbers").assertExists()
+        rule.onNodeWithText("Khojo").assertExists()
     }
 
     @Test
