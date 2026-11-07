@@ -21,7 +21,15 @@ class CallListsUiTest {
  @get:Rule val rule=createAndroidComposeRule<MainActivity>()
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
- private fun click(tag:String){rule.onNodeWithTag(tag).performScrollTo().performClick();settle()}
+ private fun reveal(tag:String,unmerged:Boolean=false):SemanticsNodeInteraction {
+  repeat(20) {
+   val node=rule.onNodeWithTag(tag,useUnmergedTree=unmerged)
+   if(node.isDisplayed())return node
+   val top=node.fetchSemanticsNode().boundsInRoot.top
+   rule.onRoot().performTouchInput {if(top<0)swipeDown(durationMillis=120) else swipeUp(durationMillis=120)};settle()
+  };error("Not visible: $tag")
+ }
+ private fun click(tag:String){reveal(tag).performClick();settle()}
  private fun awaitData(check:()->Boolean){rule.waitUntil(15000){check()};settle()}
  @Before fun clean(){listOf("",".bak",".new").forEach {File(ctx.filesDir,"manual_call_lists.json$it").delete()}}
  private fun show(theme:String="daylight",font:Float=1f){
@@ -39,7 +47,7 @@ class CallListsUiTest {
   assertNull(rule.activity.state.confirmNumber)
   click("list_call_${e.id}");assertEquals(e.number,rule.activity.state.confirmNumber);assertFalse(CallLists.read(ctx).single().entries.single().done)
   click("list_done_${e.id}");awaitData{CallLists.read(ctx).single().entries.single().done}
-  click("list_filter_Done");rule.onNodeWithTag("list_entry_${e.id}",useUnmergedTree=true).performScrollTo().assertIsDisplayed()
+  click("list_filter_Done");reveal("list_entry_${e.id}",true).assertIsDisplayed()
   click("list_done_${e.id}");awaitData{!CallLists.read(ctx).single().entries.single().done}
   click("list_filter_Pending")
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
@@ -85,7 +93,7 @@ class CallListsUiTest {
   CallLists.add(ctx,id,"+91 98765 43210","Papa");CallLists.add(ctx,id,"+91 91234 56780","Mummy")
   show(theme,font);saveShot(rule,"269-lists-$suffix")
   click("list_open_$id");val e=CallLists.read(ctx).single().entries.first()
-  rule.onNodeWithTag("list_call_${e.id}").performScrollTo().assertIsDisplayed();rule.onNodeWithTag("list_done_${e.id}").assertIsDisplayed()
+  reveal("list_call_${e.id}").assertIsDisplayed();rule.onNodeWithTag("list_done_${e.id}").assertIsDisplayed()
   saveShot(rule,"269-list-detail-$suffix")
   click("list_contacts");saveShot(rule,"269-list-contacts-$suffix")
  }
