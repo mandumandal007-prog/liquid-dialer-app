@@ -60,7 +60,7 @@ class DialSaveContactUiTest {
         rule.runOnUiThread { rule.activity.state.dial="9876543210";rule.activity.state.tab="dialer" };settle()
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).assertIsDisplayed()
         for(tag in listOf("dial_save_contact","dial_pause","dial_meet","call_btn")) rule.onNodeWithTag(tag,useUnmergedTree=true).assertIsDisplayed()
-        for((tag,text) in listOf("dial_save_contact" to "Contact save karo","dial_pause" to "+ Pause (,)","dial_meet" to "Meet call")) {
+        for((tag,text) in listOf("dial_save_contact" to "Contact save karo","dial_pause" to "+ Pause","dial_meet" to "Meet call")) {
             val button=rule.onNodeWithTag(tag,useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
             val label=rule.onNodeWithText(text,useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
             org.junit.Assert.assertTrue("$tag label contained at large font",label.left>=button.left && label.right<=button.right && label.top>=button.top && label.bottom<=button.bottom)
