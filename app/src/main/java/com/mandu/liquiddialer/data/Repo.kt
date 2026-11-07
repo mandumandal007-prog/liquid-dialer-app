@@ -92,6 +92,23 @@ object Repo {
         return out.filter { it.first.isNotBlank() }
     }
 
+    /** Number chooser needs only current phone rows, not email/photo/raw-contact details.
+     * Keep full international identities distinct and discard non-dialable blank identities. */
+    fun phoneChoices(ctx:Context,contactId:Long):List<Pair<String,Int>> {
+        val out=ArrayList<Pair<String,Int>>()
+        val seen=HashSet<String>()
+        ctx.contentResolver.query(CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(CommonDataKinds.Phone.NUMBER,CommonDataKinds.Phone.TYPE),
+            "${CommonDataKinds.Phone.CONTACT_ID}=?",arrayOf("$contactId"),null)?.use {c ->
+            while(c.moveToNext()) {
+                val n=c.getString(0) ?: continue
+                val identity=ContactControls.k(n)
+                if(identity.isNotEmpty() && seen.add(identity))out+=n to c.getInt(1)
+            }
+        }
+        return out
+    }
+
     data class ContactDetail(
         val id: Long, val rawId: Long, val lookupKey: String, val name: String,
         val phones: List<Pair<String, Int>>, val emails: List<String>, val starred: Boolean, val photo: String?,
