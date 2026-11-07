@@ -324,7 +324,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     try {
                         val result = try {
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                Repo.contactDetail(ncx, nc.first)?.phones.also { trace("io_done rows=${it?.size}") }
+                                Repo.phoneChoices(ncx, nc.first).also { trace("io_done rows=${it.size}") }
                             }
                         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
                         catch (e: Exception) { trace("caught ${e.javaClass.simpleName}"); null } ?: emptyList()
