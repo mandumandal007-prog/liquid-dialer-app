@@ -72,4 +72,27 @@ class CallListTransferTest {
   assertEquals(original,CallLists.read(ctx))
  }
 
+ @Test fun trailingContentRejectsPreviewAndImportWithoutChangingSavedBytes(){
+  val id=CallLists.create(ctx,"Keep").single().id;CallLists.add(ctx,id,"9876543210","Papa")
+  val original=CallLists.read(ctx);val text=CallListTransfer.backup(original)
+  val stored=File(ctx.filesDir,"manual_call_lists.json");val before=stored.readBytes()
+  assertEquals(original,CallListTransfer.preview(text+" \r\n\t"))
+  for(suffix in listOf("garbage","{}","[]","null","0","\u0000trailer")){
+   val invalid=text+suffix
+   var rejected=false;try{CallListTransfer.preview(invalid)}catch(_:Exception){rejected=true}
+   assertTrue("preview must reject trailing content: $suffix",rejected)
+   rejected=false;try{CallLists.importCopies(ctx,invalid)}catch(_:Exception){rejected=true}
+   assertTrue("import must reject trailing content: $suffix",rejected)
+   assertArrayEquals(before,stored.readBytes());assertEquals(original,CallLists.read(ctx))
+  }
+ }
+ @Test fun damagedSavedFileCannotBeRewrittenByMutation(){
+  val original=CallLists.create(ctx,"Keep");val id=original.single().id
+  val stored=File(ctx.filesDir,"manual_call_lists.json")
+  val damaged=stored.readText()+"{}";stored.writeText(damaged)
+  var rejected=false;try{CallLists.rename(ctx,id,"Changed")}catch(_:Exception){rejected=true}
+  assertTrue("mutation must not rewrite a partially parsed file",rejected)
+  assertEquals(damaged,stored.readText())
+ }
+
 }
