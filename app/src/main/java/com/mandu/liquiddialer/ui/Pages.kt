@@ -129,6 +129,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "notes" -> NotesPage(null, onBack)
         page.startsWith("notes:") -> NotesPage(page.removePrefix("notes:"), onBack)
         page == "historyexplorer" -> HistoryExplorerPage(st, act, onBack, onOpenNumber)
+        page == "visitingcard" -> VisitingCardPage(onBack)
         page == "fakecall" -> FakeCallPage(onBack)
         page == "reminders" -> ReminderCenterPage(onBack,onOpenNumber)
         page == "calllists" -> CallListsPage(st, act, onBack)
