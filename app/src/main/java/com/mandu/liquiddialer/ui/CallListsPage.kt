@@ -31,6 +31,15 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
     var error by remember {mutableStateOf("")}
     var notice by remember {mutableStateOf("")}
     var selected by remember {mutableStateOf<String?>(null)}
+    var sessionId by remember {mutableStateOf<String?>(null)}
+    var reportText by remember {mutableStateOf<String?>(null)}
+    val reportFile=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")){uri->
+        val text=reportText;reportText=null
+        if(uri!=null && text!=null){busy=true;scope.launch {
+            val ok=try{withContext(Dispatchers.IO){ctx.contentResolver.openOutputStream(uri,"wt")?.use {it.write(text.toByteArray(Charsets.UTF_8))} ?: error("No output")};true}catch(_:Exception){false}
+            busy=false;if(ok)notice="Progress report save hua" else error="Report save nahi hua; adhuri file ko use mat karo"
+        }}
+    }
     var mode by remember {mutableStateOf("")}
     var name by remember {mutableStateOf("")}
     var number by remember {mutableStateOf("")}
@@ -72,6 +81,11 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
         try {lists=withContext(Dispatchers.IO){CallLists.read(ctx)};loaded=true}
         catch(_:Exception){error="Saved lists khul nahi rahi. Data ko overwrite nahi kiya gaya."}
     }
+    if(current!=null && sessionId!=null) {
+        CallListSessionPage(current,sessionId!!,busy,error,onBack={sessionId=null;error=""},onCall={act.callUi(it)},
+            onSave={eid,outcome,note,after->update({CallLists.followUp(ctx,current.id,eid,outcome,note)},after)})
+        return
+    }
     fun back() {if(busy)return; when {mode.isNotEmpty()->{mode="";batchReview=null;importPreview=null;importText=null};selected!=null->selected=null;else->onBack()}}
     PageFrame(current?.title ?: "Call Lists",{back()}) {
         LdText("Apni calling lists banao, ek-ek karke khud call karo aur Done lagao. Call dabane se entry apne aap Done nahi hogi. Lists isi app mein save hoti hain.",12f,color=p.muted,maxLines=6)
@@ -106,7 +120,7 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
                 PrimaryButton("Rehne do",enabled=!busy){mode=""}
             }
             if(mode!="create") {
-                LdText("Apni JSON backup file mein naam, numbers aur Done progress honge. Private jagah save karo. App automatic cloud backup nahi banata.",12f,color=p.muted,maxLines=5,modifier=Modifier.padding(top=10.dp))
+                LdText("Apni JSON backup file mein naam, numbers, outcomes aur private notes honge. Private jagah save karo. App automatic cloud backup nahi banata.",12f,color=p.muted,maxLines=5,modifier=Modifier.padding(top=10.dp))
                 PrimaryButton("Backup file save karo",enabled=!busy && lists.isNotEmpty(),modifier=Modifier.testTag("lists_export")) {
                     try{exportText=CallListTransfer.backup(lists);exportFile.launch("call-lists-backup.json")}catch(_:Exception){error="Backup taiyar nahi hua. Koi saved list nahi badli."}
                 }
@@ -125,6 +139,21 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
             LdText("${current.entries.count {it.done}} / ${current.entries.size} Done",14f,FontWeight.Bold,modifier=Modifier.testTag("list_progress"))
             Spacer(Modifier.height(10.dp))
             if(mode.isEmpty()) {
+                GlassCard(Modifier.testTag("workspace_summary")) {
+                    LdText("Calling workspace",18f,FontWeight.Bold)
+                    LdText("Ek waqt par ek person. Outcome aur follow-up note save karo; agla call sirf tum lagate ho.",12f,color=p.muted,maxLines=5)
+                    val followups=current.entries.count {it.outcome in listOf("busy","no_answer","later")}
+                    LdText("${current.entries.count {!it.done}} Pending · $followups follow-ups",13f,FontWeight.SemiBold,p.accent,maxLines=3)
+                    PrimaryButton("Session chalu karo",enabled=!busy && current.entries.isNotEmpty(),modifier=Modifier.testTag("list_session")) {
+                        sessionId=(current.entries.firstOrNull {!it.done} ?: current.entries.first()).id
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    PrimaryButton("Progress report save karo",enabled=!busy && current.entries.isNotEmpty(),modifier=Modifier.testTag("list_report")) {
+                        reportText=CallListTransfer.report(current);reportFile.launch("call-list-progress.csv")
+                    }
+                    LdText("Report mein naam, numbers aur private notes honge. Sirf apni chuni jagah save hoga; kisi ko automatic nahi bhejega. CSV report backup/import file nahi hai. Numbers ko text rakhne aur formulas rokne ke liye kuch cells mein apostrophe lagega.",11.5f,color=p.muted,maxLines=6)
+                }
+                Spacer(Modifier.height(12.dp))
                 PrimaryButton("Number jodo",enabled=!busy,modifier=Modifier.testTag("list_add")){mode="manual";name="";number=""}
                 PrimaryButton("Numbers paste karo",enabled=!busy,modifier=Modifier.testTag("list_batch")){mode="batch";batchText="";batchReview=null}
                 PrimaryButton("Contacts se jodo",enabled=!busy,modifier=Modifier.testTag("list_contacts")){mode="contacts";query=""}
@@ -194,7 +223,9 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
                     GlassCard(Modifier.padding(top=10.dp).testTag("list_entry_${e.id}")) {
                         LdText(e.name.ifBlank {e.number},16f,FontWeight.Bold,maxLines=2)
                         if(e.name.isNotBlank()) LdText(e.number,12f,color=p.muted,maxLines=2)
-                        LdText(if(e.done) "Done (khud mark kiya)" else "Pending",12f,color=p.muted)
+                        LdText(CallLists.outcomes.getValue(e.outcome)+" · khud save kiya",12f,color=p.muted)
+                        if(e.note.isNotBlank())LdText(e.note,12f,color=p.muted,maxLines=3,modifier=Modifier.padding(top=6.dp))
+                        PrimaryButton("Outcome / note kholo",enabled=!busy,modifier=Modifier.testTag("list_workspace_${e.id}")){sessionId=e.id}
                         Row(Modifier.fillMaxWidth().padding(top=8.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                             PrimaryButton("Call karo",enabled=!busy,modifier=Modifier.weight(1f).testTag("list_call_${e.id}")){act.callUi(e.number)}
                             PrimaryButton(if(e.done) "Pending karo" else "Done karo",enabled=!busy,modifier=Modifier.weight(1f).testTag("list_done_${e.id}")){update({CallLists.done(ctx,id,e.id,!e.done)})}
