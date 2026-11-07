@@ -60,7 +60,7 @@ class CallListTransferTest {
   val id=CallLists.create(ctx,"Keep").single().id;CallLists.add(ctx,id,"9876543210","Papa")
   val original=CallLists.read(ctx);val root=org.json.JSONObject(CallListTransfer.backup(original))
   val list=root.getJSONArray("lists").getJSONObject(0);val e=list.getJSONArray("entries").getJSONObject(0)
-  val cases=listOf(root.toString().replace("\"version\":1","\"version\":\"1\""),
+  val cases=listOf(root.toString().replace("\"version\":2","\"version\":\"2\""),
     root.toString().replace("\"done\":false","\"done\":\"false\""),
     root.toString().replace("\"number\":\"9876543210\"","\"number\":9876543210"))
   for(text in cases){try{CallLists.importCopies(ctx,text);fail("Accepted wrong type")}catch(_:Exception){};assertEquals(original,CallLists.read(ctx))}
