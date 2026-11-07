@@ -231,8 +231,17 @@ class LuxuryShotTest {
     fun blockedDark() {
         boot("midnight")
         openDrawer()
-        rule.onNodeWithText("Blocked numbers", substring = true, useUnmergedTree = true).performClick()
+        // Drawer content is asynchronous and the target is below the fold.
+        // Wait for the actual target and scroll it into view before touching it.
+        rule.waitUntil(15000) {
+            rule.onAllNodesWithText("Blocked numbers", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Blocked numbers", substring = true, useUnmergedTree = true)
+            .performScrollTo().assertIsDisplayed().performClick()
         settle()
+        rule.onNodeWithTag("page_back", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithText("Blocked numbers", useUnmergedTree = true).assertIsDisplayed()
         saveShot(rule, "L8-blocked-dark")
     }
 
