@@ -7,6 +7,7 @@ import com.mandu.liquiddialer.data.K
 import com.mandu.liquiddialer.data.LdSettings
 import com.mandu.liquiddialer.data.ldStore
 import org.json.JSONObject
+import org.json.JSONTokener
 
 /**
  * Settings backup/restore - SIRF appearance/display settings ka chhota whitelist.
@@ -93,7 +94,13 @@ object SettingsBackup {
 
     fun parse(text: String): ParseResult {
         if (text.length > MAX_BYTES) return ParseResult.Err("file bahut badi hai")
-        val obj = try { JSONObject(text) } catch (e: Exception) { return ParseResult.Err("JSON file nahi hai") }
+        val obj = try {
+            require('\u0000' !in text)
+            val tokener = JSONTokener(text)
+            val root = tokener.nextValue() as? JSONObject ?: error("Not an object")
+            require(tokener.nextClean() == '\u0000')
+            root
+        } catch (e: Exception) { return ParseResult.Err("JSON file nahi hai") }
         if (obj.optString("app") != "liquid-dialer" || obj.optString("kind") != KIND)
             return ParseResult.Err("ye Liquid Dialer ka appearance settings backup nahi hai")
         val ver = obj.opt("version")
