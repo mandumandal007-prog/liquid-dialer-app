@@ -37,7 +37,7 @@ class CallWorkspaceUiTest {
         error("Not visible: $tag")
     }
     private fun click(tag:String){println("CLICK "+tag);reveal(tag).performClick();settle()}
-    private fun await(check:()->Boolean){rule.waitUntil(10000){check()};settle()}
+    private fun await(check:()->Boolean){rule.waitUntil(10000){settle();check()};settle()}
     @Before fun clean(){listOf("",".bak",".new").forEach {File(ctx.filesDir,"manual_call_lists.json$it").delete()}}
     private fun show(theme:String="daylight",font:Float=1f) {
         id=CallLists.create(ctx,"Weekend follow-ups").single().id
