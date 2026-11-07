@@ -305,7 +305,8 @@ class MainActivity : ComponentActivity() {
          *  silently substitute nahi - chooser (current choice) ya no-fill feedback. */
         internal fun revalidateFill(carried: String, phones: List<Pair<String, Boolean>>): FillReval {
             if (phones.isEmpty()) return FillReval.Gone
-            return if (phones.any { Repo.key(it.first) == Repo.key(carried) }) FillReval.Fill(carried) else FillReval.Choose
+            val identity = ContactControls.k(carried)
+            return if (identity.isNotEmpty() && phones.any { ContactControls.k(it.first) == identity }) FillReval.Fill(carried) else FillReval.Choose
         }
 
         internal fun routeIntent(i: Intent): IntentRoute {
