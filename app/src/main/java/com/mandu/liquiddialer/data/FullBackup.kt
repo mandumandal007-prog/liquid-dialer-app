@@ -161,9 +161,9 @@ object FullBackup {
                 val newId = after.last().id
                 l.entries.forEach { e ->
                     CallLists.add(ctx, newId, e.number, e.name)
-                    if (e.done) {
+                    if (e.outcome!="pending" || e.note.isNotEmpty() || e.updatedAt>0) {
                         val cur = CallLists.read(ctx).first { it.id == newId }
-                        cur.entries.lastOrNull()?.let { CallLists.done(ctx, newId, it.id, true) }
+                        cur.entries.lastOrNull()?.let { CallLists.followUp(ctx, newId, it.id, e.outcome, e.note, e.updatedAt) }
                     }
                 }
                 existing += l.title.trim().lowercase(); listsAdded++
