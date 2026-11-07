@@ -1009,7 +1009,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                             else st.dial += k
                         }
                     }
-                }, maxKey = minOf(natKey, keyByW).dp, letters = s.keypadLetters, rowGap = 5.dp, tag = "dial_keypad")
+                }, maxKey = minOf(natKey, keyByW).dp, letters = s.keypadLetters, rowGap = 5.dp, tag = "dial_keypad", layout = s.dialerLayout)
             }
             Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(60.dp).buttonGlass(p,CircleShape).combinedClickable(onLongClick = { st.dial = "" }) { st.dial = st.dial.dropLast(1) },
