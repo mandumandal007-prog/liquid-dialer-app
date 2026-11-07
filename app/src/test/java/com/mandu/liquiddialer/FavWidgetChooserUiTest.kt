@@ -261,4 +261,40 @@ class FavWidgetChooserUiTest {
         settle()
         assertNull(rule.activity.state.numberChoiceRequest)
     }
+
+    @Test fun refreshResetsCompositionBeforeNewProviderRead() {
+        settle(2500)
+        openChooser()
+        fakeProvider.phones = listOf("+91 90000 33333" to 2)
+        blockValidation = true
+        val loadingBeforeRead = java.util.concurrent.atomic.AtomicBoolean(false)
+        // Robolectric can execute provider calls on its SDK Main Thread. Observe the already
+        // committed composition trace off-thread, then release the provider instead of blocking UI queries.
+        val observer = Thread {
+            if (validationStarted.await(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                val composed = org.robolectric.shadows.ShadowLog.getLogsForTag("ChooserLoad")
+                    .lastOrNull { it.msg.contains("composed rows=") }?.msg.orEmpty()
+                loadingBeforeRead.set(composed.contains("composed rows=null"))
+            }
+            validationRelease.countDown()
+        }
+        observer.start()
+        try {
+            rule.runOnUiThread { rule.activity.state.numberChoiceNonce++ }
+            settle()
+            observer.join(6000)
+            org.junit.Assert.assertFalse("provider observer completed", observer.isAlive)
+            org.junit.Assert.assertTrue("refresh starts with no old rows in composition", loadingBeforeRead.get())
+            awaitNodes("chooser_num", 1)
+            rule.onNodeWithText("+91 90000 33333", useUnmergedTree = true).assertExists()
+            rule.onNodeWithText("+91 90000 11111", useUnmergedTree = true).assertDoesNotExist()
+            rule.onNodeWithText("+91 90000 22222", useUnmergedTree = true).assertDoesNotExist()
+            rule.onNodeWithTag("chooser_loading", useUnmergedTree = true).assertDoesNotExist()
+            assertEquals("refresh cannot fill", "", rule.activity.state.dial)
+            rule.onNodeWithTag("chooser_cancel", useUnmergedTree = true).performClick()
+            settle()
+            assertNull(rule.activity.state.numberChoiceRequest)
+            assertNull(rule.activity.state.pendingCall)
+        } finally { validationRelease.countDown(); observer.join(6000) }
+    }
 }
