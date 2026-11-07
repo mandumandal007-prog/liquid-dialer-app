@@ -69,14 +69,16 @@ class FavWidgetChooserUiTest {
     private val queryTrace = java.util.concurrent.CopyOnWriteArrayList<String>()
     internal val fakeProvider = object : FakeDetailProvider() {
         override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
-            if (blockValidation && uri == ContactsContract.CommonDataKinds.Phone.CONTENT_URI) {
+            // Block only the original contact. A replacement chooser must be free to load.
+            val blockedRead = blockValidation && uri == ContactsContract.CommonDataKinds.Phone.CONTENT_URI && selectionArgs?.firstOrNull() == "11"
+            if (blockedRead) {
                 validationStarted.countDown()
                 check(validationRelease.await(10, java.util.concurrent.TimeUnit.SECONDS)) { "validation release timed out" }
             }
             queryTrace.add("start ${uri.path} ids=${selectionArgs?.toList()} thread=${Thread.currentThread().name}")
             return super.query(uri, projection, selection, selectionArgs, sortOrder).also {
                 queryTrace.add("done ${uri.path} rows=${it?.count} at=${System.currentTimeMillis() % 1000000}")
-                if (blockValidation) validationDone.countDown()
+                if (blockedRead) validationDone.countDown()
             }
         }
     }
