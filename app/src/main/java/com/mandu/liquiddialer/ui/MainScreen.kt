@@ -360,7 +360,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                                     LdApp.instance.scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                         val stillValid = try {
                                             androidx.core.content.ContextCompat.checkSelfPermission(ncx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED &&
-                                                Repo.phonesOf(ncx, cid).any { Repo.key(it.first) == Repo.key(numC) }
+                                                Repo.phonesOf(ncx, cid).any { ContactControls.k(it.first) == ContactControls.k(numC) && ContactControls.k(numC).isNotEmpty() }
                                         } catch (_: Exception) { false }
                                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                             if (st.numberChoiceRequest !== nc || st.numberChoiceNonce != requestNonce) return@withContext
