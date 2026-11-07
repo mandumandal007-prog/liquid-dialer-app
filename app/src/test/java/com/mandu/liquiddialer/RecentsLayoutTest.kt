@@ -73,6 +73,7 @@ class RecentsLayoutTest {
         rule.onNodeWithTag("dial_toolbar",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("voice_mic",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("dial_menu",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithContentDescription("Dialer menu",useUnmergedTree=true).assertExists()
         rule.onNodeWithTag("dial_number_panel",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).assertExists()
         rule.onNodeWithTag("dial_pause",useUnmergedTree=true).assertExists()
@@ -96,6 +97,24 @@ class RecentsLayoutTest {
     }
     @Test fun dialerDayLayoutKeepsActions(){dialer("daylight",false,"L3-dialer-day")}
     @Test fun dialerNightLargeLayoutKeepsActions(){dialer("midnight",true,"L4-dialer-night-large")}
+
+    @Test fun contactsTypographyAndAddAction() {
+        ready("midnight",true)
+        Shadows.shadowOf(ctx).grantPermissions(Manifest.permission.READ_CONTACTS)
+        rule.runOnUiThread {
+            rule.activity.state.contacts=listOf(
+                Contact(11,"lk11","Rahul Kumar Sharma","","+91 98765 43210","MOBILE",false,null),
+                Contact(12,"lk12","Priya Verma","","+44 12345 67890","WORK",false,null))
+            rule.activity.state.tab="contacts"
+        };settle()
+        rule.onNodeWithText("Rahul Kumar Sharma",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("contacts_add",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithContentDescription("Add contact",useUnmergedTree=true).assertExists()
+        saveShot(rule,"C5-contacts-night-large")
+        rule.onNodeWithTag("contacts_add",useUnmergedTree=true).performClick();settle()
+        rule.onNodeWithText("Naya contact",useUnmergedTree=true).assertExists()
+        assertEquals("opening add must not create a contact",2,rule.activity.state.contacts.size)
+    }
 
     @Test fun clearStillRequiresConfirmation(){
         ready("daylight",false)
