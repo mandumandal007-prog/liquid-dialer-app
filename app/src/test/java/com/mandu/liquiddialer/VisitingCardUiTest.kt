@@ -64,17 +64,22 @@ class VisitingCardUiTest {
     }
     @Test fun savePickerSnapshotPngCancelAndFailure(){
         show("daylight",false,true)
-        fun clickExport(){rule.onNodeWithTag("card_export").performScrollTo().performClick();settle()}
+        fun clickExport(){
+            rule.waitUntil(15000){rule.onAllNodesWithTag("card_export").fetchSemanticsNodes().singleOrNull()?.config?.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)==false}
+            rule.onNodeWithTag("card_export").performScrollTo().assertIsEnabled().performClick();settle()
+        }
         fun deliver(uri:android.net.Uri,result:Int=android.app.Activity.RESULT_OK){
             val shadow=org.robolectric.Shadows.shadowOf(rule.activity)
             val started=shadow.nextStartedActivityForResult
+            assertNotNull("Explicit export opens Android save picker",started)
             assertEquals(android.content.Intent.ACTION_CREATE_DOCUMENT,started.intent.action)
             assertEquals("image/png",started.intent.type)
             rule.runOnUiThread{shadow.receiveResult(started.intent,result,android.content.Intent().setData(uri))};settle()
         }
         val file=java.io.File(ctx.cacheDir,"card-test.png");file.delete()
         clickExport();deliver(android.net.Uri.fromFile(file))
-        rule.waitUntil(15000){file.exists() && file.length()>1000};settle()
+        rule.waitUntil(15000){file.exists() && file.length()>1000}
+        rule.waitUntil(15000){rule.onAllNodesWithText("PNG save ho gaya. Kisi ko bheja nahi gaya.",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
         val bmp=android.graphics.BitmapFactory.decodeFile(file.path);assertEquals(1200,bmp.width);assertEquals(720,bmp.height);bmp.recycle()
         clickExport();val cancel=java.io.File(ctx.cacheDir,"card-cancel.png");cancel.delete();deliver(android.net.Uri.fromFile(cancel),android.app.Activity.RESULT_CANCELED);assertFalse(cancel.exists())
         clickExport();deliver(android.net.Uri.parse("content://not.available/card.png"));settle()
