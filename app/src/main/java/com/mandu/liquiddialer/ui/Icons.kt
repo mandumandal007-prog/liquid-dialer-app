@@ -69,8 +69,8 @@ object LdIcons {
     val Share: ImageVector by lazy { build("share", *PARTS.getValue("share")) }
 
     // ---- Icon style packs (user setting, appearance backup ke saath save/restore) ----
-    // 0=Default, 1=Patli, 2=Moti, 3=Flat, 4=Flat patli, 5=Flat moti. Sirf stroke glyphs badalte hain; filled glyphs same.
-    val ICON_STYLES = listOf("Default", "Patli", "Moti", "Flat", "Flat patli", "Flat moti")
+    // 0..5 retain old stroke presets; 6/7 add outline/duotone treatment to filled glyphs.
+    val ICON_STYLES = listOf("Default", "Patli", "Moti", "Flat", "Flat patli", "Flat moti", "Outline", "Duotone")
     private val STROKE_MULT = floatArrayOf(1f, .65f, 1.5f, 1f, .65f, 1.5f)
 
     private val PARTS: Map<String, Array<Triple<String, Boolean, Float>>> = mapOf(
@@ -178,14 +178,18 @@ object LdIcons {
     private val styleCache = HashMap<Pair<String, Int>, ImageVector>()
 
     private fun buildStyled(name: String, style: Int): ImageVector {
-        val flat = style >= 3
-        val mult = STROKE_MULT[style]
+        val flat = style in 3..5
+        val mult = STROKE_MULT.getOrElse(style) { 1f }
         val cap = if (flat) StrokeCap.Butt else StrokeCap.Round
         val join = if (flat) StrokeJoin.Miter else StrokeJoin.Round
         val b = ImageVector.Builder(name + "-s" + style, 24.dp, 24.dp, 24f, 24f)
         for ((d, fill, sw) in PARTS.getValue(name)) {
             val nodes = PathParser().parsePathString(d).toNodes()
-            if (fill) b.addPath(nodes, fill = SolidColor(Color.Black))
+            if (fill && style >= 6) b.addPath(nodes,
+                fill = if (style == 7) SolidColor(Color.Black) else null,
+                fillAlpha = .22f, stroke = SolidColor(Color.Black), strokeLineWidth = 1.25f,
+                strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round)
+            else if (fill) b.addPath(nodes, fill = SolidColor(Color.Black))
             else b.addPath(nodes, stroke = SolidColor(Color.Black), strokeLineWidth = sw * mult, strokeLineCap = cap, strokeLineJoin = join)
         }
         return b.build()
@@ -193,7 +197,7 @@ object LdIcons {
 
     /** Diye gaye public icon ka styled variant (style 0 ya unknown icon pe original hi). */
     fun styled(icon: ImageVector, style: Int): ImageVector {
-        if (style <= 0) return icon
+        if (style !in 1 until ICON_STYLES.size) return icon
         val name = NAMES[icon] ?: return icon
         return styleCache.getOrPut(name to style) { buildStyled(name, style) }
     }
