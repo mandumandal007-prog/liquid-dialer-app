@@ -41,6 +41,13 @@ data class CallCardStyle(
     val restyle: (LdPalette) -> LdPalette = { it },
 )
 
+private fun lightCard(base:LdPalette,top:Color,bottom:Color,accent:Color)=base.copy(
+    bg=bottom,bg2=top,text=Color(0xFF182038),muted=Color(0xFF4A5268),
+    glass=Color(0x88FFFFFF),glass2=Color(0xBBFFFFFF),stroke=Color(0x99FFFFFF),
+    accent=accent,accent2=Color(0xFF9E5BC0),isLight=true,glassFrost=1,glassDepth=1)
+
+val REFERENCE_CALL_KEYS=listOf("filigree","cyber","jadegold","pearl","pastel","aurorapanel")
+
 /** Forced-dark card: text tokens hamesha readable (light theme pe bhi dark bg ke saath clash nahi). */
 private fun darkCard(base: LdPalette, bg: Color, bg2: Color, accent: Color, accent2: Color): LdPalette =
     base.copy(bg = bg, bg2 = bg2, text = Color(0xFFEEF3FF), muted = Color(0x99E6EEFF),
@@ -49,6 +56,18 @@ private fun darkCard(base: LdPalette, bg: Color, bg2: Color, accent: Color, acce
 
 val CALL_STYLES: List<CallCardStyle> = listOf(
     CallCardStyle("glass", "Liquid Glass", "Apna pehchan wala 3D glass look - default", BtnKind.GLASS),
+    CallCardStyle("filigree", "Black Gold", "Patli gold frame aur warm glass controls", BtnKind.OUTLINE, bgMode="force",
+        bgTop=Color(0xFF211D18),bgBottom=Color(0xFF100F10),restyle={darkCard(it,Color(0xFF100F10),Color(0xFF211D18),Color(0xFFE5C579),Color(0xFFB38A46))}),
+    CallCardStyle("cyber", "Cyber Neon", "Violet-cyan circuit frame, saaf bright outlines", BtnKind.OUTLINE,bgMode="force",
+        bgTop=Color(0xFF22103E),bgBottom=Color(0xFF090D26),restyle={darkCard(it,Color(0xFF090D26),Color(0xFF22103E),Color(0xFF77E8FF),Color(0xFFD485FF))}),
+    CallCardStyle("jadegold", "Emerald Gold", "Gehra emerald, gold arcs aur glass controls", BtnKind.OUTLINE,bgMode="force",
+        bgTop=Color(0xFF103E32),bgBottom=Color(0xFF062119),restyle={darkCard(it,Color(0xFF062119),Color(0xFF103E32),Color(0xFFE3C58E),Color(0xFFB99964))}),
+    CallCardStyle("pearl", "Pearl Light", "Soft lavender-white, clean circular controls", BtnKind.GLASS,bgMode="light",
+        bgTop=Color(0xFFF1F0FF),bgBottom=Color(0xFFDDE5FB),restyle={lightCard(it,Color(0xFFF1F0FF),Color(0xFFDDE5FB),Color(0xFF5752A2))}),
+    CallCardStyle("pastel", "Pastel Prism", "Pink, mint aur lilac ka soft offline gradient", BtnKind.GLASS,bgMode="light",
+        bgTop=Color(0xFFFFE8F3),bgBottom=Color(0xFFDEF2EF),restyle={lightCard(it,Color(0xFFFFE8F3),Color(0xFFDEF2F2),Color(0xFF66519B))}),
+    CallCardStyle("aurorapanel", "Aurora Glass", "Cyan-violet lights ke upar frosted glass panel", BtnKind.GLASS,bgMode="force",
+        bgTop=Color(0xFF262044),bgBottom=Color(0xFF081D35),restyle={darkCard(it,Color(0xFF081D35),Color(0xFF262044),Color(0xFFA3EDFF),Color(0xFFCCA0FF))}),
     CallCardStyle("google", "Google jaisa", "Saaf flat gol buttons, simple plain background", BtnKind.FLAT, bgMode = "flat"),
     CallCardStyle("odialer", "ODialer jaisa", "Soft squircle buttons, halka rang bhara fill", BtnKind.SQUIRCLE),
     CallCardStyle("oneplus", "OnePlus jaisa", "Halka outline gol buttons, minimal look", BtnKind.OUTLINE),
@@ -162,12 +181,13 @@ private fun CardStylePreview(style: CallCardStyle) {
     val base = LocalLd.current
     val sp = style.restyle(base)
     val bgBrush = when (style.bgMode) {
-        "force" -> Brush.verticalGradient(listOf(style.bgTop ?: sp.bg2, style.bgBottom ?: sp.bg))
+        "force", "light" -> Brush.verticalGradient(listOf(style.bgTop ?: sp.bg2, style.bgBottom ?: sp.bg))
         else -> Brush.verticalGradient(listOf(sp.bg2, sp.bg))
     }
     CompositionLocalProvider(LocalLd provides sp, LocalCallStyle provides style) {
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(bgBrush)
-            .padding(vertical = 14.dp).testTag("card_style_preview"), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(bgBrush)) {
+        CallStyleDecoration(style,Modifier.matchParentSize())
+        Column(Modifier.fillMaxWidth().padding(vertical = 14.dp).testTag("card_style_preview"), horizontalAlignment = Alignment.CenterHorizontally) {
             Avatar("Asha Verma", null, 54.dp, 17f, seed = "style-preview")
             LdText("Asha Verma", 15f, FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
             LdText("00:42", 13f, FontWeight.SemiBold, sp.muted, modifier = Modifier.padding(bottom = 12.dp))
@@ -178,6 +198,7 @@ private fun CardStylePreview(style: CallCardStyle) {
             }
             Spacer(Modifier.height(12.dp))
             EndCallBtn(52.dp) {}
+        }
         }
     }
 }
@@ -217,7 +238,7 @@ private fun StylePickRow(title: String, desc: String, selected: Boolean, tag: St
     }
 }
 
-/** Style Studio: 11 calling-card styles + 11 recents styles, live preview ke saath. */
+/** Calling-screen and Recents choices are independent; no default reset. */
 @Composable
 fun StyleStudioPage(onBack: () -> Unit) {
     val p = LocalLd.current
