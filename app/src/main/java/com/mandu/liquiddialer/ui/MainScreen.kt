@@ -144,20 +144,20 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 Row((if (barBottom) Modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = if (imeUp) 8.dp else 90.dp)
                     else Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)).testTag("top_bar"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.size(42.dp).buttonGlass(p,CircleShape).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu) }
-                    Row(Modifier.weight(1f).height(46.dp).liquid(RoundedCornerShape(18.dp), 8.dp).padding(horizontal = 12.dp),
+                    Box(Modifier.size(42.dp).buttonGlass(p,CircleShape).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
+                    Row(Modifier.weight(1f).height(48.dp).liquid(RoundedCornerShape(20.dp), 8.dp).padding(start = 12.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        LdIcon(LdIcons.Search, 18.dp, p.muted)
+                        LdIcon(LdIcons.Search, 20.dp, p.muted)
                         Box(Modifier.weight(1f)) {
-                            if (query.isEmpty()) LdText("Search contacts or numbers", 14f, color = p.muted)
-                            BasicTextField(query, { query = it }, Modifier.fillMaxWidth(), singleLine = true,
+                            if (query.isEmpty()) LdText("Khojo", 14f, color = p.muted)
+                            BasicTextField(query, { query = it }, Modifier.fillMaxWidth().semantics { contentDescription = trNow("Search contacts or numbers") }, singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
-                        Box(Modifier.size(30.dp).buttonGlass(p,CircleShape).testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
-                            LdIcon(LdIcons.Mic, 19.dp, if (searchVoice.ui.listening) p.accent else p.muted)
+                        Box(Modifier.size(40.dp).clip(CircleShape).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                            LdIcon(LdIcons.Mic, 22.dp, if (searchVoice.ui.listening) p.accent else p.muted)
                         }
-                        if (query.isNotEmpty()) Box(Modifier.size(26.dp).buttonGlass(p,CircleShape).clickable { query = "" },
-                            contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 13.dp) }
+                        if (query.isNotEmpty()) Box(Modifier.size(36.dp).clip(CircleShape).semantics { contentDescription = "Clear search" }.testTag("search_clear").clickable { query = "" },
+                            contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 20.dp, p.muted) }
                     }
                     val pn = s.profileName.ifBlank { "You" }
                     Box(Modifier.size(44.dp).buttonGlass(p,CircleShape,p.accent)
@@ -523,7 +523,7 @@ private fun CallBanner(call: Call, bannerTopPad: androidx.compose.ui.unit.Dp, on
 @Composable
 fun SectionHead(title: String, right: @Composable () -> Unit = {}) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        LdText(title, 19f, FontWeight.Bold, letter = -.2f); right()
+        LdText(title, 18f, FontWeight.SemiBold, letter = -.2f); right()
     }
 }
 
@@ -656,7 +656,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LdText("Recent calls", 17f, FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 2)
+                    LdText("Recent calls", 17f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2)
                     if (st.recents.isNotEmpty()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(Modifier.heightIn(min = 44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
@@ -684,7 +684,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                             .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(14.dp))
                             .clickable { filter = i }.padding(horizontal = 7.dp, vertical = 9.dp)
                             .testTag("recent_filter_$i"), contentAlignment = Alignment.Center) {
-                            LdText(label, 12f, FontWeight.SemiBold, if (on) p.text else p.muted)
+                            LdText(label, 12f, FontWeight.Medium, if (on) p.text else p.muted)
                         }
                     }
                 }
@@ -879,7 +879,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
                     if (dups.isNotEmpty()) Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onShowDups() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("dups_open")) {
                         LdText("${dups.size} dup", 12.5f, FontWeight.SemiBold, p.accent)
                     }
-                    Box(Modifier.size(32.dp).buttonGlass(p,CircleShape).clickable { onAdd() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Plus, 16.dp, p.accent) }
+                    Box(Modifier.size(44.dp).buttonGlass(p,CircleShape).semantics { contentDescription = "Add contact" }.testTag("contacts_add").clickable { onAdd() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Plus, 22.dp, p.accent) }
                 }
             }
         }
@@ -892,12 +892,11 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
                 Avatar(c.name, c.photo, size = 42.dp, fontSize = 14f, seed = c.name)
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        LdText(display, 14.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f, false))
+                        LdText(display, 14.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f, false), maxLines = 2)
                         if (c.starred) LdIcon(LdIcons.StarFill, 13.dp, Color(0xFFF5C542))
                     }
-                    Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                        LdText(c.label, 11.5f, color = p.muted); LdText("·", 11.5f, color = p.muted.copy(alpha = .5f)); LdText(Repo.pretty(c.number), 11.5f, color = p.muted)
-                    }
+                    LdText(listOf(c.label, Repo.pretty(c.number)).filter { it.isNotBlank() }.joinToString(" · "),
+                        11.5f, color = p.muted, modifier = Modifier.padding(top = 3.dp), maxLines = 2)
                 }
                 CallMini { act.call(c.number) }
             }
@@ -959,17 +958,17 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         Column(Modifier.fillMaxWidth()) {
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("dial_toolbar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
-                Row(Modifier.glass(p,RoundedCornerShape(999.dp),0.dp).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp).buttonGlass(p,CircleShape).testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
-                    LdIcon(LdIcons.Mic, 21.dp, if (voice.ui.listening) p.accent else p.muted)
+                Row(Modifier.glass(p,RoundedCornerShape(999.dp),0.dp).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                    LdIcon(LdIcons.Mic, 22.dp, if (voice.ui.listening) p.accent else p.muted)
                 }
-                Box(Modifier.size(40.dp).buttonGlass(p,CircleShape).testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 21.dp, p.muted) }
+                Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Dialer menu" }.testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 22.dp, p.muted) }
             }
             }
             Box(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(20.dp),0.dp).testTag("dial_number_panel").padding(horizontal = 8.dp, vertical = 8.dp).heightIn(min = 64.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
-                LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.SemiBold, letter = 2f, maxLines = 1,
+                LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.Medium, letter = 1f, maxLines = 1,
                     modifier = Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
                 Spacer(Modifier.height(3.dp))
                 if (suggest.isNotEmpty() && nameMatch == null) {
