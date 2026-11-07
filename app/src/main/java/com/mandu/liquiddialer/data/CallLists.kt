@@ -9,7 +9,9 @@ import java.util.UUID
 
 /** Private manual checklist, never a call queue. A call attempt does not change progress. */
 object CallLists {
-    data class Entry(val id:String, val number:String, val name:String, val done:Boolean=false)
+    data class Entry(val id:String, val number:String, val name:String, val done:Boolean=false,
+        val outcome:String=if(done) "done" else "pending", val note:String="", val updatedAt:Long=0)
+    val outcomes = linkedMapOf("pending" to "Pending", "done" to "Done", "no_answer" to "No answer", "busy" to "Busy", "later" to "Call later")
     data class ListItem(val id:String, val title:String, val entries:List<Entry> = emptyList())
     private const val MAX_LISTS=20
     private const val MAX_ENTRIES=200
@@ -31,7 +33,7 @@ object CallLists {
     }
     internal fun decode(text:String):List<ListItem> {
         require(text.toByteArray().size<=1024*1024) {"Saved lists bahut badi hain"}
-        val root=JSONObject(text);require(root.get("version") is Int && root.getInt("version")==1)
+        val root=JSONObject(text);require(root.get("version") is Int && root.getInt("version") in 1..2)
         val a=root.getJSONArray("lists");require(a.length()<=MAX_LISTS)
         val ids=HashSet<String>()
         return (0 until a.length()).map { i ->
@@ -42,7 +44,15 @@ object CallLists {
                 val e=es.getJSONObject(j);require(e.get("id") is String && e.get("number") is String && e.get("name") is String);val eid=e.getString("id");val n=number(e.getString("number"));val name=e.getString("name")
                 require(eid.isNotBlank() && eids.add(eid) && nums.add(ContactControls.k(n)) && name.length<=100)
                 require(e.get("done") is Boolean)
-                Entry(eid,n,name,e.getBoolean("done"))
+                val done=e.getBoolean("done")
+                val v=root.getInt("version")
+                val outcome=if(v==1) {if(done) "done" else "pending"} else {
+                    require(e.get("outcome") is String);e.getString("outcome")
+                }
+                val note=if(v==1) "" else {require(e.get("note") is String);e.getString("note")}
+                val at=if(v==1) 0L else {require(e.get("updatedAt") is Long || e.get("updatedAt") is Int);e.getLong("updatedAt")}
+                require(outcome in outcomes && done==(outcome=="done") && note.length<=2000 && at>=0)
+                Entry(eid,n,name,done,outcome,note,at)
             })
         }
     }
@@ -62,10 +72,10 @@ object CallLists {
     internal fun encode(lists:List<ListItem>):String {
         val a=JSONArray()
         lists.forEach { l ->
-            val es=JSONArray();l.entries.forEach {e -> es.put(JSONObject().put("id",e.id).put("number",e.number).put("name",e.name).put("done",e.done)) }
+            val es=JSONArray();l.entries.forEach {e -> es.put(JSONObject().put("id",e.id).put("number",e.number).put("name",e.name).put("done",e.done).put("outcome",e.outcome).put("note",e.note).put("updatedAt",e.updatedAt)) }
             a.put(JSONObject().put("id",l.id).put("title",l.title).put("entries",es))
         }
-        return JSONObject().put("version",1).put("lists",a).toString()
+        return JSONObject().put("version",2).put("lists",a).toString()
     }
     @Synchronized fun create(ctx:Context,name:String):List<ListItem> {
         val xs=read(ctx);require(xs.size<MAX_LISTS) {"Abhi 20 lists ki limit hai"}
@@ -83,7 +93,15 @@ object CallLists {
         l.copy(entries=l.entries+Entry(UUID.randomUUID().toString(),num,name.trim()))
     }
     @Synchronized fun done(ctx:Context,id:String,eid:String,done:Boolean)=change(ctx,id){l ->
-        require(l.entries.any {it.id==eid});l.copy(entries=l.entries.map {if(it.id==eid) it.copy(done=done) else it})
+        require(l.entries.any {it.id==eid});l.copy(entries=l.entries.map {if(it.id==eid) it.copy(done=done,outcome=if(done) "done" else "pending",updatedAt=System.currentTimeMillis()) else it})
+    }
+    /** Explicit user-entered outcome only. Calling, opening, or moving through a session never writes. */
+    @Synchronized fun followUp(ctx:Context,id:String,eid:String,outcome:String,note:String,updatedAt:Long=System.currentTimeMillis())=change(ctx,id){l ->
+        require(outcome in outcomes) {"Sahi outcome chuno"}
+        require(updatedAt>=0)
+        require(note.length<=2000) {"Note 2,000 letters tak rakho"}
+        require(l.entries.any {it.id==eid}) {"Entry ab nahi mili; list dobara kholo"}
+        l.copy(entries=l.entries.map {if(it.id==eid) it.copy(done=outcome=="done",outcome=outcome,note=note,updatedAt=updatedAt) else it})
     }
     @Synchronized fun remove(ctx:Context,id:String,eid:String)=change(ctx,id){l ->
         require(l.entries.any {it.id==eid});l.copy(entries=l.entries.filterNot {it.id==eid})
