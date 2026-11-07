@@ -140,23 +140,26 @@ fun playTone(k: String) {
 
 /** .keypad grid of .key glass circles */
 @Composable
-fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null, keyDp: Dp? = null, letters: Boolean = true, rowGap: Dp? = null, tag: String? = null) {
+fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: Boolean = false, maxKey: Dp? = null, keyDp: Dp? = null, letters: Boolean = true, rowGap: Dp? = null, tag: String? = null, layout: Int = 0) {
     val p = LocalLd.current
     val w = LocalConfiguration.current.screenWidthDp
     val keySize = (keyDp?.value ?: (w * (if (small) .15f else .19f)).coerceIn(if (small) 44f else 54f, if (small) 62f else 92f)).let { k -> maxKey?.let { minOf(k, it.value) } ?: k }.dp
+    val style = layout.coerceIn(0, 2)
+    val keyWidth = if (style == 2) keySize * 1.28f else keySize
+    val keyShape = if (style == 1) RoundedCornerShape(18.dp) else if (style == 2) RoundedCornerShape(999.dp) else CircleShape
     val gap = (keySize.value * .16f).coerceIn(7f, 14f).dp
     val haptic = LocalHapticFeedback.current
     val tapHaptic = com.mandu.liquiddialer.LdApp.settings.collectAsState().value.hapticKeys
     Column(Modifier.widthIn(max = 400.dp).then(if (tag != null) Modifier.testTag(tag) else Modifier), verticalArrangement = Arrangement.spacedBy(rowGap ?: gap)) {
         KEY_DEFS.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(gap * 2.1f)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(if (style == 2) gap else gap * 2.1f)) {
                 row.forEach { (d, sub) ->
                     var pressed by remember { mutableStateOf(false) }
                     val sc by animateFloatAsState(if (pressed) .93f else 1f, tween(120), label = "k")
-                    Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(keySize)
-                        .then(if(LocalCallGlass.current) Modifier.callGlass(p,CircleShape) else Modifier.buttonGlass(p, CircleShape))
-                        .premiumRing(p, CircleShape)
-                        .background(if (pressed) p.accent.copy(alpha=.18f) else Color.Transparent,CircleShape)
+                    Box(Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.width(keyWidth).height(keySize).testTag("key_" + d)
+                        .then(if(LocalCallGlass.current) Modifier.callGlass(p,keyShape) else Modifier.buttonGlass(p, keyShape))
+                        .premiumRing(p, keyShape)
+                        .background(if (pressed) p.accent.copy(alpha=.18f) else Color.Transparent,keyShape)
                         .pointerInput(d) {
                             detectTapGestures(
                                 onPress = { pressed = true; tryAwaitRelease(); pressed = false },
