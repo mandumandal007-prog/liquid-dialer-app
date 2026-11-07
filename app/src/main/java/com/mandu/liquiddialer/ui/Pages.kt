@@ -629,6 +629,8 @@ private fun AppearancePage(onBack: () -> Unit) {
             }
             SwitchRow("Text bold karo", "Poori app me moti likhai", s.boldText, last = true) { save(K.boldText, it) }
         }
+        SecTitle("Dialer layout")
+        DialerLayoutChoices(s.dialerLayout) { save(K.dialerLayout, it) }
         SecTitle("Icon style")
         GlassCard {
             LdIcons.ICON_STYLES.chunked(3).forEach { rowItems ->
