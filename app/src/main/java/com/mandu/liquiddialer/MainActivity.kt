@@ -97,19 +97,20 @@ class MainActivity : ComponentActivity() {
         reload()
     }
 
+    private val providerReload = Runnable { reload() }
+
     private val observer = object : ContentObserver(handler) {
-        override fun onChange(selfChange: Boolean) { reload() }
+        override fun onChange(selfChange: Boolean) {
+            // Contacts/call-log writes often notify several times. Collapse only that burst.
+            handler.removeCallbacks(providerReload)
+            handler.postDelayed(providerReload, 180)
+        }
     }
 
     // SIM badli/add/nikli -> cached SIM list turant refresh, taaki dispatch stale handle na pakde
     private val subListener = object : android.telephony.SubscriptionManager.OnSubscriptionsChangedListener() {
         override fun onSubscriptionsChanged() {
-            lifecycleScope.launch {
-                if (has(Manifest.permission.READ_PHONE_STATE)) {
-                    val sims = withContext(Dispatchers.IO) { Repo.sims(this@MainActivity) }
-                    state.sims = sims
-                }
-            }
+            lifecycleScope.launch { simReload.request() }
         }
     }
 
@@ -185,6 +186,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacks(providerReload)
         try { contentResolver.unregisterContentObserver(observer) } catch (_: Exception) { }
         try { getSystemService(android.telephony.SubscriptionManager::class.java).removeOnSubscriptionsChangedListener(subListener) } catch (_: Exception) { }
         super.onDestroy()
@@ -244,42 +246,42 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { (application as LdApp).repo.set(K.onboarded, true) }
     }
 
-    // Cada reload ganha uma geracao: um reload ANTIGO (observers/onResume em sequencia)
-    // nunca sobrescreve o estado publicado pelo mais novo.
-    private var reloadGen = 0
+    // Source-local queues: a slow contacts query cannot hold up a newer Recents refresh.
+    private val recentReload: ReloadQueue by lazy { ReloadQueue(lifecycleScope) { gen ->
+        var failed = false
+        val rows = withContext(Dispatchers.IO) {
+            if (!has(Manifest.permission.READ_CALL_LOG)) emptyList() else try {
+                Repo.recents(this@MainActivity, LdApp.settings.value.recentLimit, strict = true)
+            } catch(e: kotlinx.coroutines.CancellationException) { throw e }
+            catch(e: Exception) { failed=true; emptyList() }
+        }
+        publishRecentLoad(state, rows, failed, gen, recentReload.generation)
+    } }
+    private val contactReload: ReloadQueue by lazy { ReloadQueue(lifecycleScope) { gen ->
+        val rows = withContext(Dispatchers.IO) {
+            if(has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity,LdApp.settings.value.sortByLast) else emptyList()
+        }
+        if(gen==contactReload.generation) state.contacts=rows
+    } }
+    private val blockedReload: ReloadQueue by lazy { ReloadQueue(lifecycleScope) { gen ->
+        val rows = withContext(Dispatchers.IO) { if(state.isDefault) Repo.blocked(this@MainActivity) else emptyList() }
+        if(gen==blockedReload.generation) state.blocked=rows
+    } }
+    private val simReload: ReloadQueue by lazy { ReloadQueue(lifecycleScope) { gen ->
+        val rows = withContext(Dispatchers.IO) { if(has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList() }
+        if(gen==simReload.generation) state.sims=rows
+    } }
 
     fun reload() {
-        val gen = ++reloadGen
-        lifecycleScope.launch {
-            // contacts permission revoke hote hi purani birthday state turant saaf (private data retain NAHI), chahe user kisi bhi tab pe ho
-            if (!has(Manifest.permission.READ_CONTACTS) && state.birthdays?.isNotEmpty() == true) state.birthdays = emptyList()
-            val s = LdApp.settings.value
-            var recentsFailure = false // Owned by this reload; published only after its awaited IO completes.
-            loadStartupSources(
-                contacts = { if (has(Manifest.permission.READ_CONTACTS)) Repo.contacts(this@MainActivity, s.sortByLast) else emptyList() },
-                recents = {
-                    if (has(Manifest.permission.READ_CALL_LOG)) {
-                        try {
-                            Repo.recents(this@MainActivity, s.recentLimit, strict = true)
-                        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
-                        catch (e: Exception) {
-                            recentsFailure = true
-                            emptyList()
-                        }
-                    } else emptyList()
-                },
-                blocked = { if (state.isDefault) Repo.blocked(this@MainActivity) else emptyList() },
-                sims = { if (has(Manifest.permission.READ_PHONE_STATE)) Repo.sims(this@MainActivity) else emptyList() },
-                publishRecents = { r -> publishRecentLoad(state, r, recentsFailure, gen, reloadGen) },
-                publishRest = { c, b, sims ->
-                    if (gen == reloadGen) {
-                        state.contacts = c; state.blocked = b; state.sims = sims
-                    }
-                },
-            )
+        if(!has(Manifest.permission.READ_CONTACTS)) {
+            state.contacts=emptyList()
+            if(state.birthdays?.isNotEmpty()==true) state.birthdays=emptyList()
         }
+        if(!has(Manifest.permission.READ_CALL_LOG)) { state.recents=emptyList();state.recentsError=false;state.recentsLoaded=true }
+        if(!has(Manifest.permission.READ_PHONE_STATE)) state.sims=emptyList()
+        if(!state.isDefault) state.blocked=emptyList()
+        recentReload.request();contactReload.request();blockedReload.request();simReload.request()
     }
-
 
     /** Intent -> kya karna hai (pure, seedha unit-testable). fill SIRF dialer me number bharta hai;
      *  call sirf ACTION_CALL/CALLBACK par - widget intents kabhi call produce nahi karte. */
