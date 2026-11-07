@@ -1,0 +1,108 @@
+package com.mandu.liquiddialer
+
+import android.Manifest
+import android.provider.CallLog
+import androidx.compose.ui.test.*
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.datastore.preferences.core.edit
+import androidx.test.core.app.ApplicationProvider
+import com.mandu.liquiddialer.data.*
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk=[34], qualifiers="w360dp-h800dp-xhdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+class RecentsLayoutTest {
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
+    private val ctx get() = ApplicationProvider.getApplicationContext<LdApp>()
+    private fun settle() { rule.mainClock.autoAdvance=false; rule.mainClock.advanceTimeBy(1500);rule.waitForIdle() }
+    @Before fun seed() = runBlocking {
+        ctx.ldStore.edit { p ->
+            p[K.onboarded]=true;p[K.theme]="daylight";p[K.showFavourites]=false
+            p[K.showTodayStats]=true;p[K.groupByDay]=true
+        }
+        Unit
+    }
+    private fun ready(theme:String, large:Boolean) {
+        settle()
+        runBlocking {ctx.ldStore.edit {it[K.theme]=theme;it[K.fontScale]=if(large)1.3f else 1f}}
+        Shadows.shadowOf(ctx).grantPermissions(Manifest.permission.READ_CALL_LOG)
+        rule.runOnUiThread {
+            rule.activity.state.showOnboarding=false
+            rule.activity.state.isDefault=true
+            rule.activity.state.contacts=emptyList()
+            val now=System.currentTimeMillis()
+            rule.activity.state.recents=listOf(
+                Recent(1,"+91 98765 43210","Rahul Sharma",CallLog.Calls.OUTGOING_TYPE,now-60_000,245,null,null),
+                Recent(2,"+91 91234 56789","Papa",CallLog.Calls.MISSED_TYPE,now-120_000,0,null,null),
+                Recent(3,"+91 90000 00003","Priya Verma",CallLog.Calls.INCOMING_TYPE,now-180_000,120,null,null)
+            )
+        }
+        settle()
+    }
+    private fun controls() {
+        rule.onNodeWithTag("recent_controls",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("insights_open",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("recent_clear",useUnmergedTree=true).assertIsDisplayed()
+        val filters=rule.onNodeWithTag("recent_filters",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+        val stats=rule.onNodeWithTag("today_stats",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+        assertTrue("filters stay above optional summary strips",filters.bottom<=stats.top)
+        for(i in 0..3) rule.onNodeWithTag("recent_filter_$i",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("recent_filter_1",useUnmergedTree=true).performClick();settle()
+        rule.onNodeWithText("Papa",useUnmergedTree=true).assertExists()
+        rule.onNodeWithText("Rahul Sharma",useUnmergedTree=true).assertDoesNotExist()
+        rule.onNodeWithTag("recent_filter_0",useUnmergedTree=true).performClick();settle()
+        rule.onNodeWithText("Rahul Sharma",useUnmergedTree=true).assertExists()
+    }
+    @Test fun dayLayoutAndFilters(){ready("daylight",false);controls();saveShot(rule,"L1-recents-day")}
+    @Test fun nightLargeLayoutAndFilters(){ready("midnight",true);controls();saveShot(rule,"L2-recents-night-large")}
+    private fun dialer(theme:String,large:Boolean,shot:String) {
+        ready(theme,large)
+        rule.onNodeWithTag("dialer_fab",useUnmergedTree=true).performClick();settle()
+        rule.runOnUiThread {rule.activity.state.dial="9876543210"};settle()
+        rule.onNodeWithTag("dial_toolbar",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("voice_mic",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("dial_menu",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("dial_number_panel",useUnmergedTree=true).assertIsDisplayed()
+        rule.onNodeWithTag("dial_save_contact",useUnmergedTree=true).assertExists()
+        rule.onNodeWithTag("dial_pause",useUnmergedTree=true).assertExists()
+        rule.onNodeWithTag("dial_meet",useUnmergedTree=true).assertExists()
+        saveShot(rule,shot)
+        // Long number and a known contact name are separate visual edge cases.
+        rule.runOnUiThread {rule.activity.state.dial="+441234567890123"};settle()
+        saveShot(rule,shot+"-long")
+        rule.runOnUiThread {
+            rule.activity.state.contacts=listOf(Contact(11,"lk","Rahul Kumar Sharma","","+91 98765 43210","MOBILE",false,null))
+            rule.activity.state.dial="9876543210"
+        };settle()
+        rule.onNodeWithText("Rahul Kumar Sharma",useUnmergedTree=true).assertIsDisplayed()
+        saveShot(rule,shot+"-named")
+        rule.runOnUiThread {rule.activity.state.contacts=emptyList()};settle()
+        rule.onNodeWithTag("dial_pause",useUnmergedTree=true).performClick();settle()
+        assertEquals("9876543210,",rule.activity.state.dial)
+        rule.onNodeWithTag("dial_menu",useUnmergedTree=true).performClick();settle()
+        rule.onNodeWithTag("dial_menu_popup",useUnmergedTree=true).assertExists()
+        assertNull("layout actions must not start a call",rule.activity.state.pendingCall)
+    }
+    @Test fun dialerDayLayoutKeepsActions(){dialer("daylight",false,"L3-dialer-day")}
+    @Test fun dialerNightLargeLayoutKeepsActions(){dialer("midnight",true,"L4-dialer-night-large")}
+
+    @Test fun clearStillRequiresConfirmation(){
+        ready("daylight",false)
+        rule.onNodeWithTag("recent_clear",useUnmergedTree=true).performClick();settle()
+        rule.onNodeWithText("Saari call history delete karein?",substring=true,useUnmergedTree=true).assertExists()
+        assertEquals("opening confirmation cannot delete history",3,rule.activity.state.recents.size)
+        rule.onNodeWithText("Rehne do",substring=true,useUnmergedTree=true).performClick();settle()
+        assertEquals(3,rule.activity.state.recents.size)
+    }
+}
