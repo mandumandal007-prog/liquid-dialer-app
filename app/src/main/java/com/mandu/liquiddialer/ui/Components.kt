@@ -166,7 +166,7 @@ fun Keypad(onKey: (String) -> Unit, onLong: ((String) -> Unit)? = null, small: B
                         }, contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
                             LdText(d, if (small) 22f else keySize.value * .40f, FontWeight.Medium)
-                            if (letters && sub.isNotEmpty()) LdText(sub, if (small) 8.5f else 9.5f, FontWeight.Bold, p.muted, letter = 1.6f)
+                            if (letters && sub.isNotEmpty()) LdText(sub, if (small) 8.5f else 9.5f, FontWeight.Medium, p.muted, letter = 1.2f)
                         }
                     }
                 }
