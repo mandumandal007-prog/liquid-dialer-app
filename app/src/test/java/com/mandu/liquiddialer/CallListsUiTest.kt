@@ -37,7 +37,8 @@ class CallListsUiTest {
   runBlocking{ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
   rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
+  // Background file read publishes into a frozen Compose clock. Pump composition while waiting.
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
  }
  @Test fun createAddCallManuallyDoneResumeRenameAndDelete() {
   show();click("lists_create");rule.onNodeWithTag("list_title").performTextInput("Family");click("list_save")
