@@ -122,7 +122,10 @@ class CallScreenshotTest {
         org.robolectric.RuntimeEnvironment.setFontScale(1.25f)
         try {
             settle(2000)
-            activeCall()
+            // This fixture covers badge-strip + tight hero layout, so report real HD capability.
+            CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_ACTIVE,
+                System.currentTimeMillis() - 75_000, props = Call.Details.PROPERTY_HIGH_DEF_AUDIO))
+            CallManager.bump()
             settle(2500)
 
             // badge strip upar (HD VOICE + manage) aur timer se upar hona chahiye
