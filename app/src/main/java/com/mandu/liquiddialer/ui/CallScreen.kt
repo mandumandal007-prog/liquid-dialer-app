@@ -119,7 +119,7 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
             }
             BtnKind.FLAT -> base.flatDisc(p, CircleShape, on, p.accent)
             BtnKind.SQUIRCLE -> base.flatDisc(p, RoundedCornerShape(size * .30f), on, p.accent)
-            BtnKind.OUTLINE -> base.outlineDisc(p, CircleShape, on, p.accent)
+            BtnKind.OUTLINE -> base.outlineDisc(p, CircleShape, on, p.accent).then(if(sty.key in REFERENCE_CALL_KEYS && !on) Modifier.border(1.dp,p.accent.copy(alpha=.65f),CircleShape) else Modifier)
         }
         Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
             LdIcon(icon, size * .38f, when (sty.btnKind) {
@@ -183,14 +183,15 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
         val cardStyle0 = callStyleFor(s.callCardStyle)
         val effBg0 = when {
             customPhoto != null -> "photo"
-            cardStyle0.bgMode == "force" -> "force"
+            cardStyle0.bgMode in listOf("force","light") -> "force"
             cardStyle0.bgMode == "flat" -> "solid"
             else -> s.callBgStyle
         }
         CallBackground(Modifier.haze(haze), effBg0, customPhoto ?: call?.let { CallManager.photoFor(it) }, custom = customPhoto != null, forceTop = cardStyle0.bgTop, forceBottom = cardStyle0.bgBottom)
         val basePalette = LocalLd.current
-        val photoSurface = customPhoto != null || s.callBgStyle=="photo"
-        val callPalette = cardStyle0.restyle(if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette)
+        val photoSurface = effBg0 == "photo"
+        if(!photoSurface)CallStyleDecoration(cardStyle0,Modifier.fillMaxSize())
+        val callPalette = if(photoSurface && cardStyle0.bgMode=="light") basePalette.copy(text=Color.White,muted=Color.White.copy(alpha=.82f),accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else cardStyle0.restyle(if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette)
         CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette, LocalCallStyle provides cardStyle0) {
             if (call == null) {
                 CallEndedScreen(lastEnded)
@@ -284,7 +285,7 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit, onVid
                     }
                 }
             }
-            SimChip("HD", p.ok, live = true)
+            if(call.details?.hasProperty(Call.Details.PROPERTY_HIGH_DEF_AUDIO)==true) SimChip("HD", p.ok, live = true)
         }
     }
 }
@@ -325,7 +326,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Box(Modifier.testTag("hero_avatar").padding(3.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
+        }) { Box(Modifier.testTag("hero_avatar").then(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)Modifier.border(1.5.dp,Brush.sweepGradient(listOf(p.accent,p.accent2,p.accent)),aShape) else Modifier).padding(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)6.dp else 3.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
         Spacer(Modifier.height(2.dp * k))
         LdText(name, nameF * k, FontWeight.Bold, letter = -.3f, maxLines = nameLines, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp).testTag("call_name"))
         if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .3f)
@@ -438,7 +439,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val speaker = audio?.route == CallAudioState.ROUTE_SPEAKER
     val bt = audio?.route == CallAudioState.ROUTE_BLUETOOTH
     val badges = buildList {
-        add("HD VOICE" to p.ok)
+        if(call.details?.hasProperty(Call.Details.PROPERTY_HIGH_DEF_AUDIO)==true) add("HD VOICE" to p.ok)
         if (vs != VideoProfile.STATE_AUDIO_ONLY && !videoStage) add("VIDEO" to p.accent)
         if (rec != null) add("REC ${fmtDur((now - rec.started) / 1000)}" to p.danger)
         if (muted) add("MUTED" to p.muted)
