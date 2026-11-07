@@ -309,7 +309,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
             }
             // ===== widget favorite: multi-number chooser - selection SIRF dialer fill karta hai (kabhi call nahi); cancel/dismiss no-op =====
             val nc = st.numberChoiceRequest
-            if (nc != null) key(nc.first) {
+            if (nc != null) key(nc.first, st.numberChoiceNonce) {
                 val requestNonce = st.numberChoiceNonce
                 val ncx = LocalContext.current
                 val chooserInstance = remember(nc.first, st.numberChoiceNonce) { Any() }
@@ -326,7 +326,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                 Repo.contactDetail(ncx, nc.first)?.phones.also { trace("io_done rows=${it?.size}") }
                             }
-                        } catch (e: Exception) { trace("caught ${e.javaClass.simpleName}"); null } ?: emptyList()
+                        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                        catch (e: Exception) { trace("caught ${e.javaClass.simpleName}"); null } ?: emptyList()
                         trace("resumed active=${kotlinx.coroutines.currentCoroutineContext().isActive}")
                         value = result
                         trace("assigned rows=${result.size} readback=${value?.size} thread=${Thread.currentThread().name} snapshot=${androidx.compose.runtime.snapshots.Snapshot.current.id}")
