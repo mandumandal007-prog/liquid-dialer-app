@@ -36,7 +36,7 @@ class CallTightShotTest {
         CallManager.audio.value = CallAudioState(false, CallAudioState.ROUTE_EARPIECE,
             CallAudioState.ROUTE_EARPIECE or CallAudioState.ROUTE_SPEAKER)
         CallManager.calls.value = listOf(FakeCall.make("+91 98765 43210", "Rahul Sharma", Call.STATE_ACTIVE,
-            System.currentTimeMillis() - 75_000))
+            System.currentTimeMillis() - 75_000, props = Call.Details.PROPERTY_HIGH_DEF_AUDIO))
         CallManager.bump()
         Unit
     }
