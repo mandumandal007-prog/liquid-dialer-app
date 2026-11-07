@@ -167,6 +167,19 @@ class FavWidgetTest {
         }
     }
 
+    @Test fun fillValidationPreservesFullNumberIdentity() {
+        assertEquals(MainActivity.FillReval.Choose,
+            MainActivity.revalidateFill("+91 90000 11111", listOf("+44 90000 11111" to false)))
+        assertEquals(MainActivity.FillReval.Choose,
+            MainActivity.revalidateFill("", listOf("" to false)))
+        assertEquals(MainActivity.FillReval.Choose,
+            MainActivity.revalidateFill("123#", listOf("123" to false)))
+        assertEquals(MainActivity.FillReval.Fill("+44 90000 11111"),
+            MainActivity.revalidateFill("+44 90000 11111", listOf("0044 90000 11111" to false)))
+        assertEquals(MainActivity.FillReval.Fill("09876500000"),
+            MainActivity.revalidateFill("09876500000", listOf("+91 98765 00000" to false)))
+    }
+
     @Test fun revalidateFillRules() {
         // Same number ab bhi hai (format thoda alag ho tab bhi, key-normalized) -> wahi fill
         assertEquals(MainActivity.FillReval.Fill("+91 98765 00000"),
