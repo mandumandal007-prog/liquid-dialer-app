@@ -225,6 +225,21 @@ class FavWidgetChooserUiTest {
         assertNull(act.state.pendingCall)
     }
 
+    @Test fun changedCountryCodeWithSameSuffixCannotFillStaleNumber() {
+        settle(2500)
+        openChooser()
+        // Same ten national digits, different explicit country code: this is a different number.
+        fakeProvider.phones = listOf("+44 90000 11111" to 2)
+        rule.onNodeWithText("+91 90000 11111", useUnmergedTree = true).performClick()
+        awaitNodes("chooser_num", 1)
+        assertEquals("different country cannot validate stale choice", "", rule.activity.state.dial)
+        assertNull(rule.activity.state.pendingCall)
+        rule.onNodeWithText("+44 90000 11111", useUnmergedTree = true).assertExists().performClick()
+        awaitNodes("chooser_num", 0)
+        assertEquals("+44 90000 11111", rule.activity.state.dial)
+        assertNull(rule.activity.state.pendingCall)
+    }
+
     @Test fun clickTimeRevalidationAfterPermissionRevoked() {
         settle(2500)
         openChooser()
