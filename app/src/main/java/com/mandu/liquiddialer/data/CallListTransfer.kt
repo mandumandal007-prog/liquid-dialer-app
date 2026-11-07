@@ -25,6 +25,16 @@ object CallListTransfer {
     }
     fun backup(lists:List<CallLists.ListItem>):String=CallLists.encode(lists).also {CallLists.decode(it)}
     fun preview(text:String):List<CallLists.ListItem> = CallLists.decode(text).also {require(it.isNotEmpty()) {"Backup mein koi list nahi hai"}}
+    /** Private user-saved report. Quote every cell and neutralize spreadsheet formula prefixes. */
+    fun report(list:CallLists.ListItem):String {
+        fun cell(value:String):String {
+            val safe=if(value.trimStart().firstOrNull() in listOf('=','+','-','@','\t','\r','\n')) "'"+value else value
+            return "\""+safe.replace("\"","\"\"")+"\""
+        }
+        val rows=listOf(listOf("List","Name","Number","Outcome","Follow-up note","Updated (epoch ms)"))+
+            list.entries.map {listOf(list.title,it.name,"'"+it.number,CallLists.outcomes.getValue(it.outcome),it.note,if(it.updatedAt==0L) "" else it.updatedAt.toString())}
+        return rows.joinToString("\r\n",postfix="\r\n") {it.joinToString(",",transform=::cell)}
+    }
     fun read(input:InputStream):String {
         val out=java.io.ByteArrayOutputStream();val bytes=ByteArray(8192)
         while(true){val n=input.read(bytes);if(n<0)break;require(out.size()+n<=MAX_BYTES) {"Backup 1 MB se bada hai"};out.write(bytes,0,n)}
