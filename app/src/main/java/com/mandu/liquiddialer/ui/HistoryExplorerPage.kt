@@ -1,6 +1,7 @@
 package com.mandu.liquiddialer.ui
 
 import android.Manifest
+import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -52,6 +53,14 @@ import java.util.*
             finally {busy=false}
         }
     }
+    fun chooseDate(value:String,onChosen:(String)->Unit){
+        if(busy)return
+        val selected=Calendar.getInstance().apply {
+            runCatching {HistoryExplorer.dates(value,value).first}.getOrNull()?.let {timeInMillis=it}
+        }
+        DatePickerDialog(ctx,{_,year,month,day->onChosen(String.format(Locale.US,"%04d-%02d-%02d",year,month+1,day))},
+            selected.get(Calendar.YEAR),selected.get(Calendar.MONTH),selected.get(Calendar.DAY_OF_MONTH)).show()
+    }
     val shown=remember(rows,query){rows.filter {HistoryExplorer.matches(it,query)}}
     PageFrame("History Explorer",onBack) {
         LdText("Date, call type, SIM aur connected calls ek saath khojo. Phone ke call log se 100 records ek baar mein padhe jaate hain. Naam/number search sirf neeche load hue records par lagti hai.",12f,color=p.muted,maxLines=6)
@@ -72,6 +81,10 @@ import java.util.*
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(from,{if(!busy)from=it},label={Text("Se")},singleLine=true,modifier=Modifier.weight(1f).testTag("history_from"))
             OutlinedTextField(to,{if(!busy)to=it},label={Text("Tak")},singleLine=true,modifier=Modifier.weight(1f).testTag("history_to"))
+        }
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            PrimaryButton("Se: date chuno",enabled=!busy,modifier=Modifier.weight(1f).testTag("history_pick_from")){chooseDate(from){from=it}}
+            PrimaryButton("Tak: date chuno",enabled=!busy,modifier=Modifier.weight(1f).testTag("history_pick_to")){chooseDate(to){to=it}}
         }
         LdText("Call type",12f,color=p.muted,modifier=Modifier.padding(top=10.dp))
         val types=listOf(0 to "Sab",1 to "Incoming",2 to "Outgoing",3 to "Missed",5 to "Rejected",6 to "Blocked")
