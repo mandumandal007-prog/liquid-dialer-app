@@ -8,7 +8,8 @@ class ContactSearch(contacts: List<Contact>) {
         private set
     private inner class Entry(val contact: Contact) {
         val name by lazy(LazyThreadSafetyMode.NONE) { contact.name.lowercase() }
-        val number by lazy(LazyThreadSafetyMode.NONE) { contact.number.filter { it.isDigit() } }
+        val altName by lazy(LazyThreadSafetyMode.NONE) { contact.altName.lowercase() }
+        val number by lazy(LazyThreadSafetyMode.NONE) { SearchQuery.digits(contact.number) }
         val t9 by lazy(LazyThreadSafetyMode.NONE) {
             t9Builds++
             val words=contact.name.split(" ","-",".").filter { it.isNotBlank() }
@@ -22,14 +23,12 @@ class ContactSearch(contacts: List<Contact>) {
         lastExamined=0
         if(limit<=0) return emptyList()
         if(query.isBlank()) return entries.asSequence().take(limit).map { it.contact }.toList()
-        val blank=query.isBlank()
         val q=query.trim().lowercase()
-        val digits=q.filter { it.isDigit() }
-        val numeric=digits.isNotEmpty() && digits.length==q.replace(" ","").replace("+","").length
+        val digits=SearchQuery.number(q)
         val out=ArrayList<Contact>()
         for(e in entries) {
             lastExamined++
-            if(blank || e.name.contains(q) || numeric && (e.number.contains(digits) || e.t9.let { t -> t.words.any { it.startsWith(digits) } || t.joined.contains(digits) || t.initials.startsWith(digits) })) {
+            if(e.name.contains(q) || e.altName.contains(q) || digits != null && (e.number.contains(digits) || e.t9.let { t -> t.words.any { it.startsWith(digits) } || t.joined.contains(digits) || t.initials.startsWith(digits) })) {
                 out+=e.contact
                 if(out.size==limit) break
             }
