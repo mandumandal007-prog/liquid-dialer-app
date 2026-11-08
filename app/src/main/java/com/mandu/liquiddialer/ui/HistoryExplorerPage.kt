@@ -22,9 +22,9 @@ import java.util.*
 @Composable fun HistoryExplorerPage(st:AppState,act:MainActivity,onBack:()->Unit,onOpenNumber:(String)->Unit) {
     val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope()
     val df=remember {SimpleDateFormat("yyyy-MM-dd",Locale.US)}
-    val initial=remember {Calendar.getInstance()}
-    var from by remember {mutableStateOf(df.format(initial.clone().let {it as Calendar}.apply {add(Calendar.DAY_OF_YEAR,-30)}.time))}
-    var to by remember {mutableStateOf(df.format(initial.time))}
+    val initial=remember {HistoryDateRange.recent(30)}
+    var from by remember {mutableStateOf(initial.from)}
+    var to by remember {mutableStateOf(initial.to)}
     var type by remember {mutableIntStateOf(0)}
     var sim by remember {mutableStateOf<String?>(null)}
     var connected by remember {mutableStateOf(false)}
@@ -59,6 +59,15 @@ import java.util.*
             EmptyState(LdIcons.Clock,"Call history ki permission chahiye","Explorer ko call log access do","Permission do"){act.askPermission(Manifest.permission.READ_CALL_LOG)}
             return@PageFrame
         }
+        LdText("Jaldi range chuno (aaj shamil hai)",12f,color=p.muted,modifier=Modifier.padding(top=12.dp))
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+            listOf(1 to "Aaj",7 to "7 din",30 to "30 din").forEach{(days,label)->
+                PrimaryButton(label,enabled=!busy,modifier=Modifier.weight(1f).testTag("history_range_$days")){
+                    val range=HistoryDateRange.recent(days);from=range.from;to=range.to
+                }
+            }
+        }
+        LdText("Range sirf dates bharti hai. Results ke liye Nayi khoj / Refresh dabao.",11.5f,color=p.muted,maxLines=3)
         LdText("Date format: YYYY-MM-DD",12f,color=p.muted,modifier=Modifier.padding(top=12.dp,bottom=12.dp))
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(from,{if(!busy)from=it},label={Text("Se")},singleLine=true,modifier=Modifier.weight(1f).testTag("history_from"))
@@ -79,6 +88,8 @@ import java.util.*
             val f=applied!!
             val end=Calendar.getInstance().apply {timeInMillis=f.end;add(Calendar.DAY_OF_YEAR,-1)}
             LdText("Results: ${df.format(Date(f.start))} se ${df.format(end.time)} · ${types.first {it.first==f.type}.second} · ${if(f.connected) "connected" else "sab durations"} · ${if(f.account==null) "sab SIM" else st.sims.firstOrNull {it.handle.id==f.account}?.label ?: "selected SIM"}",12f,color=p.muted,maxLines=5,modifier=Modifier.testTag("history_applied"))
+            val selected=runCatching {HistoryExplorer.dates(from,to).let {HistoryExplorer.Filter(it.first,it.second,type,sim,connected)}}.getOrNull()
+            if(selected!=f)LdText("Filters badle hain. Neeche purani khoj ke results hain; nayi range ke liye Nayi khoj / Refresh dabao.",12f,color=p.muted,maxLines=4,modifier=Modifier.testTag("history_pending"))
             OutlinedTextField(query,{query=it.take(100)},label={Text("Loaded records mein naam / digits")},singleLine=true,modifier=Modifier.fillMaxWidth().testTag("history_query"))
             LdText("${rows.size} records load hue · ${shown.size} matches",13f,FontWeight.Bold,modifier=Modifier.testTag("history_count"))
             if(next!=null) LdText("Aur records baaki hain. Purana call dhoondhne ke liye agle 100 load karo.",12f,color=p.muted,maxLines=3)
