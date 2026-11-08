@@ -142,10 +142,11 @@ fun MainScreen(st: AppState, act: MainActivity) {
             AnimatedVisibility(st.tab != "dialer", modifier = if (barBottom) Modifier.align(Alignment.BottomCenter) else Modifier,
                 enter = fadeIn() + slideInVertically { if (barBottom) it / 4 else -it / 4 }, exit = fadeOut() + slideOutVertically { if (barBottom) it / 4 else -it / 4 }) {
                 Row((if (barBottom) Modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = if (imeUp) 8.dp else 90.dp)
-                    else Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)).testTag("top_bar"),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Box(Modifier.size(42.dp).buttonGlass(p,CircleShape).testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
-                    Row(Modifier.weight(1f).height(48.dp).liquid(RoundedCornerShape(20.dp), 8.dp).padding(start = 12.dp, end = 4.dp),
+                    else Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)).testTag("top_bar")
+                        .liquid(RoundedCornerShape(28.dp), 8.dp).padding(4.dp),
+                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(Modifier.size(48.dp).clip(CircleShape).semantics { contentDescription = "Menu" }.testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
+                    Row(Modifier.weight(1f).height(48.dp).padding(start = 2.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LdIcon(LdIcons.Search, 20.dp, p.muted)
                         Box(Modifier.weight(1f)) {
@@ -153,14 +154,14 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             BasicTextField(query, { query = it }, Modifier.fillMaxWidth().semantics { contentDescription = trNow("Search contacts or numbers") }, singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
-                        Box(Modifier.size(40.dp).clip(CircleShape).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
                             LdIcon(LdIcons.Mic, 22.dp, if (searchVoice.ui.listening) p.accent else p.muted)
                         }
-                        if (query.isNotEmpty()) Box(Modifier.size(36.dp).clip(CircleShape).semantics { contentDescription = "Clear search" }.testTag("search_clear").clickable { query = "" },
+                        if (query.isNotEmpty()) Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Clear search" }.testTag("search_clear").clickable { query = "" },
                             contentAlignment = Alignment.Center) { LdIcon(LdIcons.X, 20.dp, p.muted) }
                     }
                     val pn = s.profileName.ifBlank { "You" }
-                    Box(Modifier.size(44.dp).buttonGlass(p,CircleShape,p.accent)
+                    Box(Modifier.size(44.dp).buttonGlass(p,CircleShape,p.accent).semantics { contentDescription = "Profile" }.testTag("profile_open")
                         .clickable { openPage("profile") }, contentAlignment = Alignment.Center) {
                         if (s.profilePhoto.isNotBlank()) Avatar(pn, s.profilePhoto, 44.dp, 15f, seed = "me")
                         else LdText(initials(pn), 15f, FontWeight.Bold, p.accent)
@@ -188,7 +189,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 }
             }
             // ===== bottom nav: rounded liquid frosted pill with sliding bubble =====
-            val navTabs = listOf(Triple("recents", "Recents", LdIcons.Clock), Triple("contacts", "Contacts", LdIcons.Users))
+            val navTabs = listOf(Triple("recents", "Recents", LdIcons.History), Triple("contacts", "Contacts", LdIcons.Contacts))
             Row(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(start = 18.dp, end = 18.dp, bottom = 12.dp).fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f).height(66.dp).testTag("bottom_bar")
@@ -215,7 +216,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     Row(Modifier.fillMaxSize()) {
                         navTabs.forEach { (k, label, ic) ->
                             val on = st.tab == k
-                            Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(999.dp))
+                            Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(999.dp)).testTag("nav_$k").semantics { contentDescription = label }
                                 .clickable(remember { MutableInteractionSource() }, null) { goTab(k) },
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                 Box {
@@ -649,15 +650,15 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     LdText("Recent calls", 17f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2)
                     if (st.recents.isNotEmpty()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Box(Modifier.heightIn(min = 44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
-                                .clickable { onInsights() }.padding(horizontal = 10.dp, vertical = 10.dp)
-                                .testTag("insights_open"), contentAlignment = Alignment.Center) {
-                                LdText("Hisab", 12.5f, FontWeight.SemiBold, p.accent)
+                            Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
+                                .semantics { contentDescription = "Hisab (call stats)" }
+                                .clickable { onInsights() }.testTag("insights_open"), contentAlignment = Alignment.Center) {
+                                LdIcon(LdIcons.Chart, 21.dp, p.accent)
                             }
-                            Box(Modifier.heightIn(min = 44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
-                                .clickable { onClear() }.padding(horizontal = 10.dp, vertical = 10.dp)
-                                .testTag("recent_clear"), contentAlignment = Alignment.Center) {
-                                LdText("Clear", 12.5f, FontWeight.SemiBold, p.muted)
+                            Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
+                                .semantics { contentDescription = "Clear call history" }
+                                .clickable { onClear() }.testTag("recent_clear"), contentAlignment = Alignment.Center) {
+                                LdIcon(LdIcons.Trash, 21.dp, p.muted)
                             }
                         }
                     }
@@ -669,7 +670,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     modifier = Modifier.fillMaxWidth().testTag("recent_filters")) {
                     chipLabels.forEachIndexed { i, label ->
                         val on = filter == i
-                        Box(Modifier.weight(1f).heightIn(min = 40.dp).clip(RoundedCornerShape(14.dp))
+                        Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(RoundedCornerShape(14.dp))
                             .background(if (on) p.accent.pct(.30f) else p.glass)
                             .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(14.dp))
                             .clickable { filter = i }.padding(horizontal = 7.dp, vertical = 9.dp)
