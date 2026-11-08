@@ -22,6 +22,9 @@ object CallNotifier {
     const val CH_ONGOING = "ongoing_calls"
     const val CH_MISSED = "missed_calls"
     const val CH_SUMMARY = "call_summary"
+    const val CH_ASSIST = "call_assist"
+    const val ID_MUTE_ASSIST = 8461
+    const val ID_ROUTE_ASSIST = 8462
     const val CH_BIRTHDAY = "birthdays"
     const val ID_CALL = 41
     const val ID_MISSED = 42
@@ -40,6 +43,10 @@ object CallNotifier {
         nm.createNotificationChannel(NotificationChannel(CH_MISSED, "Missed calls", NotificationManager.IMPORTANCE_DEFAULT))
         nm.createNotificationChannel(NotificationChannel(CH_SUMMARY, "Call summary", NotificationManager.IMPORTANCE_DEFAULT).apply {
             lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
+        })
+        nm.createNotificationChannel(NotificationChannel(CH_ASSIST,"Call-time help",NotificationManager.IMPORTANCE_DEFAULT).apply {
+            setSound(null,null);enableVibration(true);lockscreenVisibility=android.app.Notification.VISIBILITY_PRIVATE
+            description="Opt-in mute and call audio route notices. No automatic audio changes."
         })
         nm.createNotificationChannel(NotificationChannel(CH_BIRTHDAY, "Birthdays", NotificationManager.IMPORTANCE_DEFAULT).apply {
             lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
@@ -62,6 +69,24 @@ object CallNotifier {
                 .setSmallIcon(R.drawable.ic_stat_call).setContentTitle("Call khatam").build())
             .setContentIntent(open)
         try { NotificationManagerCompat.from(ctx).notify(ID_SUMMARY, b.build()) } catch (e: Exception) { }
+    }
+
+    /** Generic content only. Tap opens call controls, never changes microphone/audio. */
+    internal fun assist(ctx:Context,kind:CallAssistMonitor.Kind,route:Int=0) {
+        val id=if(kind==CallAssistMonitor.Kind.MUTE)ID_MUTE_ASSIST else ID_ROUTE_ASSIST
+        val title=if(kind==CallAssistMonitor.Kind.MUTE)"Mic abhi mute hai" else "Call audio badla"
+        val text=if(kind==CallAssistMonitor.Kind.MUTE)"30 sec se mute. Zaroorat ho to call screen par khud unmute karo." else
+            if(route==android.telecom.CallAudioState.ROUTE_SPEAKER)"Call audio ab speaker par hai. Call controls mein check karo." else "Call audio ab phone earpiece par hai. Call controls mein check karo."
+        val n=NotificationCompat.Builder(ctx,CH_ASSIST).setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle(title).setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(callActivityPi(ctx,req=id)).setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(NotificationCompat.Builder(ctx,CH_ASSIST).setSmallIcon(R.drawable.ic_stat_call).setContentTitle("Call-time help").build()).build()
+        try {NotificationManagerCompat.from(ctx).notify(id,n)}catch(_:Exception){}
+    }
+    internal fun cancelAssist(ctx:Context,kind:CallAssistMonitor.Kind?=null){
+        val nm=NotificationManagerCompat.from(ctx)
+        if(kind==null || kind==CallAssistMonitor.Kind.MUTE)nm.cancel(ID_MUTE_ASSIST)
+        if(kind==null || kind==CallAssistMonitor.Kind.ROUTE)nm.cancel(ID_ROUTE_ASSIST)
     }
 
     private fun flags() = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
