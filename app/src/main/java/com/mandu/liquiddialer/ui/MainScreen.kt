@@ -647,6 +647,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LdIcon(LdIcons.History, 20.dp, p.accent)
                     LdText("Recent calls", 17f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2)
                     if (st.recents.isNotEmpty()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -864,14 +865,22 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     Box(Modifier.fillMaxSize()) {
     LazyColumn(Modifier.fillMaxSize().testTag("main_list"), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = bottomPad), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item {
-            SectionHead("Contacts") {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LdText("${list.size}", 11.5f, FontWeight.Bold, p.muted, Modifier.clip(RoundedCornerShape(999.dp)).background(p.glass).border(1.dp, p.stroke, RoundedCornerShape(999.dp)).padding(horizontal = 10.dp, vertical = 4.dp))
-                    if (dups.isNotEmpty()) Box(Modifier.buttonGlass(p,RoundedCornerShape(12.dp)).clickable { onShowDups() }.padding(horizontal = 8.dp, vertical = 6.dp).testTag("dups_open")) {
-                        LdText("${dups.size} dup", 12.5f, FontWeight.SemiBold, p.accent)
-                    }
-                    Box(Modifier.size(44.dp).buttonGlass(p,CircleShape).semantics { contentDescription = "Add contact" }.testTag("contacts_add").clickable { onAdd() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Plus, 22.dp, p.accent) }
+            Row(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(22.dp),0.dp)
+                .padding(horizontal=12.dp,vertical=10.dp).testTag("contacts_controls"),
+                verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                LdIcon(LdIcons.Contacts,20.dp,p.accent)
+                LdText("Contacts",17f,FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2)
+                LdText("${list.size}",11.5f,FontWeight.Bold,p.muted,
+                    Modifier.clip(RoundedCornerShape(10.dp)).background(p.glass)
+                        .border(1.dp,p.stroke,RoundedCornerShape(10.dp)).padding(horizontal=8.dp,vertical=5.dp))
+                if (dups.isNotEmpty()) Box(Modifier.heightIn(min=44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
+                    .clickable { onShowDups() }.padding(horizontal=8.dp,vertical=6.dp).testTag("dups_open"),
+                    contentAlignment=Alignment.Center) {
+                    LdText("${dups.size} dup",12.5f,FontWeight.SemiBold,p.accent)
                 }
+                Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
+                    .semantics { contentDescription="Add contact" }.testTag("contacts_add").clickable { onAdd() },
+                    contentAlignment=Alignment.Center) { LdIcon(LdIcons.PersonPlus,22.dp,p.accent) }
             }
         }
         if (!hasPerm) item { EmptyState(LdIcons.Users, "Contacts ki permission chahiye", "Contacts dikhane ke liye permission do", "Permission do") { act.askPermissions() } }
