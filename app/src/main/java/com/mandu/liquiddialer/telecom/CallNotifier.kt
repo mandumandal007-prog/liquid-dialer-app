@@ -126,7 +126,7 @@ object CallNotifier {
     fun update(ctx: Context) {
         val nm = NotificationManagerCompat.from(ctx)
         val call = CallManager.primary()
-        if (call == null) { nm.cancel(ID_CALL); return }
+        if (call == null || CallManager.state(call) == Call.STATE_DISCONNECTED) { nm.cancel(ID_CALL); return }
         val name = CallManager.nameFor(ctx, call)
         val person = Person.Builder().setName(name).setImportant(true).build()
         val st = CallManager.state(call)
@@ -135,6 +135,8 @@ object CallNotifier {
             .setContentTitle(name)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setOngoing(true)
+            .setAutoCancel(false)
+            .setShowWhen(false)
             .setOnlyAlertOnce(st != Call.STATE_RINGING)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(callActivityPi(ctx))
@@ -158,6 +160,22 @@ object CallNotifier {
             b.setContentText(text)
             b.setLargeIcon(avatarBitmap(name, 0xFF5B8CFF.toInt()))
             if (st == Call.STATE_ACTIVE && connect > 0) b.setWhen(connect).setUsesChronometer(true).setShowWhen(true)
+            if (Build.VERSION.SDK_INT >= 31) {
+                // Native ongoing-call semantics keep CallStyle non-dismissible on Android 14+.
+                // The OS owns status-bar chip placement and channel visibility, not this app.
+                val native = android.app.Notification.Builder.recoverBuilder(ctx, b.build())
+                    .setStyle(android.app.Notification.CallStyle.forOngoingCall(
+                        android.app.Person.Builder().setName(name).setImportant(true).build(),
+                        receiverPi(ctx, CallActionReceiver.HANGUP, 3)))
+                    .addAction(android.app.Notification.Action.Builder(R.drawable.ic_notif_mute,
+                        if (CallManager.audio.value?.isMuted == true) "Unmute" else "Mute",
+                        receiverPi(ctx, CallActionReceiver.MUTE, 4)).build())
+                    .addAction(android.app.Notification.Action.Builder(R.drawable.ic_notif_speaker,
+                        if (CallManager.isSpeaker()) "Speaker off" else "Speaker",
+                        receiverPi(ctx, CallActionReceiver.SPEAKER, 5)).build())
+                try { nm.notify(ID_CALL, native.build()) } catch (_:Exception) { }
+                return
+            } else {
             // Icon bar: standard action buttons render as text chips only, and with
             // DecoratedCustomViewStyle any addAction would ALSO draw as duplicate text below,
             // so the bar is our own RemoteViews row (mute/speaker/red hangup icons) and no
@@ -190,6 +208,7 @@ object CallNotifier {
             b.setStyle(NotificationCompat.DecoratedCustomViewStyle())
             b.setCustomContentView(bar())
             b.setCustomBigContentView(bar())
+            }
         }
         try { nm.notify(ID_CALL, b.build()) } catch (e: Exception) { }
     }
