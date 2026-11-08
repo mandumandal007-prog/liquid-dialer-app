@@ -11,7 +11,7 @@ import java.util.UUID
 /** Private manual checklist, never a call queue. A call attempt does not change progress. */
 object CallLists {
     data class Entry(val id:String, val number:String, val name:String, val done:Boolean=false,
-        val outcome:String=if(done) "done" else "pending", val note:String="", val updatedAt:Long=0)
+        val outcome:String=if(done) "done" else "pending", val note:String="", val updatedAt:Long=0, val dueAt:Long=0)
     val outcomes = linkedMapOf("pending" to "Pending", "done" to "Done", "no_answer" to "No answer", "busy" to "Busy", "later" to "Call later")
     data class ListItem(val id:String, val title:String, val entries:List<Entry> = emptyList())
     private const val MAX_LISTS=20
@@ -40,7 +40,7 @@ object CallLists {
         val tokener=JSONTokener(text)
         val root=tokener.nextValue() as? JSONObject ?: error("Backup format sahi nahi hai")
         require(tokener.nextClean()=='\u0000') {"Backup format sahi nahi hai"}
-        require(root.get("version") is Int && root.getInt("version") in 1..2)
+        require(root.get("version") is Int && root.getInt("version") in 1..3)
         val a=root.getJSONArray("lists");require(a.length()<=MAX_LISTS)
         val ids=HashSet<String>()
         return (0 until a.length()).map { i ->
@@ -59,7 +59,9 @@ object CallLists {
                 val note=if(v==1) "" else {require(e.get("note") is String);e.getString("note")}
                 val at=if(v==1) 0L else {require(e.get("updatedAt") is Long || e.get("updatedAt") is Int);e.getLong("updatedAt")}
                 require(outcome in outcomes && done==(outcome=="done") && note.length<=2000 && at>=0)
-                Entry(eid,n,name,done,outcome,note,at)
+                val due=if(v<3) 0L else {require(e.get("dueAt") is Long || e.get("dueAt") is Int);e.getLong("dueAt")}
+                require(due>=0)
+                Entry(eid,n,name,done,outcome,note,at,due)
             })
         }
     }
@@ -79,10 +81,10 @@ object CallLists {
     internal fun encode(lists:List<ListItem>):String {
         val a=JSONArray()
         lists.forEach { l ->
-            val es=JSONArray();l.entries.forEach {e -> es.put(JSONObject().put("id",e.id).put("number",e.number).put("name",e.name).put("done",e.done).put("outcome",e.outcome).put("note",e.note).put("updatedAt",e.updatedAt)) }
+            val es=JSONArray();l.entries.forEach {e -> es.put(JSONObject().put("id",e.id).put("number",e.number).put("name",e.name).put("done",e.done).put("outcome",e.outcome).put("note",e.note).put("updatedAt",e.updatedAt).put("dueAt",e.dueAt)) }
             a.put(JSONObject().put("id",l.id).put("title",l.title).put("entries",es))
         }
-        return JSONObject().put("version",2).put("lists",a).toString()
+        return JSONObject().put("version",3).put("lists",a).toString()
     }
     @Synchronized fun create(ctx:Context,name:String):List<ListItem> {
         val xs=read(ctx);require(xs.size<MAX_LISTS) {"Abhi 20 lists ki limit hai"}
@@ -109,6 +111,12 @@ object CallLists {
         require(note.length<=2000) {"Note 2,000 letters tak rakho"}
         require(l.entries.any {it.id==eid}) {"Entry ab nahi mili; list dobara kholo"}
         l.copy(entries=l.entries.map {if(it.id==eid) it.copy(done=outcome=="done",outcome=outcome,note=note,updatedAt=updatedAt) else it})
+    }
+    /** Due date is a plan only. No alarm, call, outcome or note changes. Zero removes the date. */
+    @Synchronized fun schedule(ctx:Context,id:String,eid:String,dueAt:Long)=change(ctx,id){l ->
+        require(dueAt>=0) {"Sahi date/time chuno"}
+        require(l.entries.any {it.id==eid}) {"Entry ab nahi mili; list dobara kholo"}
+        l.copy(entries=l.entries.map {if(it.id==eid) it.copy(dueAt=dueAt) else it})
     }
     @Synchronized fun remove(ctx:Context,id:String,eid:String)=change(ctx,id){l ->
         require(l.entries.any {it.id==eid});l.copy(entries=l.entries.filterNot {it.id==eid})
