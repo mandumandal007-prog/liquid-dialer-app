@@ -30,15 +30,27 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class ContactControlsSheetShotTest {
 
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    // Keep frame/recomposition work on the test scheduler when settings emit from Default.
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
     private val num = "+91 98765 43210"
 
     private fun settle(ms: Long = 900) {
         rule.mainClock.autoAdvance = false
         rule.mainClock.advanceTimeBy(ms)
         rule.waitForIdle()
+    }
+
+    // Animated semantic scrolling can spin with a paused clock. Use bounded touch frames.
+    private fun scrollTo(node: SemanticsNodeInteraction) {
+        repeat(8) {
+            if (node.isDisplayed()) return
+            rule.onRoot().performTouchInput { swipeUp(startY = height * .75f, endY = height * .35f) }
+            settle(400)
+        }
+        node.assertIsDisplayed()
     }
 
     private fun seed(theme: String) = runBlocking {
@@ -85,7 +97,7 @@ class ContactControlsSheetShotTest {
         // DAY
         openDetails("daylight")
         rule.mainClock.autoAdvance = true
-        rule.onNodeWithText("SIM pin karo", useUnmergedTree = true).performScrollTo()
+        scrollTo(rule.onNodeWithText("SIM pin karo", useUnmergedTree = true))
         rule.waitForIdle()
         rule.mainClock.autoAdvance = false; settle(500)
         rule.onNodeWithText("SIM pin karo", useUnmergedTree = true).assertExists()
@@ -100,7 +112,7 @@ class ContactControlsSheetShotTest {
         assertFalse(ContactControls.announceAlways(ctx, num))
         saveShot(rule, "cc_controls_day")
         rule.mainClock.autoAdvance = true
-        rule.onNodeWithTag("cc_scope", useUnmergedTree = true).performScrollTo()
+        scrollTo(rule.onNodeWithTag("cc_scope", useUnmergedTree = true))
         rule.waitForIdle(); rule.mainClock.autoAdvance = false; settle(500)
         saveShot(rule, "cc_controls_day2")
         // toggle quiet bypass -> persist ho jata hai
@@ -111,7 +123,7 @@ class ContactControlsSheetShotTest {
         // SIM pin chooser kholo aur Airtel pin karo
         rule.onNodeWithText("SIM pin karo", useUnmergedTree = true).performClick(); settle(400)
         rule.mainClock.autoAdvance = true
-        rule.onNodeWithText("SIM 2 se hamesha", useUnmergedTree = true).performScrollTo()
+        scrollTo(rule.onNodeWithText("SIM 2 se hamesha", useUnmergedTree = true))
         rule.waitForIdle(); rule.mainClock.autoAdvance = false; settle(400)
         rule.onNodeWithText("SIM 2 se hamesha", useUnmergedTree = true).performClick(); settle(400)
         assertEquals("simY", ContactControls.simPin(ctx, num))
@@ -120,7 +132,7 @@ class ContactControlsSheetShotTest {
         // NIGHT
         seed("midnight"); settle(1500)
         rule.mainClock.autoAdvance = true
-        rule.onNodeWithTag("cc_scope", useUnmergedTree = true).performScrollTo()
+        scrollTo(rule.onNodeWithTag("cc_scope", useUnmergedTree = true))
         rule.waitForIdle()
         rule.mainClock.autoAdvance = false; settle(500)
         saveShot(rule, "cc_controls_night")
@@ -133,7 +145,7 @@ class ContactControlsSheetShotTest {
         runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p -> p[K.fontScale] = 1.3f }; Unit }
         settle(1200)
         rule.mainClock.autoAdvance = true
-        rule.onNodeWithTag("cc_scope", useUnmergedTree = true).performScrollTo()
+        scrollTo(rule.onNodeWithTag("cc_scope", useUnmergedTree = true))
         rule.waitForIdle(); rule.mainClock.autoAdvance = false; settle(500)
         rule.onNodeWithText("SIM pin karo", useUnmergedTree = true).assertExists()
         rule.onNodeWithText("Quiet hours me bajne do", useUnmergedTree = true).assertExists()
@@ -147,7 +159,7 @@ class ContactControlsSheetShotTest {
         com.mandu.liquiddialer.data.ReceivedNames.learn(ctx,num,"Rahul Network",1,1)
         openDetails("daylight")
         rule.mainClock.autoAdvance=true
-        rule.onNodeWithText("Rahul Network",useUnmergedTree=true).performScrollTo()
+        scrollTo(rule.onNodeWithText("Rahul Network",useUnmergedTree=true))
         rule.waitForIdle();rule.mainClock.autoAdvance=false;settle(500)
         saveShot(rule,"N201-clear-day")
         seed("midnight");settle(1000)
