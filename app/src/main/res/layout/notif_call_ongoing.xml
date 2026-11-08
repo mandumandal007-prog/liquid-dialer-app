@@ -62,7 +62,7 @@
 
     <ImageButton
         android:id="@+id/notif_btn_end"
-        android:layout_width="48dp"
+        android:layout_width="56dp"
         android:layout_height="48dp"
         android:layout_marginStart="6dp"
         android:background="@drawable/notif_btn_circle_end"
