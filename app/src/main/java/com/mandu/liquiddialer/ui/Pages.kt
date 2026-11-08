@@ -132,6 +132,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "visitingcard" -> VisitingCardPage(onBack)
         page == "fakecall" -> FakeCallPage(onBack)
         page == "reminders" -> ReminderCenterPage(onBack,onOpenNumber)
+        page == "callassist" -> CallAssistPage(onBack)
         page == "globalsearch" -> GlobalSearchPage(st,act,onBack,onOpenNumber)
         page == "planner" -> FollowUpPlannerPage(st,act,onBack)
         page == "calllists" -> CallListsPage(st, act, onBack)
@@ -460,6 +461,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         if(group=="notifications") {
         SecTitle("Notifications")
         GlassCard {
+            SRow("Call-time help", "Mute aur headset audio badalne ki opt-in soochna", LdIcons.Phone) { onOpen("callassist") }
             SwitchRow("Missed call alert", "Call back, Message aur Block button ke saath", s.missedAlerts) { save(K.missedAlerts, it) }
             SwitchRow("Missed call reminder", "Har 5 min me yaad dilayega (3 baar tak)", s.missedRemind) { save(K.missedRemind, it) }
             SwitchRow("Birthday reminder", "Contact ke birthday wale din subah 9 baje notification", s.birthdayRemind) {
