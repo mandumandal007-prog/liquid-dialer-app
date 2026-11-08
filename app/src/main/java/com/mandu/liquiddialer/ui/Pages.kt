@@ -461,6 +461,18 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         if(group=="notifications") {
         SecTitle("Notifications")
         GlassCard {
+            LdText("Chalti call ka notification", 16f, FontWeight.SemiBold)
+            LdText("Call ke dauran notification par tap karke calling card kholo. Android 12+ par system CallStyle; Android 14+ par ongoing CallStyle swipe se nahi hatta. Purane Android par ongoing flag. Upar time ke paas icon/chip aur uska rang Realme/Android tay karta hai; yahan se force nahi hota.", 12f, color=p.muted, maxLines=12)
+            PrimaryButton("Ongoing call settings", modifier=Modifier.testTag("ongoing_notification_settings")) {
+                try { ctx.startActivity(Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                    .putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, com.mandu.liquiddialer.telecom.CallNotifier.CH_ONGOING)) }
+                catch (_:Exception) { android.widget.Toast.makeText(ctx,"Phone Settings mein Liquid Dialer > Notifications dekho",android.widget.Toast.LENGTH_LONG).show() }
+            }
+            LdText("Notification band ya Silent icons chhupe hon to phone settings check karo. App tumhari channel settings nahi badalta. Call khatam hone par notification hat jaata hai.",12f,color=p.muted,maxLines=8)
+        }
+
+        GlassCard {
             SRow("Call-time help", "Mute aur headset audio badalne ki opt-in soochna", LdIcons.Phone) { onOpen("callassist") }
             SwitchRow("Missed call alert", "Call back, Message aur Block button ke saath", s.missedAlerts) { save(K.missedAlerts, it) }
             SwitchRow("Missed call reminder", "Har 5 min me yaad dilayega (3 baar tak)", s.missedRemind) { save(K.missedRemind, it) }
