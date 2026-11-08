@@ -82,9 +82,9 @@ import java.util.*
     }){Text("Reminder cancel karo")}},dismissButton={TextButton(enabled=!busy,onClick={cancel=null}){Text("Rehne do")}})}
 }
 
-@Composable internal fun ReminderEditor(existing:CallReminders.Reminder?,onDismiss:()->Unit,onSaved:()->Unit,initialNumber:String="",initialName:String="") {
+@Composable internal fun ReminderEditor(existing:CallReminders.Reminder?,onDismiss:()->Unit,onSaved:()->Unit,initialNumber:String="",initialName:String="",initialAt:Long?=null,contextNotice:String="") {
     val ctx=LocalContext.current;val scope=rememberCoroutineScope()
-    val initial=remember {Calendar.getInstance().apply {timeInMillis=existing?.atMs ?: System.currentTimeMillis()+3600000}}
+    val initial=remember {Calendar.getInstance().apply {timeInMillis=existing?.atMs ?: initialAt ?: System.currentTimeMillis()+3600000}}
     var number by remember {mutableStateOf(existing?.number ?: initialNumber)}
     var name by remember {mutableStateOf(existing?.name ?: initialName)}
     var date by remember {mutableStateOf(SimpleDateFormat("yyyy-MM-dd",Locale.US).format(initial.time))}
@@ -92,6 +92,7 @@ import java.util.*
     var error by remember {mutableStateOf("")};var busy by remember {mutableStateOf(false)}
     PageFrame(if(existing==null)"Naya reminder" else "Reminder ka samay badlo",{if(!busy)onDismiss()}) {
 
+            if(contextNotice.isNotEmpty())LdText(contextNotice,13f,color=LocalLd.current.accent,maxLines=8)
             LdText("${TimeZone.getDefault().id} · 24-hour time. Samay lagbhag hoga. Call apne aap nahi lagega.",12f,maxLines=4)
             if(existing==null)ReminderField(number,{number=it.take(64)},"Phone number","reminder_number") else LdText(number,14f,maxLines=2)
             ReminderField(name,{name=it.take(100)},"Naam (optional)","reminder_name")
@@ -109,6 +110,7 @@ import java.util.*
             scope.launch {try{withContext(Dispatchers.IO){CallReminders.set(ctx,n,label,at)};onSaved()}catch(_:Exception){error="Reminder save nahi hua. Dobara try karo."}finally{busy=false}}
         }
         }
+        if(contextNotice.isNotEmpty())Spacer(Modifier.height(8.dp))
         PrimaryButton("Rehne do",enabled=!busy,onClick=onDismiss)
     }
 }
