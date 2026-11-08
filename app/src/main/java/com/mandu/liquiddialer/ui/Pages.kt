@@ -59,19 +59,22 @@ private fun <T> save(key: Preferences.Key<T>, v: T) { LdApp.instance.scope.launc
 
 /** .page: full-screen with radial accent 16% at top over bg */
 @Composable
-fun PageFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalLd.current
     BackHandler { onBack() }
     Box(Modifier.fillMaxSize().background(p.bg).clickable(remember { MutableInteractionSource() }, null) {}) {
         BlobBackground()
         Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.16f), .6f to Color.Transparent, center = Offset(540f, 0f), radius = 1500f)))
-        Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 30.dp)) {
+        Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 30.dp)) {
             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.testTag("page_back")) { IconBtn(LdIcons.ArrowLeft, onClick = onBack) }
                 LdText(title, 22f, FontWeight.ExtraBold, modifier = Modifier.weight(1f), letter = -.3f, maxLines=2)
                 Spacer(Modifier.width(42.dp))
             }
             content()
+        }
+        if(footer!=null) Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp)) {footer()}
         }
     }
 }
