@@ -31,8 +31,8 @@ object CallListTransfer {
             val safe=if(value.trimStart().firstOrNull() in listOf('=','+','-','@','\t','\r','\n')) "'"+value else value
             return "\""+safe.replace("\"","\"\"")+"\""
         }
-        val rows=listOf(listOf("List","Name","Number","Outcome","Follow-up note","Updated (epoch ms)"))+
-            list.entries.map {listOf(list.title,it.name,"'"+it.number,CallLists.outcomes.getValue(it.outcome),it.note,if(it.updatedAt==0L) "" else it.updatedAt.toString())}
+        val rows=listOf(listOf("List","Name","Number","Outcome","Follow-up note","Updated (epoch ms)","Planned (epoch ms)"))+
+            list.entries.map {listOf(list.title,it.name,"'"+it.number,CallLists.outcomes.getValue(it.outcome),it.note,if(it.updatedAt==0L) "" else it.updatedAt.toString(),if(it.dueAt==0L) "" else it.dueAt.toString())}
         return rows.joinToString("\r\n",postfix="\r\n") {it.joinToString(",",transform=::cell)}
     }
     fun read(input:InputStream):String {
