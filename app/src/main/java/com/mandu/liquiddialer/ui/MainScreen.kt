@@ -1091,6 +1091,7 @@ private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClos
         item(LdIcons.Clock, "History Explorer") { onOpen("historyexplorer") }
         item(LdIcons.Palette, "Visiting card banao") { onOpen("visitingcard") }
         item(LdIcons.Phone, "Fake call (simulation)") { onOpen("fakecall") }
+        item(LdIcons.Phone, "Call-time help") { onOpen("callassist") }
         item(LdIcons.Clock, "Reminder Center") { onOpen("reminders") }
         item(LdIcons.Search, "Global Search") { onOpen("globalsearch") }
         item(LdIcons.Clock, "Follow-up Planner") { onOpen("planner") }
