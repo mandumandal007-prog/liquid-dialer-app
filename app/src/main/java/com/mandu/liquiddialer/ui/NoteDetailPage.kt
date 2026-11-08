@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.mandu.liquiddialer.data.NoteFind
 import com.mandu.liquiddialer.data.Note
 import com.mandu.liquiddialer.data.Repo
 import java.text.SimpleDateFormat
@@ -23,7 +24,16 @@ import java.util.*
     var discard by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf("")}
     fun back(){if(editing && text!=note.text)discard=true else onBack()}
-    PageFrame("Poora note",{back()}) {
+    var query by rememberSaveable(note.id){mutableStateOf("")}
+    var current by remember(query,note.id){mutableIntStateOf(0)}
+    var jump by remember{mutableIntStateOf(0)}
+    val matches=remember(note.text,query){NoteFind.matches(note.text,query)}
+    val footer:(@Composable ()->Unit)?=if(!editing && query.isNotEmpty()) {{
+        NoteFindFooter(matches.size,current,
+            onPrev={current=NoteFind.next(current,matches.size,-1);jump++},
+            onNext={current=NoteFind.next(current,matches.size,1);jump++},onClear={query=""})
+    }}else null
+    PageFrame("Poora note",{back()},footer=footer) {
         LdText(note.name.ifBlank {note.number},18f,FontWeight.Bold,maxLines=3)
         LdText(note.number,13f,color=p.muted,maxLines=3)
         LdText(SimpleDateFormat("d MMM yyyy, HH:mm",Locale.getDefault()).format(Date(note.time)),12f,color=p.muted)
@@ -38,7 +48,7 @@ import java.util.*
             PrimaryButton("Badlav chhodo",modifier=Modifier.testTag("note_edit_cancel")){if(text!=note.text)discard=true else onBack()}
         }else {
             PrimaryButton("Note edit karo",modifier=Modifier.testTag("note_edit")){editing=true}
-            SelectionContainer {Text(note.text,color=p.text,modifier=Modifier.testTag("note_full_text"))}
+            NoteReader(note.text,query,matches,current,jump){query=it}
         }
     }
     if(discard)AlertDialog(onDismissRequest={discard=false},title={Text("Badlav chhod dein?")},text={Text("Save nahi kiye hue badlav mit jayenge. Purana note wahi rahega.")},confirmButton={TextButton(onClick=onBack,modifier=Modifier.testTag("note_discard_confirm")){Text("Badlav chhodo")}},dismissButton={TextButton(onClick={discard=false},modifier=Modifier.testTag("note_discard_cancel")){Text("Edit par wapas")}})
