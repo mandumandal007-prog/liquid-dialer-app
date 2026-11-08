@@ -60,15 +60,21 @@ class NotifBarShotTest {
         return n.contentView.apply(ctx, null)
     }
 
-    private fun shot(n: Notification, dark: Boolean, out: String) {
+    private fun shot(n: Notification, dark: Boolean, out: String, width:Int=360, font:Float=1f) {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
-        val config = android.content.res.Configuration(ctx.resources.configuration).apply { uiMode=(uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or (if(dark) android.content.res.Configuration.UI_MODE_NIGHT_YES else android.content.res.Configuration.UI_MODE_NIGHT_NO) }
+        val config = android.content.res.Configuration(ctx.resources.configuration).apply { fontScale=font; uiMode=(uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or (if(dark) android.content.res.Configuration.UI_MODE_NIGHT_YES else android.content.res.Configuration.UI_MODE_NIGHT_NO) }
         val themed = android.view.ContextThemeWrapper(ctx.createConfigurationContext(config), if(dark) android.R.style.Theme_DeviceDefault else android.R.style.Theme_DeviceDefault_Light)
         val v = n.contentView.apply(themed, null)
-        val w = 700
+        val w = width
         val h = (48 * ctx.resources.displayMetrics.density).toInt()
         v.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
         v.layout(0, 0, w, h)
+        val avatar=v.findViewById<android.widget.ImageView>(R.id.notif_call_avatar)
+        val name=v.findViewById<TextView>(R.id.notif_call_name)
+        val mute=v.findViewById<ImageButton>(R.id.notif_btn_mute)
+        assertTrue("avatar stays at left",avatar.right<=(name.parent as View).left+name.left)
+        assertTrue("caller text retains width",name.width>=60)
+        assertTrue("caller area does not overlap buttons",(name.parent as View).left+name.right<=mute.left)
         val pad = 14
         val header = 26
         val bmp = Bitmap.createBitmap(w + pad * 2, h + pad * 2 + header, Bitmap.Config.ARGB_8888)
@@ -89,6 +95,19 @@ class NotifBarShotTest {
         println("SAVED $out ${bmp.width}x${bmp.height}")
     }
 
+    private fun systemShot(n:Notification,dark:Boolean){
+        val ctx=ApplicationProvider.getApplicationContext<LdApp>()
+        val config=android.content.res.Configuration(ctx.resources.configuration).apply {uiMode=(uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or (if(dark) android.content.res.Configuration.UI_MODE_NIGHT_YES else android.content.res.Configuration.UI_MODE_NIGHT_NO)}
+        val themed=android.view.ContextThemeWrapper(ctx.createConfigurationContext(config),if(dark)android.R.style.Theme_DeviceDefault else android.R.style.Theme_DeviceDefault_Light)
+        val rv=Notification.Builder.recoverBuilder(themed,n).createContentView()
+        val view=rv.apply(themed,null)
+        view.measure(View.MeasureSpec.makeMeasureSpec(360,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(240,View.MeasureSpec.AT_MOST))
+        view.layout(0,0,360,view.measuredHeight)
+        val bmp=Bitmap.createBitmap(360,view.measuredHeight,Bitmap.Config.ARGB_8888)
+        val canvas=Canvas(bmp);canvas.drawColor(if(dark)Color.rgb(42,44,48) else Color.WHITE);view.draw(canvas)
+        val f=File("build/shots/355-system-${if(dark) "dark" else "light"}.png");f.parentFile?.mkdirs();f.outputStream().use{bmp.compress(Bitmap.CompressFormat.PNG,100,it)}
+    }
+
     @Test fun barStructureAndPixels() {
         val connect = System.currentTimeMillis() - 12_000
 
@@ -96,12 +115,16 @@ class NotifBarShotTest {
         val n1 = posted(Call.STATE_ACTIVE, "Railways", muted = false, route = CallAudioState.ROUTE_EARPIECE, connect = connect)
         assertEquals(CallNotifier.CH_ONGOING, n1.channelId)
         assertNotNull("custom content view set hona chahiye", n1.contentView)
+        org.junit.Assert.assertNull("no system right-side avatar", n1.getLargeIcon())
+        assertEquals(R.drawable.ic_stat_call_premium,n1.smallIcon.resId)
         assertNotNull("big content view bhi set hona chahiye (expanded = same bar)", n1.bigContentView)
         assertTrue("koi text action button nahi (duplicate text avoid)", n1.actions == null || n1.actions.isEmpty())
         val v1 = applied(n1)
+        assertNotNull(v1.findViewById<android.widget.ImageView>(R.id.notif_call_avatar).drawable)
         assertEquals(56,v1.findViewById<ImageButton>(R.id.notif_btn_end).layoutParams.width)
         for(id in listOf(R.id.notif_btn_mute,R.id.notif_btn_speaker,R.id.notif_btn_end)) assertEquals(48,v1.findViewById<ImageButton>(id).layoutParams.height)
         assertEquals("Railways", v1.findViewById<TextView>(R.id.notif_call_name).text.toString())
+        assertTrue(v1.findViewById<TextView>(R.id.notif_call_name).typeface.isBold)
         assertEquals(View.VISIBLE, v1.findViewById<Chronometer>(R.id.notif_call_timer).visibility)
         assertEquals(View.GONE, v1.findViewById<TextView>(R.id.notif_call_status).visibility)
         assertEquals("Mute", v1.findViewById<ImageButton>(R.id.notif_btn_mute).contentDescription.toString())
@@ -109,6 +132,8 @@ class NotifBarShotTest {
         assertEquals("Call kaato", v1.findViewById<ImageButton>(R.id.notif_btn_end).contentDescription.toString())
         shot(n1, dark = false, out = "18-notif-bar-active-light")
         shot(n1, dark = true, out = "18-notif-bar-active-dark")
+        shot(n1,dark=true,out="355-notif-narrow-large",width=320,font=1.3f)
+        systemShot(n1,false);systemShot(n1,true)
 
         // 2) HOLDING + toggles: status text, active bg labels
         val n2 = posted(Call.STATE_HOLDING, "Mummy ji", muted = true, route = CallAudioState.ROUTE_SPEAKER, connect = 0)
