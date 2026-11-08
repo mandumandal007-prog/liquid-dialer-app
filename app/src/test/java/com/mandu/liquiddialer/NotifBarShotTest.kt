@@ -29,7 +29,7 @@ import java.io.File
 /** Ongoing-call notification bar: real CallNotifier.update() build + applied RemoteViews pixels.
  *  Single test method: Robolectric sandbox reuse makes cross-method shadow state unreliable. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [30])
+@Config(sdk = [34])
 class NotifBarShotTest {
 
     @After fun reset() {
