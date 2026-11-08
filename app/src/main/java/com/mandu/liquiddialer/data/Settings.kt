@@ -86,6 +86,8 @@ data class LdSettings(
     val defaultTab: String = "recents",      // "recents" | "dialer"
     val undoCall: Boolean = false,           // opt-in: 3s undo before dialing
     val simMemory: Boolean = true,           // contact-wise pichli SIM yaad rakho
+    val muteReminder: Boolean = false,       // opt-in call-time warning, never unmutes
+    val audioRouteAlert: Boolean = false,    // opt-in headset-to-phone route notice
     val minuteBeep: Int = 0,                 // 0=off else har N minute pe beep
     val callVolumeMax: Boolean = false,      // opt-in: call connect pe volume system max
     val ringVolumeMax: Boolean = false,      // opt-in: ring pe volume system max
@@ -206,6 +208,8 @@ object K {
     val defaultTab = stringPreferencesKey("defaultTab")
     val undoCall = booleanPreferencesKey("undoCall")
     val simMemory = booleanPreferencesKey("simMemory")
+    val muteReminder = booleanPreferencesKey("muteReminder")
+    val audioRouteAlert = booleanPreferencesKey("audioRouteAlert")
     val minuteBeep = intPreferencesKey("minuteBeep")
     val callVolumeMax = booleanPreferencesKey("callVolumeMax")
     val ringVolumeMax = booleanPreferencesKey("ringVolumeMax")
@@ -321,6 +325,8 @@ fun Preferences.toSettings(): LdSettings {
         defaultTab = this[K.defaultTab] ?: "recents",
         undoCall = this[K.undoCall] ?: false,
         simMemory = this[K.simMemory] ?: true,
+        muteReminder = this[K.muteReminder] ?: false,
+        audioRouteAlert = this[K.audioRouteAlert] ?: false,
         minuteBeep = this[K.minuteBeep] ?: 0,
         callVolumeMax = this[K.callVolumeMax] ?: false,
         ringVolumeMax = this[K.ringVolumeMax] ?: false,
