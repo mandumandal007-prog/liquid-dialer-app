@@ -132,6 +132,8 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "visitingcard" -> VisitingCardPage(onBack)
         page == "fakecall" -> FakeCallPage(onBack)
         page == "reminders" -> ReminderCenterPage(onBack,onOpenNumber)
+        page == "globalsearch" -> GlobalSearchPage(st,act,onBack,onOpenNumber)
+        page == "planner" -> FollowUpPlannerPage(st,act,onBack)
         page == "calllists" -> CallListsPage(st, act, onBack)
         page == "callbacks" -> CallbacksPage(st, act, onBack, onOpenNumber)
         page == "stats" -> StatsPage(st, act, onBack, onInsights)
