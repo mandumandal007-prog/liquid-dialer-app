@@ -62,7 +62,9 @@ class NotifBarShotTest {
 
     private fun shot(n: Notification, dark: Boolean, out: String) {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
-        val v = applied(n)
+        val config = android.content.res.Configuration(ctx.resources.configuration).apply { uiMode=(uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK.inv()) or (if(dark) android.content.res.Configuration.UI_MODE_NIGHT_YES else android.content.res.Configuration.UI_MODE_NIGHT_NO) }
+        val themed = android.view.ContextThemeWrapper(ctx.createConfigurationContext(config), if(dark) android.R.style.Theme_DeviceDefault else android.R.style.Theme_DeviceDefault_Light)
+        val v = n.contentView.apply(themed, null)
         val w = 700
         val h = (48 * ctx.resources.displayMetrics.density).toInt()
         v.measure(View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY))
@@ -97,6 +99,8 @@ class NotifBarShotTest {
         assertNotNull("big content view bhi set hona chahiye (expanded = same bar)", n1.bigContentView)
         assertTrue("koi text action button nahi (duplicate text avoid)", n1.actions == null || n1.actions.isEmpty())
         val v1 = applied(n1)
+        assertEquals(56,v1.findViewById<ImageButton>(R.id.notif_btn_end).layoutParams.width)
+        for(id in listOf(R.id.notif_btn_mute,R.id.notif_btn_speaker,R.id.notif_btn_end)) assertEquals(48,v1.findViewById<ImageButton>(id).layoutParams.height)
         assertEquals("Railways", v1.findViewById<TextView>(R.id.notif_call_name).text.toString())
         assertEquals(View.VISIBLE, v1.findViewById<Chronometer>(R.id.notif_call_timer).visibility)
         assertEquals(View.GONE, v1.findViewById<TextView>(R.id.notif_call_status).visibility)
