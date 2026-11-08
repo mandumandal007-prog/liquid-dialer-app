@@ -105,7 +105,7 @@ object CallNotifier {
         return PendingIntent.getBroadcast(ctx, 200 + req, i, flags())
     }
 
-    /** Round accent avatar with the caller's initial, used as the notification large icon. */
+    /** Round accent avatar with the caller's initial, shown beside the caller in the custom notification row. */
     fun avatarBitmap(name: String, accent: Int): android.graphics.Bitmap {
         val size = 128
         val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
@@ -131,7 +131,7 @@ object CallNotifier {
         val person = Person.Builder().setName(name).setImportant(true).build()
         val st = CallManager.state(call)
         val b = NotificationCompat.Builder(ctx, if (st == Call.STATE_RINGING) CH_INCOMING else CH_ONGOING)
-            .setSmallIcon(R.drawable.ic_stat_call)
+            .setSmallIcon(R.drawable.ic_stat_call_premium)
             .setContentTitle(name)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setOngoing(true)
@@ -158,7 +158,7 @@ object CallNotifier {
                 else -> "Call"
             }
             b.setContentText(text)
-            b.setLargeIcon(avatarBitmap(name, 0xFF5B8CFF.toInt()))
+            val avatar = avatarBitmap(name, 0xFF5B8CFF.toInt())
             if (st == Call.STATE_ACTIVE && connect > 0) b.setWhen(connect).setUsesChronometer(true).setShowWhen(true)
             // Bound InCallService is not a foreground service. System server rejects native
             // CallStyle here without FGS or full-screen intent, so retain the supported icon bar.
@@ -172,6 +172,7 @@ object CallNotifier {
             val showTimer = st == Call.STATE_ACTIVE && connect > 0
             fun bar(): RemoteViews {
                 val rv = RemoteViews(ctx.packageName, R.layout.notif_call_ongoing)
+                rv.setImageViewBitmap(R.id.notif_call_avatar, avatar)
                 rv.setTextViewText(R.id.notif_call_name, name)
                 rv.setTextViewText(R.id.notif_call_status, text)
                 rv.setViewVisibility(R.id.notif_call_status, if (showTimer) android.view.View.GONE else android.view.View.VISIBLE)
