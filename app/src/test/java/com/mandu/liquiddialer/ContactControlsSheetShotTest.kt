@@ -34,7 +34,13 @@ import org.robolectric.annotation.GraphicsMode
 class ContactControlsSheetShotTest {
 
     // Keep frame/recomposition work on the test scheduler when settings emit from Default.
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
+    val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
+    // Freeze the test frame clock before ActivityScenario starts composition, not after startup.
+    @get:Rule val startup = org.junit.rules.RuleChain.outerRule(org.junit.rules.TestRule { base, _ ->
+        object : org.junit.runners.model.Statement() {
+            override fun evaluate() { rule.mainClock.autoAdvance = false; base.evaluate() }
+        }
+    }).around(rule)
     private val num = "+91 98765 43210"
 
     private fun settle(ms: Long = 900) {
