@@ -124,7 +124,7 @@ class InsightsSheetShotTest {
             Recent(1, "+91 98765 43210", "Rahul Sharma", CallLog.Calls.OUTGOING_TYPE, noon - 2 * 3_600_000, 300, null, null),
         )
         settle()
-        rule.onNodeWithText("Clear", substring = true, useUnmergedTree = true).performClick()
+        rule.onNodeWithTag("recent_clear", useUnmergedTree = true).performClick()
         settle()
         rule.onNodeWithText("Saari call history delete karein?", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("Rehne do", substring = true, useUnmergedTree = true).assertExists()
