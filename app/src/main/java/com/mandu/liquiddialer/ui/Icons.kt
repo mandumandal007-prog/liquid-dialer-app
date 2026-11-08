@@ -42,6 +42,7 @@ object LdIcons {
     val EyeOff: ImageVector by lazy { build("eye-off", *PARTS.getValue("eye-off")) }
     val Dots: ImageVector by lazy { build("dots", *PARTS.getValue("dots")) }
     val Pause: ImageVector by lazy { build("pause", *PARTS.getValue("pause")) }
+    val PersonPlus: ImageVector by lazy { build("person-plus", *PARTS.getValue("person-plus")) }
     val Plus: ImageVector by lazy { build("plus", *PARTS.getValue("plus")) }
     val Sim: ImageVector by lazy { build("sim", *PARTS.getValue("sim")) }
     val Backspace: ImageVector by lazy { build("backspace", *PARTS.getValue("backspace")) }
@@ -99,6 +100,7 @@ object LdIcons {
         "eye-off" to arrayOf(Triple("M4 4l16 16", false, 1.8f), Triple("M9.9 5.6A9.4 9.4 0 0 1 12 5.5c4.3 0 7.5 2.2 9.5 6a13.6 13.6 0 0 1-2.7 3.6M6.2 7.6A12.9 12.9 0 0 0 2.5 11.5c2 3.8 5.2 6 9.5 6 1.3 0 2.5-.24 3.6-.66", false, 1.8f), Triple("M9.9 9.9a3 3 0 0 0 4.2 4.2", false, 1.8f)),
         "dots" to arrayOf(Triple("M12 5.5a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zM12 13.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2zM12 21.7a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2z", true, 1.8f)),
         "pause" to arrayOf(Triple("M9.0,6.0h1.0a1.0,1.0 0 0 1 1.0,1.0v10.0a1.0,1.0 0 0 1 -1.0,1.0h-1.0a1.0,1.0 0 0 1 -1.0,-1.0v-10.0a1.0,1.0 0 0 1 1.0,-1.0z", false, 1.8f), Triple("M14.0,6.0h1.0a1.0,1.0 0 0 1 1.0,1.0v10.0a1.0,1.0 0 0 1 -1.0,1.0h-1.0a1.0,1.0 0 0 1 -1.0,-1.0v-10.0a1.0,1.0 0 0 1 1.0,-1.0z", false, 1.8f)),
+        "person-plus" to arrayOf(Triple("M5.5 7.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0M2.5 20v-1c0-3 2.5-5 6.5-5 1.5 0 2.8.3 3.8.9M18.5 12v8M14.5 16h8", false, 1.8f)),
         "plus" to arrayOf(Triple("M12 5v14M5 12h14", false, 1.8f)),
         "sim" to arrayOf(Triple("M7 3h7l4 4v14H7z", false, 1.8f), Triple("M10.5,11.0h3.0a1.0,1.0 0 0 1 1.0,1.0v3.0a1.0,1.0 0 0 1 -1.0,1.0h-3.0a1.0,1.0 0 0 1 -1.0,-1.0v-3.0a1.0,1.0 0 0 1 1.0,-1.0z", false, 1.8f)),
         "backspace" to arrayOf(Triple("M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9L3 12z", false, 1.8f), Triple("M12 9.5l5 5M17 9.5l-5 5", false, 1.8f)),
@@ -153,6 +155,7 @@ object LdIcons {
         m[EyeOff] = "eye-off"
         m[Dots] = "dots"
         m[Pause] = "pause"
+        m[PersonPlus] = "person-plus"
         m[Plus] = "plus"
         m[Sim] = "sim"
         m[Backspace] = "backspace"
