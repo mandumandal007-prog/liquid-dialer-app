@@ -22,6 +22,9 @@ object LdIcons {
     val Menu: ImageVector by lazy { build("menu", *PARTS.getValue("menu")) }
     val Search: ImageVector by lazy { build("search", *PARTS.getValue("search")) }
     val X: ImageVector by lazy { build("x", *PARTS.getValue("x")) }
+    val Chart: ImageVector by lazy { build("chart", *PARTS.getValue("chart")) }
+    val History: ImageVector by lazy { build("history", *PARTS.getValue("history")) }
+    val Contacts: ImageVector by lazy { build("contacts", *PARTS.getValue("contacts")) }
     val Clock: ImageVector by lazy { build("clock", *PARTS.getValue("clock")) }
     val Users: ImageVector by lazy { build("users", *PARTS.getValue("users")) }
     val Dialpad: ImageVector by lazy { build("dialpad", *PARTS.getValue("dialpad")) }
@@ -74,6 +77,9 @@ object LdIcons {
     private val STROKE_MULT = floatArrayOf(1f, .65f, 1.5f, 1f, .65f, 1.5f)
 
     private val PARTS: Map<String, Array<Triple<String, Boolean, Float>>> = mapOf(
+        "chart" to arrayOf(Triple("M4 4v16h17M8 15v-4M13 15V7M18 15v-6", false, 1.8f)),
+        "history" to arrayOf(Triple("M3.5 11a8.5 8.5 0 1 1 2.3 6.8M3.5 5.5V11H9", false, 1.8f), Triple("M12 7.5V12l3 2", false, 1.8f)),
+        "contacts" to arrayOf(Triple("M7 3.5h12a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 7 3.5zM3 7h4M3 12h4M3 17h4", false, 1.8f), Triple("M10.5 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M9 17c.3-2 1.8-3 4-3s3.7 1 4 3", false, 1.8f)),
         "menu" to arrayOf(Triple("M4 7h16M4 12h16M4 17h10", false, 1.8f)),
         "search" to arrayOf(Triple("M4.5,11.0a6.5,6.5 0 1,0 13.0,0a6.5,6.5 0 1,0 -13.0,0z", false, 1.8f), Triple("M20 20l-4.2-4.2", false, 1.8f)),
         "x" to arrayOf(Triple("M6 6l12 12M18 6L6 18", false, 1.8f)),
@@ -125,6 +131,9 @@ object LdIcons {
 
     private val NAMES: Map<ImageVector, String> by lazy {
         val m = java.util.IdentityHashMap<ImageVector, String>()
+        m[History] = "history"
+        m[Contacts] = "contacts"
+        m[Chart] = "chart"
         m[Menu] = "menu"
         m[Search] = "search"
         m[X] = "x"
