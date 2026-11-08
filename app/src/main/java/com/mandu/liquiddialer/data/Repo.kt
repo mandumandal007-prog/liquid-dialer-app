@@ -320,10 +320,10 @@ object Repo {
     fun matches(c: Contact, q: String): Boolean {
         if (q.isBlank()) return true
         val ql = q.trim().lowercase()
-        if (c.name.lowercase().contains(ql)) return true
-        val digits = ql.filter { it.isDigit() }
-        if (digits.isNotEmpty() && digits.length == ql.replace(" ", "").replace("+", "").length) {
-            if (c.number.filter { it.isDigit() }.contains(digits)) return true
+        if (c.name.lowercase().contains(ql) || c.altName.lowercase().contains(ql)) return true
+        val digits = SearchQuery.number(ql)
+        if (digits != null) {
+            if (SearchQuery.digits(c.number).contains(digits)) return true
             // T9: any word start, or whole name
             val words = c.name.split(" ", "-", ".").filter { it.isNotBlank() }
             if (words.any { t9Of(it).startsWith(digits) }) return true
