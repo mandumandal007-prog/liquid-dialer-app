@@ -30,7 +30,15 @@ class HistoryExplorerUiTest {
  private var queries=0
  private val pageDate=System.currentTimeMillis()-10000
  private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
- private fun click(t:String){rule.onNodeWithTag(t).performScrollTo().performClick();settle()}
+ private fun reach(t:String,unmerged:Boolean=false){
+  val node=rule.onNodeWithTag(t,useUnmergedTree=unmerged)
+  for(up in listOf(true,false))for(attempt in 0 until 8){
+   if(runCatching{node.assertIsDisplayed()}.isSuccess)return
+   rule.onRoot().performTouchInput{if(up)swipeUp() else swipeDown()};settle()
+  }
+  node.assertIsDisplayed()
+ }
+ private fun click(t:String){reach(t);rule.onNodeWithTag(t).performClick();settle()}
  private fun show(theme:String="daylight",font:Float=1f){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
@@ -60,7 +68,7 @@ class HistoryExplorerUiTest {
   click("history_details_1");assertEquals("+919876543210",opened)
   click("history_call_1");assertEquals("+919876543210",rule.activity.state.confirmNumber)
   failQuery=true;click("history_search");rule.waitUntil(15000){rule.onAllNodesWithTag("history_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
-  rule.onNodeWithTag("history_call_1").performScrollTo().assertIsDisplayed()
+  reach("history_call_1");rule.onNodeWithTag("history_call_1").assertIsDisplayed()
  }
  @Test fun invalidDatesNeverReadOrCall(){
   show();rule.onNodeWithTag("history_from").performTextReplacement("2026-02-30");click("history_search")
