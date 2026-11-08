@@ -71,7 +71,14 @@ class HistoryExplorerUiTest {
   rule.waitUntil(15000){rule.onAllNodesWithTag("history_count",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   rule.onNodeWithTag("history_query").performScrollTo().performTextInput("Person777");settle()
   rule.onNodeWithTag("history_count",useUnmergedTree=true).assertTextEquals("100 records load hue · 0 matches")
-  click("history_more")
+  // Bounded real gestures avoid performScrollTo spinning on fractional bottom bounds.
+  var moreVisible=false
+  for(attempt in 0 until 8){
+   if(runCatching{rule.onNodeWithTag("history_more").assertIsDisplayed()}.isSuccess){moreVisible=true;break}
+   rule.onRoot().performTouchInput{swipeUp()};settle()
+  }
+  assertTrue("next page control must be reachable",moreVisible)
+  rule.onNodeWithTag("history_more").performClick();settle()
   rule.waitUntil(15000){queries==2};settle()
   rule.onNodeWithTag("history_count",useUnmergedTree=true).performScrollTo().assertTextEquals("200 records load hue · 0 matches")
   assertNull(rule.activity.state.confirmNumber)
