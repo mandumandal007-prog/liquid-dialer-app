@@ -32,6 +32,16 @@ class NumberDetailsFullScreenTest {
         rule.waitForIdle()
     }
 
+    /** Content readiness, not a longer fixed sleep: navigation composition may still be pending. */
+    private fun awaitDetails(text:String) {
+        try {rule.waitUntil(10000) {
+            rule.runOnUiThread {androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()}
+            org.robolectric.shadows.ShadowLooper.idleMainLooper()
+            settle(100)
+            rule.onAllNodesWithText(text,substring=true,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()
+        }}catch(t:Throwable){throw AssertionError(rule.onRoot(useUnmergedTree=true).printToString(maxDepth=15),t)}
+    }
+
     @Before
     fun seed() = runBlocking {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
@@ -53,6 +63,7 @@ class NumberDetailsFullScreenTest {
         settle()
         rule.onNodeWithText("Rahul Sharma", substring = true, useUnmergedTree = true).performClick()
         settle()
+        awaitDetails("Call reminder")
         // reminder row dikhe, presets folded
         // notifications band state me warning row dikhni chahiye
         val nmShadow = org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.app.NotificationManager::class.java))
