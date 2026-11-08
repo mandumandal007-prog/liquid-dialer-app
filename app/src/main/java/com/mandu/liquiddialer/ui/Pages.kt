@@ -462,7 +462,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         SecTitle("Notifications")
         GlassCard {
             LdText("Chalti call ka notification", 16f, FontWeight.SemiBold)
-            LdText("Call ke dauran notification par tap karke calling card kholo. Android 12+ par system CallStyle; Android 14+ par ongoing CallStyle swipe se nahi hatta. Purane Android par ongoing flag. Upar time ke paas icon/chip aur uska rang Realme/Android tay karta hai; yahan se force nahi hota.", 12f, color=p.muted, maxLines=12)
+            LdText("Call ke dauran notification par tap karke calling card kholo. Mute, speaker aur call kaatne ke icon saath rahenge. App ongoing notification bhejta hai; Android 14+ ya kuch phone par swipe se hat sakta hai. Upar time ke paas icon/chip Realme/Android tay karta hai; yahan se force nahi hota.", 12f, color=p.muted, maxLines=12)
             PrimaryButton("Ongoing call settings", modifier=Modifier.testTag("ongoing_notification_settings")) {
                 try { ctx.startActivity(Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
                     .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
