@@ -28,8 +28,10 @@ class CallbacksUiTest {
   rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
   org.robolectric.Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
   var opened=""
+  // Synthetic rows belong to this screen test, not the activity provider reload.
+  val st=AppState()
   rule.runOnUiThread {
-   val st=rule.activity.state;st.recentsLoaded=true;st.recentsError=false
+   st.recentsLoaded=true;st.recentsError=false
    st.recents=listOf(Recent(1,"+91 98765 43210","Papa",3,System.currentTimeMillis(),0,null,null))
    rule.activity.setContent {LdThemeHost {CallbacksPage(st,rule.activity,{}, {opened=it})}}
   };settle()
@@ -39,7 +41,7 @@ class CallbacksUiTest {
   saveShot(rule,"268-callbacks-"+suffix)
   rule.onNodeWithTag("callback_details_1").performClick();settle();assertEquals("+91 98765 43210",opened)
   rule.onNodeWithTag("callback_call_1").performClick();settle();assertEquals("+91 98765 43210",rule.activity.state.confirmNumber)
-  rule.runOnUiThread {rule.activity.state.recents=rule.activity.state.recents+Recent(2,"+91 98765 43210",null,2,System.currentTimeMillis()+1000,15,null,null)};settle()
+  rule.runOnUiThread {st.recents=st.recents+Recent(2,"+91 98765 43210",null,2,System.currentTimeMillis()+1000,15,null,null)};settle()
   rule.onNodeWithText("Abhi pending missed call nahi",useUnmergedTree=true).assertIsDisplayed()
  }
  @Test fun permissionLoadingAndErrorNeverShowCallActions() {
