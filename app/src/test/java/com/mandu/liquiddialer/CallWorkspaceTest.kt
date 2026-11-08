@@ -28,7 +28,7 @@ class CallWorkspaceTest {
         CallLists.followUp(ctx,"old","b","busy","Kal baat karni hai",123L)
         val next=CallLists.read(ctx).single();assertEquals(old.entries.first(),next.entries.first())
         assertEquals("busy",next.entries.last().outcome);assertFalse(next.entries.last().done)
-        assertEquals(2,JSONObject(f.readText()).getInt("version"))
+        assertEquals(3,JSONObject(f.readText()).getInt("version"))
     }
     @Test fun everyOutcomeAndNotesPersistWithoutChangingIdentityOrOtherEntries() {
         val (id,eid)=seed();CallLists.add(ctx,id,"+12025550123","Other")
