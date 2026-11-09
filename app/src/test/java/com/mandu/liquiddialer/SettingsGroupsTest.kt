@@ -19,10 +19,29 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class SettingsGroupsTest {
-    @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule=createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
     @Test fun everyGroupOpensAndBackReturnsWithoutChangingSettings() = groups("daylight",1f,"day")
     @Test fun everyGroupOpensWithLargeFontAtNight() = groups("midnight",1.3f,"night-large")
+    @Test fun backgroundSettingsPublicationsKeepComposedDrawerOnUiThread() {
+        rule.mainClock.autoAdvance=false
+        rule.mainClock.advanceTimeBy(1200);rule.waitForIdle()
+        val app=ApplicationProvider.getApplicationContext<LdApp>()
+        runBlocking { app.ldStore.edit { it[K.onboarded]=true } }
+        rule.runOnUiThread { rule.activity.state.showOnboarding=false }
+        repeat(6) { index ->
+            val font=if(index%2==0)1.3f else 1f
+            val theme=if(index%2==0)"midnight" else "daylight"
+            runBlocking { app.ldStore.edit { it[K.fontScale]=font;it[K.theme]=theme } }
+            rule.waitUntil(15000) { LdApp.settings.value.let { it.fontScale==font&&it.theme==theme } }
+            rule.mainClock.advanceTimeBy(600);rule.waitForIdle()
+            rule.onNodeWithTag("drawer_open").assertIsDisplayed()
+        }
+        rule.onNodeWithTag("drawer_open").performClick()
+        rule.mainClock.advanceTimeBy(1200);rule.waitForIdle()
+        rule.onNodeWithText("Settings",useUnmergedTree=true).assertIsDisplayed()
+    }
     private fun groups(theme:String,font:Float,suffix:String) {
         rule.mainClock.autoAdvance=false
         rule.mainClock.advanceTimeBy(1200);rule.waitForIdle()
