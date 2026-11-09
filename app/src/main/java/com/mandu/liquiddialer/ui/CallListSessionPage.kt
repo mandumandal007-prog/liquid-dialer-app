@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -20,8 +21,9 @@ import java.util.*
 
 /** Focused manual workspace. Navigation and call attempts never imply an outcome. */
 @Composable fun CallListSessionPage(list:CallLists.ListItem, initialId:String, busy:Boolean, error:String,
-    onBack:()->Unit, onCall:(String)->Unit, onSave:(String,String,String,()->Unit)->Unit) {
+    onBack:()->Unit, onCall:(String)->Unit, onSave:(String,String,String,()->Unit)->Unit, focused:Boolean=false) {
     val p=LocalLd.current
+    val focusManager=LocalFocusManager.current
     var currentId by rememberSaveable(list.id) {mutableStateOf(initialId)}
     val entry=list.entries.firstOrNull {it.id==currentId}
     if(entry==null) {PageFrame("Call workspace",onBack){LdText("Entry ab list mein nahi hai. List dobara kholo.",14f,maxLines=4)};return}
@@ -30,10 +32,12 @@ import java.util.*
     var destination by remember {mutableStateOf<String?>(null)}
     val dirty=outcome!=entry.outcome || note!=entry.note
     val index=list.entries.indexOf(entry)
-    fun move(id:String) {if(busy)return;if(dirty)destination=id else if(id=="back")onBack() else currentId=id}
-    fun next() {val n=list.entries.drop(index+1).firstOrNull {!it.done}; if(n!=null)currentId=n.id else onBack()}
-    PageFrame("Call workspace",{move("back")}) {
+    fun move(id:String) {if(busy)return;if(dirty)destination=id else {focusManager.clearFocus();if(id=="back")onBack() else currentId=id}}
+    fun next() {focusManager.clearFocus();val n=list.entries.drop(index+1).firstOrNull {!it.done}; if(n!=null)currentId=n.id else onBack()}
+    key(entry.id) {
+    PageFrame(if(focused)"Matching workspace" else "Call workspace",{move("back")}) {
         LdText(list.title,13f,FontWeight.SemiBold,p.accent,maxLines=2)
+        if(focused)LdText("Sirf session shuru karte waqt chuni matching entries. Ye session ka count hai, poori list ka nahi.",12f,color=p.muted,maxLines=4,modifier=Modifier.testTag("session_focus_notice"))
         LdText("${index+1} / ${list.entries.size} · ${list.entries.count {it.done}} Done",12f,color=p.muted,modifier=Modifier.testTag("session_progress"))
         Spacer(Modifier.height(12.dp))
         GlassCard(Modifier.testTag("session_person")) {
@@ -78,9 +82,10 @@ import java.util.*
         Spacer(Modifier.height(8.dp))
         PrimaryButton("List par wapas",enabled=!busy,modifier=Modifier.testTag("session_back")){move("back")}
     }
+    }
     BackHandler {move("back")}
     destination?.let {target->AlertDialog(onDismissRequest={destination=null},title={Text("Badlav save nahi hue")},
         text={Text("Is outcome/note ke badlav chhodkar aage jaana hai? Purana saved data nahi badlega.")},
-        confirmButton={TextButton(onClick={destination=null;if(target=="back")onBack() else currentId=target},modifier=Modifier.testTag("session_discard")){Text("Badlav chhodo")}},
+        confirmButton={TextButton(onClick={focusManager.clearFocus();destination=null;if(target=="back")onBack() else currentId=target},modifier=Modifier.testTag("session_discard")){Text("Badlav chhodo")}},
         dismissButton={TextButton(onClick={destination=null},modifier=Modifier.testTag("session_keep_editing")){Text("Edit par wapas")}})}
 }
