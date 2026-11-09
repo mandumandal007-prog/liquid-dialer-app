@@ -644,44 +644,32 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             }
         }
         item(key = "recent-controls") {
-            // Keep the call filters with their title instead of below variable-length strips.
-            Column(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(22.dp), 0.dp)
-                .padding(horizontal = 12.dp, vertical = 10.dp).testTag("recent_controls"),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(26.dp), 0.dp)
+                .padding(horizontal = 14.dp, vertical = 14.dp).testTag("recent_controls"),
+                verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(p.accent.pct(.15f)), contentAlignment = Alignment.Center) {
-                        LdIcon(LdIcons.History, 21.dp, p.accent)
+                    Column(Modifier.weight(1f)) {
+                        LdText("LIQUID DIALER", 9.5f, FontWeight.Bold, p.accent, letter = 1.8f)
+                        LdText("Recent calls", 24f, FontWeight.ExtraBold, modifier = Modifier.padding(top=3.dp), maxLines=2, letter=-.7f)
                     }
-                    LdText("Recent calls", 18f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2)
                     if (st.recents.isNotEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
-                                .semantics { contentDescription = "Hisab (call stats)" }
-                                .clickable { onInsights() }.testTag("insights_open"), contentAlignment = Alignment.Center) {
-                                LdIcon(LdIcons.Chart, 21.dp, p.accent)
-                            }
-                            Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
-                                .semantics { contentDescription = "Clear call history" }
-                                .clickable { onClear() }.testTag("recent_clear"), contentAlignment = Alignment.Center) {
-                                LdIcon(LdIcons.Trash, 21.dp, p.muted)
-                            }
-                        }
+                        HomeHeaderTool(LdIcons.Chart,"Hisab (call stats)","insights_open",p.accent,onInsights)
+                        HomeHeaderTool(LdIcons.Trash,"Clear call history","recent_clear",p.muted,onClear)
                     }
                 }
-                // Larger text gets two rows so every filter label stays visible.
                 val largeFilters = LocalDensity.current.fontScale > 1.15f
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp),
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(3.dp),
                     maxItemsInEachRow = if (largeFilters) 2 else 4,
-                    modifier = Modifier.fillMaxWidth().testTag("recent_filters")) {
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+                        .background(p.text.copy(alpha=if(p.isLight).045f else .08f)).padding(4.dp).testTag("recent_filters")) {
                     chipLabels.forEachIndexed { i, label ->
                         val on = filter == i
-                        Box(Modifier.weight(1f).heightIn(min = 44.dp).clip(RoundedCornerShape(14.dp))
-                            .background(if (on) p.accent.pct(.30f) else p.glass)
-                            .border(1.dp, if (on) p.accent else p.stroke, RoundedCornerShape(14.dp))
-                            .clickable { filter = i }.padding(horizontal = 7.dp, vertical = 9.dp)
-                            .testTag("recent_filter_$i"), contentAlignment = Alignment.Center) {
-                            LdText(label, 12f, FontWeight.Medium, if (on) p.text else p.muted)
+                        Box(Modifier.weight(1f).heightIn(min=44.dp)
+                            .then(if(on)Modifier.buttonGlass(p,RoundedCornerShape(14.dp),p.accent) else Modifier.clip(RoundedCornerShape(14.dp)))
+                            .clickable { filter = i }.padding(horizontal=4.dp,vertical=9.dp)
+                            .testTag("recent_filter_$i"), contentAlignment=Alignment.Center) {
+                            LdText(label,12f,if(on)FontWeight.Bold else FontWeight.Medium,if(on)p.text else p.muted)
                         }
                     }
                 }
@@ -833,6 +821,14 @@ fun GlassRow(onClick: () -> Unit, onLongClick: (() -> Unit)? = null, dense: Bool
 }
 
 /** .call-mini */
+/** Quiet home toolbar: 44dp targets remain distinct without a raised box for each icon. */
+@Composable
+private fun HomeHeaderTool(icon:androidx.compose.ui.graphics.vector.ImageVector,description:String,tag:String,tint:Color,onClick:()->Unit){
+ val p=LocalLd.current
+ Box(Modifier.size(44.dp).clip(CircleShape).background(p.text.copy(alpha=if(p.isLight).045f else .08f))
+  .semantics{contentDescription=description}.testTag(tag).clickable(onClick=onClick),contentAlignment=Alignment.Center){LdIcon(icon,21.dp,tint)}
+}
+
 @Composable
 fun CallMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, onClick: () -> Unit) {
     val p = LocalLd.current
@@ -871,10 +867,12 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     LazyColumn(Modifier.fillMaxSize().testTag("main_list"), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = bottomPad), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item {
             Row(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(22.dp),0.dp)
-                .padding(horizontal=12.dp,vertical=10.dp).testTag("contacts_controls"),
+                .padding(horizontal=14.dp,vertical=14.dp).testTag("contacts_controls"),
                 verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                LdIcon(LdIcons.Contacts,20.dp,p.accent)
-                LdText("Contacts",17f,FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2)
+                Column(Modifier.weight(1f)) {
+                    LdText("LIQUID DIALER",9.5f,FontWeight.Bold,p.accent,letter=1.8f)
+                    LdText("Contacts",24f,FontWeight.ExtraBold,modifier=Modifier.padding(top=3.dp),maxLines=2,letter=-.7f)
+                }
                 LdText("${list.size}",11.5f,FontWeight.Bold,p.muted,
                     Modifier.clip(RoundedCornerShape(10.dp)).background(p.glass)
                         .border(1.dp,p.stroke,RoundedCornerShape(10.dp)).padding(horizontal=8.dp,vertical=5.dp))
@@ -883,9 +881,7 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
                     contentAlignment=Alignment.Center) {
                     LdText("${dups.size} dup",12.5f,FontWeight.SemiBold,p.accent)
                 }
-                Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
-                    .semantics { contentDescription="Add contact" }.testTag("contacts_add").clickable { onAdd() },
-                    contentAlignment=Alignment.Center) { LdIcon(LdIcons.PersonPlus,22.dp,p.accent) }
+                HomeHeaderTool(LdIcons.PersonPlus,"Add contact","contacts_add",p.accent,onAdd)
             }
         }
         if (!hasPerm) item { EmptyState(LdIcons.Users, "Contacts ki permission chahiye", "Contacts dikhane ke liye permission do", "Permission do") { act.askPermissions() } }
