@@ -961,6 +961,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
             out.values.filter { Repo.key(it.second) != Repo.key(dial) }.take(4).toList()
         }
     }
+    var pastePreview by remember { mutableStateOf<ClipboardNumbers.Preview?>(null) }
     var voiceConfirmHolder by remember { mutableStateOf<VoiceMatch?>(null) }
     var voiceNoticeHolder by remember { mutableStateOf<String?>(null) }
     val voice = rememberVoiceDialer { said ->
@@ -1050,15 +1051,19 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 onCall = { voiceConfirmHolder = null; act.call(m.number) },
                 onCancel = { voiceConfirmHolder = null })
         }
+        pastePreview?.let { preview ->
+            ClipboardNumberPicker(preview, st.dial.isNotEmpty(),
+                onChoose = { st.dial = it; pastePreview = null }, onClose = { pastePreview = null },
+                onSaved = { pastePreview = null; onOpen("calllists") })
+        }
         if (dialMenu) {
                 Column(Modifier.align(Alignment.TopEnd).padding(top = 96.dp, end = 8.dp).width(200.dp).clip(RoundedCornerShape(16.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(16.dp)).padding(vertical = 6.dp).testTag("dial_menu_popup")) {
                     Row(Modifier.fillMaxWidth().clickable {
                         dialMenu = false
                         val clip = ctx.getSystemService(ClipboardManager::class.java)?.primaryClip
                         val t = clip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(ctx)?.toString().orEmpty()
-                        val clean = t.filter { it.isDigit() || it in "+*#,;" }
-                        if (clean.isNotEmpty()) st.dial += clean
-                    }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Number paste karo", 14f, FontWeight.SemiBold) }
+                        pastePreview = ClipboardNumbers.preview(t)
+                    }.heightIn(min = 48.dp).testTag("dial_paste").padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Number paste karo", 14f, FontWeight.SemiBold) }
                     Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += "," }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Pause add karo (,)", 14f, FontWeight.SemiBold) }
                     Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += ";" }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Wait add karo (;)", 14f, FontWeight.SemiBold) }
                     Row(Modifier.fillMaxWidth().clickable { dialMenu = false; onOpen("radio") }.padding(horizontal = 14.dp, vertical = 11.dp).testTag("radio_menu_item")) { LdText("Radio info", 14f, FontWeight.SemiBold) }
