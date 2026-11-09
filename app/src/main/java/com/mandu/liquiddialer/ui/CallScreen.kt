@@ -121,13 +121,15 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
             BtnKind.SQUIRCLE -> base.flatDisc(p, RoundedCornerShape(size * .30f), on, p.accent)
             BtnKind.OUTLINE -> base.outlineDisc(p, CircleShape, on, p.accent).then(if(sty.key in REFERENCE_CALL_KEYS && !on) Modifier.border(1.dp,p.accent.copy(alpha=.65f),CircleShape) else Modifier)
         }
-        Box(m.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
+        val polish=LocalCallIcons.current?.polish==true
+        val polished=if(polish)m.border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.8f),p.accent.copy(alpha=.35f),Color.White.copy(alpha=.08f))),if(sty.btnKind==BtnKind.SQUIRCLE)RoundedCornerShape(size*.30f) else CircleShape) else m
+        Box(polished.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
             LdIcon(icon, size * .38f, when (sty.btnKind) {
                 BtnKind.GLASS -> if (on) Color.White else if (flat) p.text else mix(p.text, p.accent, .82f)
                 else -> if (on) Color.White else p.text
             })
         }
-        LdText(label, (size.value * .165f).coerceIn(9.5f, 12.5f), FontWeight.SemiBold, p.muted, maxLines = 1)
+        LdText(label, (size.value * .165f).coerceIn(9.5f, 12.5f), FontWeight.SemiBold, if(LocalCallIcons.current?.polish==true)p.text else p.muted, maxLines = 1)
     }
 }
 
@@ -166,6 +168,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     val audio by CallManager.audio.collectAsState()
     val rec by CallManager.recording.collectAsState()
     val s by LdApp.settings.collectAsState()
+    val icons=remember(s.callIconConfig){com.mandu.liquiddialer.data.CallIconConfig.decode(s.callIconConfig)}
     val ctx = LocalContext.current
     val haze = remember { HazeState() }
     val call = remember(ver, calls) { CallManager.primary() }
@@ -192,7 +195,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
         val photoSurface = effBg0 == "photo"
         if(!photoSurface)CallStyleDecoration(cardStyle0,Modifier.fillMaxSize())
         val callPalette = if(photoSurface && cardStyle0.bgMode=="light") basePalette.copy(text=Color.White,muted=Color.White.copy(alpha=.82f),accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else cardStyle0.restyle(if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette)
-        CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette, LocalCallStyle provides cardStyle0) {
+        CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette, LocalCallStyle provides cardStyle0, LocalCallIcons provides icons) {
             if (call == null) {
                 CallEndedScreen(lastEnded)
             } else {
@@ -326,7 +329,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Box(Modifier.testTag("hero_avatar").then(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)Modifier.border(1.5.dp,Brush.sweepGradient(listOf(p.accent,p.accent2,p.accent)),aShape) else Modifier).padding(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)6.dp else 3.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
+        }) { Box(Modifier.testTag("hero_avatar").then(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS || LocalCallIcons.current?.polish==true)Modifier.border(1.5.dp,Brush.sweepGradient(listOf(p.accent,p.accent2,p.accent)),aShape) else Modifier).padding(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)6.dp else 3.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
         Spacer(Modifier.height(2.dp * k))
         LdText(name, nameF * k, FontWeight.Bold, letter = -.3f, maxLines = nameLines, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp).testTag("call_name"))
         if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .3f)
