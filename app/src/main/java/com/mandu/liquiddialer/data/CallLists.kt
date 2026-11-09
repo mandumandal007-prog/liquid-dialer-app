@@ -99,6 +99,16 @@ object CallLists {
         val entries=normalized.map {Entry(UUID.randomUUID().toString(),it,"")}
         return write(ctx,xs+ListItem(UUID.randomUUID().toString(),title(name),entries))
     }
+    /** Reviewed CSV rows only: one new private list, no overwrite/contact mutation. Revalidates at save. */
+    @Synchronized fun createFromCsv(ctx:Context,name:String,rows:List<CsvCallImport.Row>):List<ListItem> {
+        val xs=read(ctx);require(xs.size<MAX_LISTS) {"Abhi 20 lists ki limit hai"}
+        require(rows.size in 1..MAX_ENTRIES) {"1-200 valid rows chuno"}
+        require(rows.all{it.status==CsvCallImport.Status.READY && it.name.length<=100}) {"Sirf valid rows chuno"}
+        val numbers=rows.map{number(it.number)}
+        require(numbers.map{ContactControls.k(it)}.distinct().size==numbers.size) {"Duplicate numbers chuno mat"}
+        val entries=rows.zip(numbers).map{(row,n)->Entry(UUID.randomUUID().toString(),n,row.name)}
+        return write(ctx,xs+ListItem(UUID.randomUUID().toString(),title(name),entries))
+    }
     private fun change(ctx:Context,id:String,f:(ListItem)->ListItem):List<ListItem> {
         val xs=read(ctx);require(xs.any {it.id==id}) {"List ab nahi mili; dobara kholo"}
         return write(ctx,xs.map {if(it.id==id) f(it) else it})
