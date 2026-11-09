@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -916,13 +917,35 @@ fun formatDial(v: String): String {
 private fun DialShortcut(label:String, description:String, icon:androidx.compose.ui.graphics.vector.ImageVector,
     modifier:Modifier, tag:String, onClick:()->Unit) {
     val p=LocalLd.current
-    Row(modifier.heightIn(min=48.dp).buttonGlass(p,RoundedCornerShape(12.dp))
+    Row(modifier.heightIn(min=48.dp).clip(RoundedCornerShape(14.dp)).background(p.accent.copy(alpha=if(p.isLight).07f else .10f))
         .clickable(onClick=onClick).testTag(tag).semantics { contentDescription=description }
         .padding(horizontal=6.dp,vertical=8.dp), horizontalArrangement=Arrangement.spacedBy(6.dp,Alignment.CenterHorizontally),
         verticalAlignment=Alignment.CenterVertically) {
         LdIcon(icon,16.dp,p.accent)
         LdText(label,11.5f,FontWeight.SemiBold,p.accent,maxLines=1)
     }
+}
+
+/** Fit ordinary long international numbers. Extra-long pasted sequences scroll, never ellipsize digits. */
+@Composable
+internal fun DialNumberDisplay(value:String,onLong:()->Unit) {
+ val p=LocalLd.current;val density=LocalDensity.current;val measure=rememberTextMeasurer();val scroll=rememberScrollState()
+ val weight=if(LocalBold.current)FontWeight.Bold else FontWeight.Medium
+ val family=when(LocalFontStyle.current){1->androidx.compose.ui.text.font.FontFamily.Serif;2->androidx.compose.ui.text.font.FontFamily.Monospace;3->androidx.compose.ui.text.font.FontFamily.Cursive;else->null}
+ BoxWithConstraints(Modifier.fillMaxWidth().heightIn(min=38.dp),contentAlignment=Alignment.Center){
+  val availableWidth=maxWidth;val width=with(density){availableWidth.toPx()}
+  val size=remember(value,width,density.fontScale,weight,family){(30 downTo 14).firstOrNull{n->
+   measure.measure(value,TextStyle(fontSize=n.sp,fontWeight=weight,fontFamily=family,letterSpacing=.3.sp),softWrap=false).size.width<=width
+  }?:14}
+  LaunchedEffect(value,scroll.maxValue){scroll.scrollTo(scroll.maxValue)}
+  Column(horizontalAlignment=Alignment.CenterHorizontally){
+  Box(Modifier.widthIn(max=availableWidth).horizontalScroll(scroll).testTag("dial_number_scroll")){
+   LdText(value,size.toFloat(),FontWeight.Medium,p.text,letter=.3f,maxLines=1,
+    modifier=Modifier.testTag("dial_number_text").combinedClickable(onClick={},onLongClick=onLong))
+  }
+  if(scroll.maxValue>0)LdText("Poora number: left/right swipe karo",10f,color=p.muted,modifier=Modifier.testTag("dial_number_hint"))
+  }
+ }
 }
 
 @Composable
@@ -972,20 +995,20 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
         val keyByW = (maxWidth.value - 16f) / 3.55f
         var dialMenu by remember { mutableStateOf(false) }
         Column(Modifier.fillMaxWidth()) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("dial_toolbar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+          Column(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(24.dp),0.dp).testTag("dial_number_panel").padding(10.dp)) {
+            Row(Modifier.fillMaxWidth().testTag("dial_toolbar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
-                Row(Modifier.glass(p,RoundedCornerShape(999.dp),0.dp).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(16.dp)).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
                     LdIcon(LdIcons.Mic, 22.dp, if (voice.ui.listening) p.accent else p.muted)
                 }
                 Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Dialer menu" }.testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 22.dp, p.muted) }
             }
             }
-            Box(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(20.dp),0.dp).testTag("dial_number_panel").padding(horizontal = 8.dp, vertical = 8.dp).heightIn(min = 64.dp)) {
+            Box(Modifier.fillMaxWidth().padding(top=8.dp).heightIn(min=64.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 val nameMatch = matches.firstOrNull { Repo.key(it.number) == Repo.key(dial) && dial.length >= 6 }
-                LdText(if (s.formatNumber) formatDial(dial) else dial, (if (dial.length > 14) 24f else 30f), FontWeight.Medium, letter = 1f, maxLines = 1,
-                    modifier = Modifier.heightIn(min = 38.dp).clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = {}, onLongClick = { if (dial.isNotEmpty()) onLong(dial) }))
+                DialNumberDisplay(if(s.formatNumber)formatDial(dial)else dial,onLong={if(dial.isNotEmpty())onLong(dial)})
                 Spacer(Modifier.height(3.dp))
                 if (suggest.isNotEmpty() && nameMatch == null) {
                     LazyRow(Modifier.fillMaxWidth().padding(top = 4.dp).testTag("dial_suggest"), horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(horizontal = 4.dp)) {
@@ -1005,6 +1028,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                 }
             }
             }
+          }
             DialerCodes.detect(dial)?.let { DialerCodeCard(it, st.isDefault, onRequestRole = { act.requestDefault() }) }
             Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
                 Keypad(onKey = { k -> st.dial = st.dial + k }, onLong = { k ->
