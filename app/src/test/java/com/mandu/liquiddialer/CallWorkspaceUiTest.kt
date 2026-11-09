@@ -57,7 +57,10 @@ class CallWorkspaceUiTest {
         assertEquals("pending",CallLists.read(ctx).single().entries.first().outcome)
         click("session_outcome_busy");reveal("session_note").performTextInput("Try tomorrow after lunch")
         assertEquals("",CallLists.read(ctx).single().entries.first().note)
-        click("session_save_next");await {CallLists.read(ctx).single().entries.first().outcome=="busy"}
+        click("session_save_next");await {
+            CallLists.read(ctx).single().entries.first().outcome=="busy" &&
+            rule.onAllNodes(hasTestTag("session_name") and hasText(second.name),useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()
+        }
         assertEquals("Try tomorrow after lunch",CallLists.read(ctx).single().entries.first().note)
         reveal("session_name",true).assertTextEquals(second.name)
         assertFalse(CallLists.read(ctx).single().entries.first().done)
