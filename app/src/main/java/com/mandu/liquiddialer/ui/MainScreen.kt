@@ -1092,63 +1092,76 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
     }
 }
 
+internal data class DrawerTool(val id:String,val label:String,val group:String,val icon:androidx.compose.ui.graphics.vector.ImageVector,val keywords:String="")
+internal val DRAWER_TOOLS=listOf(
+ DrawerTool("settings","Settings","App & look",LdIcons.Settings,"preferences options"),
+ DrawerTool("appearance","Theme & appearance","App & look",LdIcons.Palette,"color colour font glass design"),
+ DrawerTool("profile","My profile (naam + photo)","App & look",LdIcons.User),
+ DrawerTool("calllayout","Calling card layout","App & look",LdIcons.Dialpad),
+ DrawerTool("stylestudio","Call & Recents style","App & look",LdIcons.Palette),
+ DrawerTool("globalsearch","Global Search","Calling workspace",LdIcons.Search,"find khojo"),
+ DrawerTool("calllists","Call Lists","Calling workspace",LdIcons.Users,"list checklist"),
+ DrawerTool("planner","Follow-up Planner","Calling workspace",LdIcons.Clock),
+ DrawerTool("callbacks","Wapas call karna","Calling workspace",LdIcons.Phone,"callback missed"),
+ DrawerTool("reminders","Reminder Center","Calling workspace",LdIcons.Clock,"alarm"),
+ DrawerTool("callassist","Call-time help","Calling workspace",LdIcons.Phone,"mute route"),
+ DrawerTool("notes","Call notes","History & records",LdIcons.Edit),
+ DrawerTool("historyexplorer","History Explorer","History & records",LdIcons.Clock),
+ DrawerTool("recordings","Recordings","History & records",LdIcons.Record),
+ DrawerTool("stats","Hisab (call stats)","History & records",LdIcons.Clock),
+ DrawerTool("blocked","Blocked numbers","More tools",LdIcons.Block),
+ DrawerTool("visitingcard","Visiting card banao","More tools",LdIcons.Palette,"business card"),
+ DrawerTool("fakecall","Fake call (simulation)","More tools",LdIcons.Phone,"demo"),
+ DrawerTool("voicemail","Voicemail","More tools",LdIcons.Voicemail)
+)
+internal fun drawerTools(query:String):List<DrawerTool>{
+ val words=query.trim().lowercase(Locale.ROOT).split(Regex("\\s+")).filter{it.isNotEmpty()}
+ return DRAWER_TOOLS.filter{t->val text=(t.label+" "+t.group+" "+t.keywords).lowercase(Locale.ROOT);words.all{text.contains(it)}}
+}
+
 @Composable
-private fun Drawer(s: LdSettings, st: AppState, onOpen: (String) -> Unit, onClose: () -> Unit, onVoicemail: () -> Unit) {
-    val p = LocalLd.current
-    val w = LocalConfiguration.current.screenWidthDp
-    Column(Modifier.fillMaxHeight().width(minOf(w * .86f, 340f).dp).liquid(RoundedCornerShape(topEnd = 30.dp, bottomEnd = 30.dp), 24.dp)
-        .background(p.bg2.copy(alpha = if (p.isLight) .85f else .78f))
-        .clickable(remember { MutableInteractionSource() }, null) {}
-        .systemBarsPadding().padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            val name = s.profileName.ifBlank { "You" }
-            val ctx = LocalContext.current
-            val own = remember { Repo.ownNumbers(ctx) }
-            Box(Modifier.clip(CircleShape).clickable { onOpen("profile") }) { Avatar(name, s.profilePhoto.ifBlank { null }, 62.dp, 20f, glow = true, seed = "me") }
-            Column(Modifier.weight(1f)) {
-                LdText(name, 16f, FontWeight.Bold)
-                LdText(s.profileNumber.ifBlank { own.firstOrNull()?.substringAfter(": ") ?: "My profile set karo" }, 12f, color = p.muted)
-            }
-            IconBtn(LdIcons.X, onClick = onClose)
-        }
-        @Composable
-        fun item(ic: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-            Row(Modifier.fillMaxWidth().buttonGlass(p,RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(14.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Luxury: har drawer icon ko tinted glass chip me - ek jaisa premium container
-                Box(Modifier.size(34.dp).raisedGlass(p, RoundedCornerShape(11.dp), 6.dp).premiumRing(p, RoundedCornerShape(11.dp)), contentAlignment = Alignment.Center) { LdIcon(ic, 18.dp, p.accent) }
-                LdText(label, 14f, FontWeight.Medium, modifier = Modifier.weight(1f)); LdIcon(LdIcons.Chevron, 16.dp, p.muted.copy(alpha = .45f))
-            }
-        }
-        SwitchRow("Aaj ka call summary", "Recent calls ke neeche daily strip dikhao", s.showTodayStats) { on ->
-            LdApp.instance.scope.launch { LdApp.instance.repo.set(K.showTodayStats,on) }
-        }
-        item(LdIcons.Settings, "Settings") { onOpen("settings") }
-        item(LdIcons.Palette, "Theme & appearance") { onOpen("appearance") }
-        item(LdIcons.User, "My profile (naam + photo)") { onOpen("profile") }
-        item(LdIcons.Dialpad, "Calling card layout") { onOpen("calllayout") }
-        item(LdIcons.Palette, "Call & Recents style") { onOpen("stylestudio") }
-        item(LdIcons.Clock, "History Explorer") { onOpen("historyexplorer") }
-        item(LdIcons.Palette, "Visiting card banao") { onOpen("visitingcard") }
-        item(LdIcons.Phone, "Fake call (simulation)") { onOpen("fakecall") }
-        item(LdIcons.Phone, "Call-time help") { onOpen("callassist") }
-        item(LdIcons.Clock, "Reminder Center") { onOpen("reminders") }
-        item(LdIcons.Search, "Global Search") { onOpen("globalsearch") }
-        item(LdIcons.Clock, "Follow-up Planner") { onOpen("planner") }
-        item(LdIcons.Users, "Call Lists") { onOpen("calllists") }
-        item(LdIcons.Phone, "Wapas call karna") { onOpen("callbacks") }
-        item(LdIcons.Record, "Recordings") { onOpen("recordings") }
-        item(LdIcons.Edit, "Call notes") { onOpen("notes") }
-        item(LdIcons.Clock, "Hisab (call stats)") { onOpen("stats") }
-        item(LdIcons.Block, "Blocked numbers") { onOpen("blocked") }
-        item(LdIcons.Voicemail, "Voicemail") { onVoicemail() }
-        Spacer(Modifier.weight(1f))
-        Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 18.dp, bottom = 6.dp)) {
-            LdText("Liquid Dialer", 12.5f, FontWeight.Bold)
-            LdText("v${com.mandu.liquiddialer.BuildConfigHelper.version} · Frosted glass calling", 11.5f, color = p.muted)
-            LdText(if (st.isDefault) "Default phone app ✓" else "Abhi default phone app nahi hai", 11.5f, color = if (st.isDefault) p.ok else p.danger)
-        }
+private fun Drawer(s:LdSettings,st:AppState,onOpen:(String)->Unit,onClose:()->Unit,onVoicemail:()->Unit){
+ val p=LocalLd.current;val w=LocalConfiguration.current.screenWidthDp
+ var query by remember{mutableStateOf("")};val results=remember(query){drawerTools(query)};val toolScroll=rememberScrollState()
+ LaunchedEffect(query){toolScroll.scrollTo(0)}
+ Column(Modifier.fillMaxHeight().width(minOf(w*.90f,360f).dp).liquid(RoundedCornerShape(topEnd=30.dp,bottomEnd=30.dp),24.dp)
+  .background(p.bg2.copy(alpha=if(p.isLight).85f else .78f)).clickable(remember{MutableInteractionSource()},null){}
+  .systemBarsPadding().imePadding().padding(14.dp).testTag("drawer_panel")){
+  Row(Modifier.fillMaxWidth().padding(bottom=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+   val name=s.profileName.ifBlank{"You"}
+   Box(Modifier.clip(CircleShape).clickable{onOpen("profile")}.testTag("drawer_profile")){Avatar(name,s.profilePhoto.ifBlank{null},44.dp,16f,seed="me")}
+   Column(Modifier.weight(1f)){LdText(name,16f,FontWeight.Bold,maxLines=2);LdText("Tools & settings",11.5f,color=p.muted)}
+   Box(Modifier.testTag("drawer_close")){IconBtn(LdIcons.X,onClick=onClose)}
+  }
+  Row(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(16.dp),0.dp).heightIn(min=48.dp).padding(horizontal=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   LdIcon(LdIcons.Search,18.dp,p.muted)
+   Box(Modifier.weight(1f)){
+    if(query.isEmpty())LdText("Tool khojo",13f,color=p.muted)
+    BasicTextField(query,{query=it.take(80)},Modifier.fillMaxWidth().testTag("drawer_search").semantics{contentDescription="Search menu tools"},singleLine=true,textStyle=TextStyle(color=p.text,fontSize=14.sp),cursorBrush=SolidColor(p.accent))
+   }
+   if(query.isNotEmpty())Box(Modifier.size(40.dp).clip(CircleShape).testTag("drawer_search_clear").semantics{contentDescription="Clear menu search"}.clickable{query=""},contentAlignment=Alignment.Center){LdIcon(LdIcons.X,18.dp,p.muted)}
+  }
+  Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(toolScroll).testTag("drawer_tool_scroll"),verticalArrangement=Arrangement.spacedBy(6.dp)){
+   if(query.isBlank())SwitchRow("Aaj ka call summary","Recent calls ke neeche daily strip dikhao",s.showTodayStats){on->LdApp.instance.scope.launch{LdApp.instance.repo.set(K.showTodayStats,on)}}
+   if(results.isEmpty())LdText("Koi tool nahi mila. Naam badlo ya search saaf karo.",13f,color=p.muted,maxLines=4,modifier=Modifier.padding(vertical=20.dp).testTag("drawer_empty"))
+   results.groupBy{it.group}.forEach{(group,tools)->
+    LdText(group.uppercase(),10f,FontWeight.Bold,p.accent,letter=1.2f,modifier=Modifier.padding(start=6.dp,top=14.dp,bottom=2.dp))
+    Column(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(20.dp),0.dp)){
+     tools.forEachIndexed{i,t->
+      Row(Modifier.fillMaxWidth().clickable{if(t.id=="voicemail")onVoicemail()else onOpen(t.id)}.testTag("drawer_tool_"+t.id).heightIn(min=56.dp).padding(horizontal=12.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+       Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(p.accent.copy(alpha=.1f)),contentAlignment=Alignment.Center){LdIcon(t.icon,18.dp,p.accent)}
+       LdText(t.label,13.5f,FontWeight.Medium,modifier=Modifier.weight(1f),maxLines=2);LdIcon(LdIcons.Chevron,15.dp,p.muted)
+      }
+      if(i<tools.lastIndex)Box(Modifier.padding(start=54.dp,end=12.dp).fillMaxWidth().height(1.dp).background(p.stroke.copy(alpha=.5f)))
+     }
     }
+   }
+   Column(Modifier.padding(start=6.dp,top=16.dp,bottom=12.dp)){
+    LdText("Liquid Dialer · v${com.mandu.liquiddialer.BuildConfigHelper.version}",11.5f,FontWeight.Bold)
+    LdText(if(st.isDefault)"Default phone app ✓"else"Abhi default phone app nahi hai",11.5f,color=if(st.isDefault)p.ok else p.danger,maxLines=2)
+   }
+  }
+ }
 }
 
 
