@@ -52,14 +52,10 @@ fun BlobBackground(modifier: Modifier = Modifier, strong: Boolean = false) {
     val p = LocalLd.current
     val cfg = LocalConfiguration.current
     val vmax = maxOf(cfg.screenWidthDp, cfg.screenHeightDp).dp
-    val drift=if(p.motion){
-        val inf=rememberInfiniteTransition(label="blobs")
-        val a by inf.animateFloat(0f,1f,infiniteRepeatable(tween(26000,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="b1")
-        val b by inf.animateFloat(0f,1f,infiniteRepeatable(tween(32000,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="b2")
-        val c by inf.animateFloat(0f,1f,infiniteRepeatable(tween(38000,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="b3")
-        Triple(a,b,c)
-    }else Triple(0f,0f,0f)
-    val (t1,t2,t3)=drift
+    val inf = rememberInfiniteTransition(label = "blobs")
+    val t1 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(26000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b1")
+    val t2 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(32000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b2")
+    val t3 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(38000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b3")
     val m = if (p.motion) 1f else 0f
     Box(modifier.fillMaxSize().background(p.bg)) {
         if (strong) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(p.bg2, p.bg))))
