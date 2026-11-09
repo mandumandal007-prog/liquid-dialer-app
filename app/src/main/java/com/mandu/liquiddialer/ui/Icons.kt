@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
-/** Icons copied 1:1 from the Liquid Dialer web design (24x24, stroke 1.8, round caps). */
+/** Rounded 24x24 icons with the user-selected stroke and fill treatments. */
 object LdIcons {
     private fun build(name: String, vararg parts: Triple<String, Boolean, Float>): ImageVector {
         val b = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
@@ -79,14 +79,14 @@ object LdIcons {
 
     private val PARTS: Map<String, Array<Triple<String, Boolean, Float>>> = mapOf(
         "chart" to arrayOf(Triple("M4 4v16h17M8 15v-4M13 15V7M18 15v-6", false, 1.8f)),
-        "history" to arrayOf(Triple("M3.5 11a8.5 8.5 0 1 1 2.3 6.8M3.5 5.5V11H9", false, 1.8f), Triple("M12 7.5V12l3 2", false, 1.8f)),
-        "contacts" to arrayOf(Triple("M7 3.5h12a1.5 1.5 0 0 1 1.5 1.5v14a1.5 1.5 0 0 1-1.5 1.5H7a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 7 3.5zM3 7h4M3 12h4M3 17h4", false, 1.8f), Triple("M10.5 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M9 17c.3-2 1.8-3 4-3s3.7 1 4 3", false, 1.8f)),
-        "menu" to arrayOf(Triple("M4 7h16M4 12h16M4 17h10", false, 1.8f)),
+        "history" to arrayOf(Triple("M4 9V4M4 9h5M4.3 8a8 8 0 1 1-.1 7", false, 1.8f), Triple("M12 7.5V12l3.5 2", false, 1.8f)),
+        "contacts" to arrayOf(Triple("M6 3.5h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2zM2.5 8h3M2.5 16h3", false, 1.8f), Triple("M10.5 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M9 17c.3-2 1.8-3 4-3s3.7 1 4 3", false, 1.8f)),
+        "menu" to arrayOf(Triple("M5 6h14M5 12h10M5 18h14", false, 1.8f)),
         "search" to arrayOf(Triple("M4.5,11.0a6.5,6.5 0 1,0 13.0,0a6.5,6.5 0 1,0 -13.0,0z", false, 1.8f), Triple("M20 20l-4.2-4.2", false, 1.8f)),
         "x" to arrayOf(Triple("M6 6l12 12M18 6L6 18", false, 1.8f)),
-        "clock" to arrayOf(Triple("M3.5,12.0a8.5,8.5 0 1,0 17.0,0a8.5,8.5 0 1,0 -17.0,0z", false, 1.8f), Triple("M12 7.5V12l3 2", false, 1.8f)),
+        "clock" to arrayOf(Triple("M3.5,12.0a8.5,8.5 0 1,0 17.0,0a8.5,8.5 0 1,0 -17.0,0z", false, 1.8f), Triple("M12 7.5V12l3.5 2", false, 1.8f)),
         "users" to arrayOf(Triple("M5.6,8.0a3.4,3.4 0 1,0 6.8,0a3.4,3.4 0 1,0 -6.8,0z", false, 1.8f), Triple("M2.8 19c.6-3.1 3.1-4.9 6.2-4.9s5.6 1.8 6.2 4.9", false, 1.8f), Triple("M16.5 5.3a3.2 3.2 0 0 1 0 6.1", false, 1.8f), Triple("M18 14.4c2.1.4 3.5 2.1 3.9 4.6", false, 1.8f)),
-        "dialpad" to arrayOf(Triple("M4.6,6.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M10.6,6.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M16.6,6.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M4.6,12.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M10.6,12.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M16.6,12.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M4.6,18.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M10.6,18.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f), Triple("M16.6,18.0a1.4,1.4 0 1,0 2.8,0a1.4,1.4 0 1,0 -2.8,0z", false, 1.8f)),
+        "dialpad" to arrayOf(Triple("M3.8,5.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M10.3,5.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M16.8,5.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M3.8,12a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M10.3,12a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M16.8,12a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M3.8,18.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M10.3,18.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f), Triple("M16.8,18.5a1.7,1.7 0 1,0 3.4,0a1.7,1.7 0 1,0 -3.4,0z", true, 1.8f)),
         "phone" to arrayOf(Triple("M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.02-.24c1.12.37 2.33.57 3.57.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.61 21 3 13.39 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1.02z", true, 0f)),
         "call-end" to arrayOf(Triple("M12 9c-1.6 0-3.15.25-4.6.72v3.1a1 1 0 0 1-.59.91c-.98.49-1.88 1.12-2.68 1.85a1 1 0 0 1-1.38-.03L.27 13.07a1 1 0 0 1 .01-1.42C3.33 8.76 7.45 7 12 7s8.67 1.76 11.72 4.65a1 1 0 0 1 .01 1.42l-2.48 2.48a1 1 0 0 1-1.38.03 11.92 11.92 0 0 0-2.68-1.85 1 1 0 0 1-.59-.91v-3.1A14.96 14.96 0 0 0 12 9z", true, 0f)),
         "phone-off" to arrayOf(Triple("M7.1 3.4c.6-.5 1.5-.4 2 .2l2.4 2.9c.5.6.4 1.5-.2 2l-1.3 1.1a12.4 12.4 0 0 0 6.3 6.3l1.1-1.3c.5-.6 1.4-.7 2-.2l2.9 2.4c.6.5.7 1.4.2 2l-1.4 1.7c-.8.9-2 1.3-3.2 1-5.2-1.4-9.3-5.5-10.7-10.7-.3-1.2.1-2.4 1-3.2z", true, 1.8f), Triple("M3 3l18 18", false, 2.2f)),
