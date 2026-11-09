@@ -87,6 +87,9 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
         try {lists=withContext(Dispatchers.IO){CallLists.read(ctx)};loaded=true}
         catch(_:Exception){error="Saved lists khul nahi rahi. Data ko overwrite nahi kiya gaya."}
     }
+    if(mode=="csv"){CsvCallImportPage(onBack={mode=""},onSaved={id->
+        scope.launch {try{lists=withContext(Dispatchers.IO){CallLists.read(ctx)};selected=id;mode="";notice="CSV se nayi private list save hui"}catch(_:Exception){mode="";error="List save hui, par dobara load nahi hui. Wapas aakar kholo."}}
+    });return}
     if(current!=null && sessionId!=null) {
         CallListSessionPage(if(sessionIds==null)current else CallListFocus.session(current,sessionIds!!),sessionId!!,busy,error,onBack={sessionId=null;sessionIds=null;error=""},onCall={act.callUi(it)},
             onSave={eid,outcome,note,after->update({CallLists.followUp(ctx,current.id,eid,outcome,note)},after)},focused=sessionIds!=null)
@@ -117,6 +120,7 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
             }
             PrimaryButton("Rehne do",enabled=!busy,modifier=Modifier.testTag("lists_import_cancel")){mode="";importPreview=null;importText=null}
         } else if(current==null) {
+            if(mode!="create") PrimaryButton("CSV / spreadsheet se nayi list",enabled=!busy,modifier=Modifier.testTag("lists_csv")){mode="csv"}
             if(mode!="create") PrimaryButton("Nayi list banao",enabled=!busy,modifier=Modifier.testTag("lists_create")){mode="create";name=""}
             if(mode=="create") {
                 ListField(name,{name=it.take(60)},"List ka naam", "list_title")
