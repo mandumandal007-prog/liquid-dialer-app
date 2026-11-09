@@ -26,6 +26,29 @@ import kotlinx.coroutines.cancel
 
 @Suppress("DEPRECATION")
 class LdInCallService : InCallService() {
+    // This is the existing Telecom binding, not a started/sticky background service.
+    // Keep the approved custom row. Foreground ownership is not a promise that an OEM
+    // hides its delete affordance, and Android14+ may still dismiss custom ongoing rows.
+    private val callNotification = CallNotificationLifecycle(
+        promote = { notification ->
+            check(getSystemService(TelecomManager::class.java)?.defaultDialerPackage == packageName) {
+                "Call foreground ownership requires the default dialer"
+            }
+            androidx.core.app.ServiceCompat.startForeground(this, CallNotifier.ID_CALL, notification,
+                if (Build.VERSION.SDK_INT >= 29) android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL else 0)
+        },
+        demote = { androidx.core.app.ServiceCompat.stopForeground(this, android.app.Service.STOP_FOREGROUND_REMOVE) }
+    )
+
+    internal fun publishCallNotification(notification: android.app.Notification): Boolean {
+        if (CallManager.service !== this || CallManager.calls.value.none {
+                CallManager.state(it) != Call.STATE_DISCONNECTED
+            }) return false
+        return callNotification.publish(notification)
+    }
+
+    internal fun endCallNotification() = callNotification.end()
+
     private val main = Handler(Looper.getMainLooper())
     private var tts: TextToSpeech? = null
     private var sensorOn = false
@@ -56,6 +79,7 @@ class LdInCallService : InCallService() {
         }}
     }
     override fun onDestroy() {
+        endCallNotification()
         assistMonitor.stop();assistScope.cancel()
         stopFlip(); tts?.shutdown(); tts = null
         if (CallManager.service === this) CallManager.service = null
