@@ -109,6 +109,7 @@
 
         <service
             android:name=".telecom.LdInCallService"
+            android:foregroundServiceType="phoneCall"
             android:exported="true"
                         android:permission="android.permission.BIND_INCALL_SERVICE">
             <meta-data android:name="android.telecom.IN_CALL_SERVICE_UI" android:value="true" />
