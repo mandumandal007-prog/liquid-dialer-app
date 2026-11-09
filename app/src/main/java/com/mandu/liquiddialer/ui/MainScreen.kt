@@ -143,9 +143,9 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 enter = fadeIn() + slideInVertically { if (barBottom) it / 4 else -it / 4 }, exit = fadeOut() + slideOutVertically { if (barBottom) it / 4 else -it / 4 }) {
                 Row((if (barBottom) Modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(start = 14.dp, end = 14.dp, bottom = if (imeUp) 8.dp else 90.dp)
                     else Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)).testTag("top_bar")
-                        .liquid(RoundedCornerShape(28.dp), 8.dp).padding(4.dp),
+                        .liquid(RoundedCornerShape(24.dp), 8.dp).padding(4.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(Modifier.size(48.dp).clip(CircleShape).semantics { contentDescription = "Menu" }.testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
+                    Box(Modifier.size(48.dp).buttonGlass(p,RoundedCornerShape(18.dp),p.accent).semantics { contentDescription = "Menu" }.testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
                     Row(Modifier.weight(1f).height(48.dp).padding(start = 2.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LdIcon(LdIcons.Search, 20.dp, p.muted)
@@ -154,7 +154,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             BasicTextField(query, { query = it }, Modifier.fillMaxWidth().semantics { contentDescription = trNow("Search contacts or numbers") }, singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
-                        Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(16.dp)).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
                             LdIcon(LdIcons.Mic, 22.dp, if (searchVoice.ui.listening) p.accent else p.muted)
                         }
                         if (query.isNotEmpty()) Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Clear search" }.testTag("search_clear").clickable { query = "" },
@@ -220,7 +220,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                                 .clickable(remember { MutableInteractionSource() }, null) { goTab(k) },
                                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                 Box {
-                                    LdIcon(ic, 22.dp, if (on) p.text else p.muted)
+                                    LdIcon(ic, 24.dp, if (on) p.accent else p.muted)
                                     // NAYA: nayi missed call ka red badge (recents kholte hi seen mark -> badge clear)
                                     if (k == "recents") {
                                         val unseen = Repo.unseenMissed(st.recents, s.recentsSeenAt)
@@ -229,7 +229,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                                     }
                                 }
                                 Spacer(Modifier.height(3.dp))
-                                LdText(label, 10.5f, FontWeight.SemiBold, if (on) p.text else p.muted, letter = .2f)
+                                LdText(label, 12f, if (on) FontWeight.Bold else FontWeight.Medium, if (on) p.text else p.muted, letter = .1f)
                             }
                         }
                     }
@@ -241,8 +241,11 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 exit = fadeOut(tween(160)) + shrinkHorizontally(tween(180)) + scaleOut(tween(180), targetScale = .7f)) {
                 Row {
                     Spacer(Modifier.width(12.dp))
-                    Box(Modifier.size(64.dp).testTag("dialer_fab").buttonGlass(p,CircleShape).clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
-                        LdIcon(LdIcons.Dialpad, 30.dp, p.accent)
+                    Box(Modifier.size(64.dp).testTag("dialer_fab").semantics { contentDescription = "Open keypad" }
+                        .clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(p.accent.pct(.30f),p.glass)))
+                        .border(1.dp,p.accent.pct(.65f),RoundedCornerShape(22.dp))
+                        .clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
+                        LdIcon(LdIcons.Dialpad, 31.dp, p.text)
                     }
                 }
             }
@@ -647,8 +650,10 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LdIcon(LdIcons.History, 20.dp, p.accent)
-                    LdText("Recent calls", 17f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2)
+                    Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(p.accent.pct(.15f)), contentAlignment = Alignment.Center) {
+                        LdIcon(LdIcons.History, 21.dp, p.accent)
+                    }
+                    LdText("Recent calls", 18f, FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 2)
                     if (st.recents.isNotEmpty()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
@@ -973,7 +978,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp).testTag("dial_toolbar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
                 Row(Modifier.glass(p,RoundedCornerShape(999.dp),0.dp).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(16.dp)).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
                     LdIcon(LdIcons.Mic, 22.dp, if (voice.ui.listening) p.accent else p.muted)
                 }
                 Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Dialer menu" }.testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 22.dp, p.muted) }
