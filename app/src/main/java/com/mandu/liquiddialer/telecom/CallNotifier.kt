@@ -126,7 +126,7 @@ object CallNotifier {
     fun update(ctx: Context) {
         val nm = NotificationManagerCompat.from(ctx)
         val call = CallManager.primary()
-        if (call == null || CallManager.state(call) == Call.STATE_DISCONNECTED) { nm.cancel(ID_CALL); return }
+        if (call == null || CallManager.state(call) == Call.STATE_DISCONNECTED) { cancelAll(ctx); return }
         val name = CallManager.nameFor(ctx, call)
         val person = Person.Builder().setName(name).setImportant(true).build()
         val st = CallManager.state(call)
@@ -196,7 +196,11 @@ object CallNotifier {
             b.setCustomContentView(bar())
             b.setCustomBigContentView(bar())
         }
-        try { nm.notify(ID_CALL, b.build()) } catch (e: Exception) { android.util.Log.e("CallNotifier", "Call notification rejected", e) }
+        val notification = b.build()
+        // A real Telecom-bound service owns the same row while calls exist. If the system
+        // refuses promotion, retain the known-working ordinary notification instead.
+        if (CallManager.service?.publishCallNotification(notification) == true) return
+        try { nm.notify(ID_CALL, notification) } catch (e: Exception) { android.util.Log.e("CallNotifier", "Call notification rejected", e) }
     }
 
     fun missed(ctx: Context, number: String, name: String, remind: Boolean = false) {
@@ -362,5 +366,8 @@ object CallNotifier {
         try { NotificationManagerCompat.from(ctx).notify(44, n) } catch (e: Exception) { }
     }
 
-    fun cancelAll(ctx: Context) { NotificationManagerCompat.from(ctx).cancel(ID_CALL) }
+    fun cancelAll(ctx: Context) {
+        CallManager.service?.endCallNotification()
+        NotificationManagerCompat.from(ctx).cancel(ID_CALL)
+    }
 }
