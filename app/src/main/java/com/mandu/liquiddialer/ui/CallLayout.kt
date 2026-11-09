@@ -11,6 +11,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -93,7 +94,7 @@ private fun saveF(k: androidx.datastore.preferences.core.Preferences.Key<String>
 private fun saveFl(k: androidx.datastore.preferences.core.Preferences.Key<Float>, v: Float) { LdApp.instance.scope.launch { LdApp.instance.repo.set(k, v) } }
 
 @Composable
-fun CallLayoutPage(onBack: () -> Unit) {
+fun CallLayoutPage(onIcons:()->Unit={},onBack: () -> Unit) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val grid = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
@@ -105,6 +106,8 @@ fun CallLayoutPage(onBack: () -> Unit) {
         val m = l.toMutableList(); val t = m[i]; m[i] = m[j]; m[j] = t; return m
     }
     PageFrame("Calling card layout", onBack) {
+        PrimaryButton("Call icons aur premium glass",modifier=Modifier.testTag("call_icon_studio"),onClick=onIcons)
+        Spacer(Modifier.height(12.dp))
         LdText("PREVIEW", 12f, FontWeight.Bold, p.muted, letter = 1.2f, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(p.accent.pct(.10f)).glass(p, RoundedCornerShape(28.dp), 0.dp)
             .padding(vertical = 18.dp, horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
