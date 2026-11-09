@@ -50,6 +50,8 @@ data class LdSettings(
     val boldText: Boolean = false,
     val fontStyle: Int = 0,      // 0=Default, 1=Serif, 2=Monospace, 3=Cursive
     val dialerLayout: Int = 0, // 0 circles, 1 soft tiles, 2 wide pills; dialer only
+    val cleanGlass: Boolean = false,
+    val callIconConfig: String = "",
     val iconStyle: Int = 0,      // LdIcons.ICON_STYLES index (0=Default, 6=Outline, 7=Duotone)
     val callCardScale: Float = 1f,       // calling card: naam + photo ka size
     val dialerScale: Float = 1f,         // dialer keypad ka size
@@ -178,6 +180,8 @@ object K {
     val boldText = booleanPreferencesKey("boldText")
     val fontStyle = intPreferencesKey("font_style")
     val dialerLayout = intPreferencesKey("dialerLayout")
+    val cleanGlass = booleanPreferencesKey("cleanGlass")
+    val callIconConfig = stringPreferencesKey("callIconConfig")
     val iconStyle = intPreferencesKey("icon_style")
     val callCardScale = floatPreferencesKey("callCardScale")
     val dialerScale = floatPreferencesKey("dialerScale")
@@ -296,6 +300,8 @@ fun Preferences.toSettings(): LdSettings {
         tabSwipe = this[K.tabSwipe] ?: true,
         boldText = this[K.boldText] ?: false,
         fontStyle = (this[K.fontStyle] ?: 0).coerceIn(0, 3),
+        cleanGlass = this[K.cleanGlass] ?: false,
+        callIconConfig = (this[K.callIconConfig] ?: "").take(6000),
         iconStyle = (this[K.iconStyle] ?: 0).coerceIn(0, 7),
         dialerLayout = (this[K.dialerLayout] ?: 0).coerceIn(0, 2),
         callCardScale = this[K.callCardScale] ?: 1f,
