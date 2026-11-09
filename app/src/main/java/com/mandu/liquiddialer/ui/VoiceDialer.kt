@@ -17,10 +17,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -243,18 +247,23 @@ fun androidx.compose.foundation.layout.BoxScope.VoiceListeningCard(align: Alignm
 @Composable
 fun androidx.compose.foundation.layout.BoxScope.VoiceConfirmCard(m: VoiceMatch, align: Alignment, onCall: () -> Unit, onCancel: () -> Unit) {
     val p = LocalLd.current
-    Column(Modifier.align(align).widthIn(max = 310.dp).clip(RoundedCornerShape(22.dp)).background(p.bg2).border(1.dp, p.stroke, RoundedCornerShape(22.dp)).padding(20.dp).testTag("voice_confirm"),
-        horizontalAlignment = Alignment.CenterHorizontally) {
-        LdText("Call karein?", 13f, FontWeight.SemiBold, p.muted)
-        LdText(m.name, 19f, FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(top = 6.dp))
-        if (m.name != m.number) LdText(Repo.pretty(m.number), 13.5f, color = p.muted, modifier = Modifier.padding(top = 2.dp))
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(26.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFFD93025)).clickable { onCancel() }.testTag("voice_cancel"), contentAlignment = Alignment.Center) {
-                LdIcon(LdIcons.X, 24.dp, Color.White)
+    Column(Modifier.align(align).widthIn(max=400.dp).fillMaxWidth(.90f).clip(RoundedCornerShape(28.dp))
+        .background(p.bg2).border(1.dp,Brush.verticalGradient(listOf(Color.White.copy(alpha=.75f),p.accent.copy(alpha=.25f))),RoundedCornerShape(28.dp))
+        .testTag("voice_confirm").padding(horizontal=22.dp,vertical=24.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+        LdText("Call karein?",14f,FontWeight.SemiBold,p.muted)
+        LdText(m.name,22f,FontWeight.Bold,maxLines=3,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=10.dp))
+        if(m.name!=m.number)LdText(Repo.pretty(m.number),15f,color=p.muted,maxLines=2,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=4.dp))
+        Spacer(Modifier.height(22.dp))
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
+            Column(horizontalAlignment=Alignment.CenterHorizontally){
+                Box(Modifier.size(64.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color(0xFFF45A4F),Color(0xFFD93025))))
+                    .border(1.dp,Color.White.copy(alpha=.45f),CircleShape).clickable(role=Role.Button,onClick=onCancel).semantics{contentDescription="Cancel call"}.testTag("voice_cancel"),contentAlignment=Alignment.Center){LdIcon(LdIcons.X,26.dp,Color.White)}
+                LdText("Rehne do",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(top=8.dp))
             }
-            Box(Modifier.size(58.dp).clip(CircleShape).background(Color(0xFF1EA446)).clickable { onCall() }.testTag("voice_call_now"), contentAlignment = Alignment.Center) {
-                LdIcon(LdIcons.Phone, 26.dp, Color.White)
+            Column(horizontalAlignment=Alignment.CenterHorizontally){
+                Box(Modifier.size(64.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color(0xFF25BA58),Color(0xFF13853B))))
+                    .border(1.dp,Color.White.copy(alpha=.45f),CircleShape).clickable(role=Role.Button,onClick=onCall).semantics{contentDescription="Place call"}.testTag("voice_call_now"),contentAlignment=Alignment.Center){LdIcon(LdIcons.Phone,28.dp,Color.White)}
+                LdText("Call karo",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(top=8.dp))
             }
         }
     }
