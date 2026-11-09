@@ -52,10 +52,14 @@ fun BlobBackground(modifier: Modifier = Modifier, strong: Boolean = false) {
     val p = LocalLd.current
     val cfg = LocalConfiguration.current
     val vmax = maxOf(cfg.screenWidthDp, cfg.screenHeightDp).dp
-    val inf = rememberInfiniteTransition(label = "blobs")
-    val t1 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(26000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b1")
-    val t2 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(32000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b2")
-    val t3 by inf.animateFloat(0f, 1f, infiniteRepeatable(tween(38000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b3")
+    val drift=if(p.motion){
+        val inf=rememberInfiniteTransition(label="blobs")
+        val a by inf.animateFloat(0f,1f,infiniteRepeatable(tween(26000,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="b1")
+        val b by inf.animateFloat(0f,1f,infiniteRepeatable(tween(32000,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="b2")
+        val c by inf.animateFloat(0f,1f,infiniteRepeatable(tween(38000,easing=FastOutSlowInEasing),RepeatMode.Reverse),label="b3")
+        Triple(a,b,c)
+    }else Triple(0f,0f,0f)
+    val (t1,t2,t3)=drift
     val m = if (p.motion) 1f else 0f
     Box(modifier.fillMaxSize().background(p.bg)) {
         if (strong) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(p.bg2, p.bg))))
@@ -97,7 +101,7 @@ fun Modifier.liquid(shape: Shape, shadow: Dp = 16.dp, blur: Boolean = true): Mod
     val p = LocalLd.current
     val haze = LocalHaze.current
     var m = this.shadow(shadow, shape, clip = false, ambientColor = Color.Black.copy(alpha = .3f), spotColor = Color.Black.copy(alpha = .45f)).clip(shape)
-    if (blur && haze != null) {
+    if (blur && p.blur>0f && haze != null) {
         m = m.hazeChild(haze, HazeStyle(
             backgroundColor = p.bg,
             tint = HazeTint(p.glass2.copy(alpha = (p.glass2.alpha + .04f).coerceAtMost(1f))),
@@ -150,7 +154,13 @@ fun pressScale(src: MutableInteractionSource, pressed: Float = .92f): Float {
 
 @Composable
 fun LdIcon(v: ImageVector, size: Dp = 22.dp, tint: Color = LocalLd.current.text, modifier: Modifier = Modifier) =
-    Icon(LdIcons.styled(v, LocalIconStyle.current), null, modifier.size(size), tint = tint)
+    run {
+        val config=LocalCallIcons.current
+        val choice=config?.choice(v.name)
+        val style=choice?.style?.takeIf{it>=0} ?: LocalIconStyle.current
+        val color=if(choice==null || tint==Color.White || v==LdIcons.CallEnd) tint else callIconColor(choice.color,LocalLd.current,tint)
+        Icon(LdIcons.styled(v, style), null, modifier.size(size), tint = color)
+    }
 
 /** .icon-btn (+ .glass / .danger / .on) */
 @Composable
