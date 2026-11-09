@@ -66,15 +66,16 @@ fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit
         BlobBackground()
         Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.16f), .6f to Color.Transparent, center = Offset(540f, 0f), radius = 1500f)))
         Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 30.dp)) {
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Box(Modifier.testTag("page_back")) { IconBtn(LdIcons.ArrowLeft, onClick = onBack) }
-                LdText(title, 22f, FontWeight.ExtraBold, modifier = Modifier.weight(1f), letter = -.3f, maxLines=2)
-                Spacer(Modifier.width(42.dp))
+            Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)
+                .glass(p,RoundedCornerShape(22.dp),0.dp).padding(horizontal=8.dp,vertical=8.dp).testTag("page_header"),
+                verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                Box(Modifier.testTag("page_back")){IconBtn(LdIcons.ArrowLeft,onClick=onBack)}
+                LdText(title,20f,FontWeight.ExtraBold,modifier=Modifier.weight(1f).testTag("page_title"),letter=-.3f,maxLines=4)
+                Spacer(Modifier.width(4.dp))
             }
-            content()
-        }
-        if(footer!=null) Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp)) {footer()}
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).testTag("page_content_scroll")
+                .padding(start=16.dp,end=16.dp,top=8.dp,bottom=30.dp)) {content()}
+            if(footer!=null)Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp).testTag("page_footer")){footer()}
         }
     }
 }
