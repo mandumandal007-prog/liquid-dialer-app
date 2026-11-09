@@ -39,7 +39,7 @@ jobs:
       - name: Fetch verified Gradle distribution
         run: |
           archive="$RUNNER_TEMP/gradle-8.9-bin.zip"
-          curl --fail --location --retry 2 --retry-delay 3 --retry-all-errors --connect-timeout 20 --max-time 180 https://services.gradle.org/distributions/gradle-8.9-bin.zip --output "$archive"
+          curl --fail --location --retry 2 --retry-delay 3 --retry-all-errors --connect-timeout 20 --max-time 180 --header 'Accept: application/octet-stream' https://api.github.com/repos/gradle/gradle-distributions/releases/assets/178998845 --output "$archive"
           echo "d725d707bfabd4dfdc958c624003b3c80accc03f7037b5122c4b1d0ef15cecab  $archive" | sha256sum --check --strict
           sed -i "s|^distributionUrl=.*|distributionUrl=file\\:$archive|" gradle/wrapper/gradle-wrapper.properties
           echo 'distributionSha256Sum=d725d707bfabd4dfdc958c624003b3c80accc03f7037b5122c4b1d0ef15cecab' >> gradle/wrapper/gradle-wrapper.properties
