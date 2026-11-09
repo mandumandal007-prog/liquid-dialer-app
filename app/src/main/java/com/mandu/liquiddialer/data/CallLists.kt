@@ -90,6 +90,15 @@ object CallLists {
         val xs=read(ctx);require(xs.size<MAX_LISTS) {"Abhi 20 lists ki limit hai"}
         return write(ctx,xs+ListItem(UUID.randomUUID().toString(),title(name)))
     }
+    /** Explicit reviewed save, one atomic write; never touches existing lists or contacts. */
+    @Synchronized fun createFromNumbers(ctx:Context,name:String,numbers:List<String>):List<ListItem> {
+        val xs=read(ctx);require(xs.size<MAX_LISTS) {"Abhi 20 lists ki limit hai"}
+        require(numbers.isNotEmpty() && numbers.size<=MAX_ENTRIES) {"1-200 numbers chuno"}
+        val normalized=numbers.map {number(it)}
+        require(normalized.map {ContactControls.k(it)}.distinct().size==normalized.size) {"Duplicate numbers pehle hatao"}
+        val entries=normalized.map {Entry(UUID.randomUUID().toString(),it,"")}
+        return write(ctx,xs+ListItem(UUID.randomUUID().toString(),title(name),entries))
+    }
     private fun change(ctx:Context,id:String,f:(ListItem)->ListItem):List<ListItem> {
         val xs=read(ctx);require(xs.any {it.id==id}) {"List ab nahi mili; dobara kholo"}
         return write(ctx,xs.map {if(it.id==id) f(it) else it})
