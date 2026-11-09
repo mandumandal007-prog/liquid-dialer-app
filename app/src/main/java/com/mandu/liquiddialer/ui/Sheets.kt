@@ -52,17 +52,27 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     val notesRead = remember(number) {runCatching {Repo.notesChecked(ctx).filter {ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}}
     val notes=notesRead.getOrDefault(emptyList())
 
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Avatar(name, contact?.photo, 72.dp, 24f, seed = name)
-        Spacer(Modifier.height(10.dp))
-        LdText(name, 20f, FontWeight.Bold)
-        if (contact != null) LdText("${contact.label} · ${Repo.pretty(number)}", 12.5f, color = p.muted,
-            modifier = Modifier.clip(RoundedCornerShape(8.dp)).combinedClickable(onClick = {}, onLongClick = { onLongNumber(number) }).padding(horizontal = 6.dp, vertical = 2.dp))
-        else if (number.isNotBlank()) LdText("Number par dabake rakho = options", 11f, color = p.muted, modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { onLongNumber(number) }))
-        Spacer(Modifier.height(16.dp))
+    Column(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(24.dp),0.dp).padding(14.dp).testTag("details_identity_card")) {
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+            Avatar(name,contact?.photo,56.dp,20f,seed=name)
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                LdText(if(contact!=null)"CONTACT"else"PHONE NUMBER",9.5f,FontWeight.Bold,p.accent,letter=1.1f)
+                LdText(name,19f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.fillMaxWidth().then(if(contact==null&&number.isNotBlank())Modifier.combinedClickable(onClick={},onLongClick={onLongNumber(number)})else Modifier).testTag("details_name"))
+                if(contact!=null&&contact.label.isNotBlank())LdText(contact.label,11.5f,color=p.muted,maxLines=Int.MAX_VALUE)
+            }
+        }
+        if(number.isNotBlank()){
+            Spacer(Modifier.height(10.dp))
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.accent.copy(alpha=.06f))
+                .combinedClickable(onClick={},onLongClick={onLongNumber(number)}).padding(horizontal=12.dp,vertical=9.dp).testTag("details_number_options")){
+                if(contact!=null)LdText(Repo.pretty(number),15f,FontWeight.Medium,maxLines=Int.MAX_VALUE,modifier=Modifier.fillMaxWidth().testTag("details_number"))
+                LdText("Number par dabake rakho = options",10f,color=p.muted,maxLines=2)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             ActionBubble(LdIcons.Phone, "Call", true) { onClose(); act.call(number) }
-            ActionBubble(LdIcons.Message, "SMS") { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
+            ActionBubble(LdIcons.Message, "SMS",modifier=Modifier.testTag("details_sms")) { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
             ActionBubble(LdIcons.Message, "WhatsApp") {
                 val wa = com.mandu.liquiddialer.data.WhatsAppLink.url(number)
                 if (wa == null) Toast.makeText(ctx, "Is number ke liye WhatsApp link nahi ban sakta", Toast.LENGTH_SHORT).show()
@@ -272,9 +282,9 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
 }
 
 @Composable
-fun ActionBubble(icon: ImageVector, label: String, on: Boolean = false, onClick: () -> Unit) {
+fun ActionBubble(icon: ImageVector, label: String, on: Boolean = false, modifier:Modifier=Modifier, onClick: () -> Unit) {
     val p = LocalLd.current
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier=modifier,horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         IconBtn(icon, 52.dp, 22.dp, on = on, onClick = onClick)
         LdText(label, 11f, FontWeight.SemiBold, p.muted)
     }
