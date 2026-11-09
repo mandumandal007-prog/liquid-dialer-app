@@ -5,6 +5,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -32,6 +34,10 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
     var notice by remember {mutableStateOf("")}
     var selected by remember {mutableStateOf<String?>(null)}
     var sessionId by remember {mutableStateOf<String?>(null)}
+    var sessionIds by remember {mutableStateOf<List<String>?>(null)}
+    var listSearch by remember(selected) {mutableStateOf("")}
+    var focusedOutcome by remember(selected) {mutableStateOf<String?>(null)}
+    var outcomeMenu by remember {mutableStateOf(false)}
     var reportText by remember {mutableStateOf<String?>(null)}
     val reportFile=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")){uri->
         val text=reportText;reportText=null
@@ -82,8 +88,8 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
         catch(_:Exception){error="Saved lists khul nahi rahi. Data ko overwrite nahi kiya gaya."}
     }
     if(current!=null && sessionId!=null) {
-        CallListSessionPage(current,sessionId!!,busy,error,onBack={sessionId=null;error=""},onCall={act.callUi(it)},
-            onSave={eid,outcome,note,after->update({CallLists.followUp(ctx,current.id,eid,outcome,note)},after)})
+        CallListSessionPage(if(sessionIds==null)current else CallListFocus.session(current,sessionIds!!),sessionId!!,busy,error,onBack={sessionId=null;sessionIds=null;error=""},onCall={act.callUi(it)},
+            onSave={eid,outcome,note,after->update({CallLists.followUp(ctx,current.id,eid,outcome,note)},after)},focused=sessionIds!=null)
         return
     }
     fun back() {if(busy)return; when {mode.isNotEmpty()->{mode="";batchReview=null;importPreview=null;importText=null};selected!=null->selected=null;else->onBack()}}
@@ -139,14 +145,28 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
             LdText("${current.entries.count {it.done}} / ${current.entries.size} Done",14f,FontWeight.Bold,modifier=Modifier.testTag("list_progress"))
             Spacer(Modifier.height(10.dp))
             if(mode.isEmpty()) {
+                ListField(listSearch,{listSearch=it.take(200);visible=20},"Naam, number ya private note","list_focus_search")
+                Box {
+                    PrimaryButton("Outcome: "+(focusedOutcome?.let{CallLists.outcomes.getValue(it)} ?: "Sab"),enabled=!busy,modifier=Modifier.testTag("list_focus_outcome")){outcomeMenu=true}
+                    DropdownMenu(expanded=outcomeMenu,onDismissRequest={outcomeMenu=false}) {
+                        DropdownMenuItem(text={Text("Sab outcomes")},modifier=Modifier.testTag("list_focus_any"),onClick={focusedOutcome=null;outcomeMenu=false;visible=20})
+                        CallLists.outcomes.forEach {(key,label)->DropdownMenuItem(text={Text(label)},modifier=Modifier.testTag("list_focus_$key"),onClick={focusedOutcome=key;filter="Sab";outcomeMenu=false;visible=20})}
+                    }
+                }
+                if(listSearch.isNotBlank() || focusedOutcome!=null)PrimaryButton("Search aur outcome filter hatao",enabled=!busy,modifier=Modifier.testTag("list_focus_clear")){listSearch="";focusedOutcome=null;filter="Pending";visible=20}
+                Spacer(Modifier.height(10.dp))
                 GlassCard(Modifier.testTag("workspace_summary")) {
                     LdText("Calling workspace",18f,FontWeight.Bold)
                     LdText("Ek waqt par ek person. Outcome aur follow-up note save karo; agla call sirf tum lagate ho.",12f,color=p.muted,maxLines=5)
                     val followups=current.entries.count {it.outcome in listOf("busy","no_answer","later")}
                     LdText("${current.entries.count {!it.done}} Pending · $followups follow-ups",13f,FontWeight.SemiBold,p.accent,maxLines=3)
-                    PrimaryButton("Session chalu karo",enabled=!busy && current.entries.isNotEmpty(),modifier=Modifier.testTag("list_session")) {
-                        sessionId=(current.entries.firstOrNull {!it.done} ?: current.entries.first()).id
+                    val focused=listSearch.isNotBlank() || focusedOutcome!=null
+                    val matches=CallListFocus.find(current.entries,listSearch,if(focused)filter else "Sab",focusedOutcome)
+                    PrimaryButton(if(focused) "${matches.size} matching entries ka session" else "Session chalu karo",enabled=!busy && matches.isNotEmpty(),modifier=Modifier.testTag("list_session")) {
+                        sessionIds=if(focused)matches.map{it.id} else null
+                        sessionId=(matches.firstOrNull {!it.done} ?: matches.first()).id
                     }
+                    if(focused)LdText("Session shuru hone par ye matching entries fix rahengi. Save ke baad outcome badle tab bhi isi session mein rahengi; baaki entries nahi khulengi.",12f,color=p.muted,maxLines=5)
                     Spacer(Modifier.height(8.dp))
                     PrimaryButton("Progress report save karo",enabled=!busy && current.entries.isNotEmpty(),modifier=Modifier.testTag("list_report")) {
                         reportText=CallListTransfer.report(current);reportFile.launch("call-list-progress.csv")
@@ -215,9 +235,11 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
             if(mode.isEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-                    listOf("Pending","Done","Sab").forEach {f -> PrimaryButton(if(filter==f) "[$f]" else f,enabled=!busy,modifier=Modifier.weight(1f).testTag("list_filter_$f")){filter=f;visible=20}}
+                    listOf("Pending","Done","Sab").forEach {f -> PrimaryButton(if(filter==f) "[$f]" else f,enabled=!busy,modifier=Modifier.weight(1f).testTag("list_filter_$f")){filter=f;focusedOutcome=null;visible=20}}
                 }
-                val entries=current.entries.filter {filter=="Sab" || it.done==(filter=="Done")}
+                val entries=CallListFocus.find(current.entries,listSearch,filter,focusedOutcome)
+                LdText("${entries.size} / ${current.entries.size} entries · saved data nahi badla",12f,color=p.muted,maxLines=3,modifier=Modifier.testTag("list_focus_count"))
+                if(listSearch.isNotBlank() || focusedOutcome!=null)PrimaryButton("Matching session kholo",enabled=!busy && entries.isNotEmpty(),modifier=Modifier.testTag("list_focus_session")){sessionIds=entries.map{it.id};sessionId=(entries.firstOrNull{!it.done} ?: entries.first()).id}
                 if(entries.isEmpty()) LdText(if(current.entries.isEmpty()) "List khaali hai. Contacts ya number jodo." else "Is view mein koi entry nahi.",13f,color=p.muted,maxLines=3,modifier=Modifier.padding(top=12.dp))
                 entries.take(visible).forEach {e ->
                     GlassCard(Modifier.padding(top=10.dp).testTag("list_entry_${e.id}")) {
@@ -225,7 +247,7 @@ fun CallListsPage(st:AppState,act:MainActivity,onBack:()->Unit) {
                         if(e.name.isNotBlank()) LdText(e.number,12f,color=p.muted,maxLines=2)
                         LdText(CallLists.outcomes.getValue(e.outcome)+" · khud save kiya",12f,color=p.muted)
                         if(e.note.isNotBlank())LdText(e.note,12f,color=p.muted,maxLines=3,modifier=Modifier.padding(top=6.dp))
-                        PrimaryButton("Outcome / note kholo",enabled=!busy,modifier=Modifier.testTag("list_workspace_${e.id}")){sessionId=e.id}
+                        PrimaryButton("Outcome / note kholo",enabled=!busy,modifier=Modifier.testTag("list_workspace_${e.id}")){sessionIds=if(listSearch.isNotBlank() || focusedOutcome!=null)entries.map{it.id} else null;sessionId=e.id}
                         Row(Modifier.fillMaxWidth().padding(top=8.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                             PrimaryButton("Call karo",enabled=!busy,modifier=Modifier.weight(1f).testTag("list_call_${e.id}")){act.callUi(e.number)}
                             PrimaryButton(if(e.done) "Pending karo" else "Done karo",enabled=!busy,modifier=Modifier.weight(1f).testTag("list_done_${e.id}")){update({CallLists.done(ctx,id,e.id,!e.done)})}
