@@ -124,7 +124,8 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "appearance" -> AppearancePage(onBack)
         page == "volume" -> VolumePage(onBack)
         page == "profile" -> ProfilePage(onBack)
-        page == "calllayout" -> CallLayoutPage(onBack)
+        page == "callicons" -> CallIconStudioPage(onBack)
+        page == "calllayout" -> CallLayoutPage(onIcons={onOpen("callicons")},onBack=onBack)
         page == "stylestudio" -> StyleStudioPage(onBack)
         page == "editor" -> ContactEditor(editContactId, editPrefill, act, onBack)
         page == "recordings" -> RecordingsPage(onBack)
@@ -264,6 +265,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         Spacer(Modifier.height(10.dp))
         GlassCard {
             SRow("Call & Recents style", "11 calling-card looks + 11 recents looks, live preview ke saath", LdIcons.Palette) { onOpen("stylestudio") }
+            SRow("Clean UI aur call icons", "Clean glass, icon style aur rang", LdIcons.Edit) { onOpen("callicons") }
             SRow("Calling card layout", "Calling card, photo, background, buttons - sab customize karo", LdIcons.Dialpad) { onOpen("calllayout") }
             SwitchRow("Swipe se tab badlo", "Recents aur Contacts ke beech ungli ghumao", s.tabSwipe) { save(K.tabSwipe, it) }
         }
