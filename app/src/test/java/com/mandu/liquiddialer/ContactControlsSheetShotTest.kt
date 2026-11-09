@@ -3,6 +3,7 @@ package com.mandu.liquiddialer
 import android.content.ComponentName
 import android.telecom.PhoneAccountHandle
 import androidx.compose.ui.test.*
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
@@ -52,8 +53,14 @@ class ContactControlsSheetShotTest {
     // Animated semantic scrolling can spin with a paused clock. Use bounded touch frames.
     private fun scrollTo(node: SemanticsNodeInteraction) {
         repeat(8) {
-            if (node.isDisplayed()) return
-            rule.onRoot().performTouchInput { swipeUp(startY = height * .75f, endY = height * .35f) }
+            val bounds = node.getUnclippedBoundsInRoot()
+            val viewport = rule.onAllNodesWithTag("page_content_scroll", useUnmergedTree = true).onLast().getUnclippedBoundsInRoot()
+            if (bounds.bottom > bounds.top && bounds.top >= viewport.top && bounds.bottom <= viewport.bottom) return
+            val above = bounds.top < viewport.top
+            rule.onAllNodesWithTag("page_content_scroll", useUnmergedTree = true).onLast().performTouchInput {
+                if (above) swipeDown(startY = height * .35f, endY = height * .75f)
+                else swipeUp(startY = height * .75f, endY = height * .35f)
+            }
             settle(400)
         }
         node.assertIsDisplayed()
@@ -121,12 +128,22 @@ class ContactControlsSheetShotTest {
         scrollTo(rule.onNodeWithTag("cc_scope", useUnmergedTree = true))
         rule.waitForIdle(); rule.mainClock.autoAdvance = false; settle(500)
         saveShot(rule, "cc_controls_day2")
+        // Bring each target back into the content viewport after the lower-scope screenshot.
+        rule.mainClock.autoAdvance = true
+        scrollTo(rule.onNodeWithText("Quiet hours me bajne do", useUnmergedTree = true))
+        rule.waitForIdle(); rule.mainClock.autoAdvance = false; settle(400)
+        rule.onNodeWithText("Quiet hours me bajne do", useUnmergedTree = true).assertIsDisplayed()
+        saveShot(rule,"cc_quiet_visible_before_toggle")
         // toggle quiet bypass -> persist ho jata hai
         rule.onNodeWithText("Quiet hours me bajne do", useUnmergedTree = true).performClick(); settle(400)
         assertTrue(ContactControls.quietAllow(ctx, num))
         rule.onNodeWithText("Quiet hours me bajne do", useUnmergedTree = true).performClick(); settle(400)
         assertFalse(ContactControls.quietAllow(ctx, num))
         // SIM pin chooser kholo aur Airtel pin karo
+        rule.mainClock.autoAdvance = true
+        scrollTo(rule.onNodeWithText("SIM pin karo", useUnmergedTree = true))
+        rule.waitForIdle(); rule.mainClock.autoAdvance = false; settle(400)
+        rule.onNodeWithText("SIM pin karo", useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("SIM pin karo", useUnmergedTree = true).performClick(); settle(400)
         rule.mainClock.autoAdvance = true
         scrollTo(rule.onNodeWithText("SIM 2 se hamesha", useUnmergedTree = true))
