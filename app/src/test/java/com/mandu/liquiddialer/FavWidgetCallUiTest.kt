@@ -134,6 +134,9 @@ class FavWidgetCallUiTest {
         assertEquals("provider fixture ready before widget intent",2,Repo.contactDetail(app,11L)?.phones?.size)
         tap(null)
         await { rule.activity.state.numberChoiceRequest?.first==11L }
+        // Chooser rows can compose before the initial IO job clears its duplicate-tap guard.
+        // Wait for that job to finish, then test a new deliberate selection, not a busy-window tap.
+        await { !org.robolectric.util.ReflectionHelpers.getField<Boolean>(rule.activity,"widgetBusy") }
         await { rule.onAllNodesWithTag("chooser_num",useUnmergedTree=true).fetchSemanticsNodes().size==2 }
     }
     @Test fun permissionRevokedAfterChooserOpensNeverCalls() {
