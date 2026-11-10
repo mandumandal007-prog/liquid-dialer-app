@@ -36,7 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}) {
+fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val detail = remember(contact) { contact?.let { Repo.contactDetail(ctx, it.id) } }
@@ -202,6 +202,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             Toast.makeText(ctx, "Yaad kiya naam hata diya", Toast.LENGTH_SHORT).show()
             }
         }
+        if(onChecklist!=null && runCatching{CallLists.number(number)}.isSuccess) PrimaryButton("Call checklist · baat ke topics",modifier=Modifier.testTag("details_checklist")){onChecklist()}
         SheetRow(LdIcons.Edit, if(notesRead.isFailure) "Notes load nahi hue" else "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
         if (remindOpen) {
