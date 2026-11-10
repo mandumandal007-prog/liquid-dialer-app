@@ -132,6 +132,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "editor" -> ContactEditor(editContactId, editPrefill, act, onBack)
         page == "recordings" -> RecordingsPage(onBack)
         page == "fullbackup" -> BackupPage(onBack)
+        page.startsWith("brief:") -> CallBriefingPage(page.removePrefix("brief:"),onBack)
         page.startsWith("timeline:") -> NumberTimelinePage(page.removePrefix("timeline:"),onBack)
         page.startsWith("estimate:") -> CallEstimatePage(page.removePrefix("estimate:"),onBack)
         page.startsWith("checklist:") -> CallChecklistPage(page.removePrefix("checklist:"),onBack)
