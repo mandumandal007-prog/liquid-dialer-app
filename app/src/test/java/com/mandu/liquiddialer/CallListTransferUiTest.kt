@@ -2,7 +2,6 @@ package com.mandu.liquiddialer
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.setContent
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
@@ -31,8 +30,8 @@ class CallListTransferUiTest {
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}}
   rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
  }
  private fun awaitTag(tag:String){
   repeat(50){settle();if(rule.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty())return;Thread.sleep(50)}
