@@ -104,11 +104,14 @@ fun CallBackground(modifier: Modifier = Modifier, style: String = "blobs", photo
 fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68.dp, enabled: Boolean = true, flat: Boolean = false, onClick: () -> Unit) {
     val p = LocalLd.current
     val sty = LocalCallStyle.current
+    val airy = LocalAiryCall.current
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .93f)
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.alpha(if (enabled) 1f else .4f)) {
         val base = Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size)
-        val m = when (sty.btnKind) {
+        val m = if(airy && !on && sty.btnKind==BtnKind.GLASS)base.clip(CircleShape)
+            .background(Brush.linearGradient(listOf(Color.White.copy(alpha=if(p.isLight).15f else .09f),p.bg2.copy(alpha=.05f))))
+            .border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=if(p.isLight).55f else .24f),p.text.copy(alpha=.10f))),CircleShape) else when (sty.btnKind) {
             // GLASS: approved look, bilkul untouched
             BtnKind.GLASS -> when {
                 flat && on -> base.callGlass(p, CircleShape).background(p.accent.copy(alpha=.42f),CircleShape)
@@ -122,7 +125,7 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
             BtnKind.OUTLINE -> base.outlineDisc(p, CircleShape, on, p.accent).then(if(sty.key in REFERENCE_CALL_KEYS && !on) Modifier.border(1.dp,p.accent.copy(alpha=.65f),CircleShape) else Modifier)
         }
         val polish=LocalCallIcons.current?.polish==true
-        val polished=if(polish)m.border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.8f),p.accent.copy(alpha=.35f),Color.White.copy(alpha=.08f))),if(sty.btnKind==BtnKind.SQUIRCLE)RoundedCornerShape(size*.30f) else CircleShape) else m
+        val polished=if(polish&&!(airy && !on && sty.btnKind==BtnKind.GLASS))m.border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.8f),p.accent.copy(alpha=.35f),Color.White.copy(alpha=.08f))),if(sty.btnKind==BtnKind.SQUIRCLE)RoundedCornerShape(size*.30f) else CircleShape) else m
         Box(polished.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
             LdIcon(icon, size * .38f, when (sty.btnKind) {
                 BtnKind.GLASS -> if (on) Color.White else if (flat) p.text else mix(p.text, p.accent, .82f)
@@ -195,7 +198,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
         val photoSurface = effBg0 == "photo"
         if(!photoSurface)CallStyleDecoration(cardStyle0,Modifier.fillMaxSize())
         val callPalette = if(photoSurface && cardStyle0.bgMode=="light") basePalette.copy(text=Color.White,muted=Color.White.copy(alpha=.82f),accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else cardStyle0.restyle(if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette)
-        CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette, LocalCallStyle provides cardStyle0, LocalCallIcons provides icons) {
+        CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette, LocalCallStyle provides cardStyle0, LocalCallIcons provides icons, LocalAiryCall provides s.airyCall) {
             if (call == null) {
                 CallEndedScreen(lastEnded)
             } else {

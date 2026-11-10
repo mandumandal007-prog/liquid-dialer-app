@@ -122,6 +122,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     when {
         page == "settings" -> SettingsGroupsPage(onBack,onOpen)
         page.startsWith("settings:") -> SettingsPage(st, act, onBack, onOpen, page.removePrefix("settings:"))
+        page == "appearancehub" -> AppearanceHubPage(onBack,onOpen)
         page == "appearance" -> AppearancePage(onBack)
         page == "volume" -> VolumePage(onBack)
         page == "profile" -> ProfilePage(onBack)
@@ -181,6 +182,8 @@ internal val SETTINGS_GROUPS=listOf(
 private fun SettingsGroupsPage(onBack:()->Unit,onOpen:(String)->Unit) {
     PageFrame("Settings",onBack) {
         LdText("Group kholo, phir uski settings chuno",13f,color=LocalLd.current.muted,modifier=Modifier.padding(bottom=12.dp))
+        GlassCard { SRow("Appearance control center","Theme, icons, layouts aur calling card",LdIcons.Palette,last=true){onOpen("appearancehub")} }
+        Spacer(Modifier.height(10.dp))
         GlassCard {
             SETTINGS_GROUPS.forEachIndexed { i,g ->
                 SRow(g.title,g.summary,LdIcons.Settings,last=i==SETTINGS_GROUPS.lastIndex) { onOpen("settings:"+g.id) }
@@ -268,6 +271,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         }
         Spacer(Modifier.height(10.dp))
         GlassCard {
+            SRow("Appearance control center","Sab display controls ek jagah",LdIcons.Palette){onOpen("appearancehub")}
             SRow("Call & Recents style", "11 calling-card looks + 11 recents looks, live preview ke saath", LdIcons.Palette) { onOpen("stylestudio") }
             SRow("Clean UI aur call icons", "Clean glass, icon style aur rang", LdIcons.Edit) { onOpen("callicons") }
             SRow("Calling card layout", "Calling card, photo, background, buttons - sab customize karo", LdIcons.Dialpad) { onOpen("calllayout") }

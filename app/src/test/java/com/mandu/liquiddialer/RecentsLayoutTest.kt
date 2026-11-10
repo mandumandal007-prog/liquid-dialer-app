@@ -23,13 +23,13 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class RecentsLayoutTest {
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private val ctx get() = ApplicationProvider.getApplicationContext<LdApp>()
     private fun settle() { rule.mainClock.autoAdvance=false; rule.mainClock.advanceTimeBy(1500);rule.waitForIdle() }
     @Before fun seed() = runBlocking {
         ctx.ldStore.edit { p ->
             p[K.onboarded]=true;p[K.theme]="daylight";p[K.showFavourites]=false
-            p[K.showTodayStats]=true;p[K.groupByDay]=true
+            p[K.showTodayStats]=true;p[K.groupByDay]=true;p[K.motion]=false
         }
         Unit
     }
@@ -48,7 +48,7 @@ class RecentsLayoutTest {
                 Recent(3,"+91 90000 00003","Priya Verma",CallLog.Calls.INCOMING_TYPE,now-180_000,120,null,null)
             )
         }
-        settle()
+        repeat(4){settle()}
     }
     private fun controls() {
         rule.onNodeWithTag("recent_controls",useUnmergedTree=true).assertIsDisplayed()
@@ -57,11 +57,11 @@ class RecentsLayoutTest {
         val filters=rule.onNodeWithTag("recent_filters",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
         val stats=rule.onNodeWithTag("today_stats",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
         assertTrue("filters stay above optional summary strips",filters.bottom<=stats.top)
-        for(i in 0..3) rule.onNodeWithTag("recent_filter_$i",useUnmergedTree=true).assertIsDisplayed()
-        rule.onNodeWithTag("recent_filter_1",useUnmergedTree=true).performClick();settle()
+        for(i in 0..3){rule.mainClock.autoAdvance=true;rule.onNodeWithTag("recent_filter_$i",true).performScrollTo().assertIsDisplayed();settle()}
+        rule.mainClock.autoAdvance=true;rule.onNodeWithTag("recent_filter_1",true).performScrollTo().performClick();settle()
         rule.onNodeWithText("Papa",useUnmergedTree=true).assertExists()
         rule.onNodeWithText("Rahul Sharma",useUnmergedTree=true).assertDoesNotExist()
-        rule.onNodeWithTag("recent_filter_0",useUnmergedTree=true).performClick();settle()
+        rule.mainClock.autoAdvance=true;rule.onNodeWithTag("recent_filter_0",useUnmergedTree=true).performScrollTo().performClick();settle()
         rule.onNodeWithText("Rahul Sharma",useUnmergedTree=true).assertExists()
     }
     @Test fun dayLayoutAndFilters(){ready("daylight",false);controls();saveShot(rule,"L1-recents-day")}
@@ -69,7 +69,7 @@ class RecentsLayoutTest {
     private fun dialer(theme:String,large:Boolean,shot:String) {
         ready(theme,large)
         rule.onNodeWithTag("dialer_fab",useUnmergedTree=true).performClick();settle()
-        rule.runOnUiThread {rule.activity.state.dial="9876543210"};settle()
+        rule.runOnUiThread {rule.activity.state.dial="9876543210"};repeat(4){settle()}
         rule.onNodeWithTag("dial_toolbar",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("voice_mic",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("dial_menu",useUnmergedTree=true).assertIsDisplayed()
@@ -88,7 +88,7 @@ class RecentsLayoutTest {
         };settle()
         rule.onNodeWithText("Rahul Kumar Sharma",useUnmergedTree=true).assertIsDisplayed()
         saveShot(rule,shot+"-named")
-        rule.runOnUiThread {rule.activity.state.contacts=emptyList()};settle()
+        rule.runOnUiThread {rule.activity.state.contacts=emptyList()};repeat(4){settle()}
         rule.onNodeWithTag("dial_pause",useUnmergedTree=true).performClick();settle()
         assertEquals("9876543210,",rule.activity.state.dial)
         rule.onNodeWithTag("dial_menu",useUnmergedTree=true).performClick();settle()
