@@ -36,7 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null, onTimeline: (() -> Unit)? = null) {
+fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null, onTimeline: (() -> Unit)? = null, onBriefing: (() -> Unit)? = null) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val detail = remember(contact) { contact?.let { Repo.contactDetail(ctx, it.id) } }
@@ -202,7 +202,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             Toast.makeText(ctx, "Yaad kiya naam hata diya", Toast.LENGTH_SHORT).show()
             }
         }
-        if(runCatching{CallLists.number(number)}.isSuccess)CallToolsRow("details",onChecklist,onEstimate,onTimeline)
+        if(runCatching{CallLists.number(number)}.isSuccess)CallToolsRow("details",onChecklist,onEstimate,onTimeline,onBriefing)
         SheetRow(LdIcons.Edit, if(notesRead.isFailure) "Notes load nahi hue" else "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
         if (remindOpen) {
