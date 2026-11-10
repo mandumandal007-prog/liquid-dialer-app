@@ -839,10 +839,17 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
         CallChecklistWorkspace(number,{checklist=false},inSheet=true)
         return
     }
-    SheetTitle("Notes · $name")
-    if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)PrimaryButton("Call checklist · baat ke topics",modifier=Modifier.testTag("call_checklist_open")){checklist=true}
-    if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)PrimaryButton("Call calculator · quantity × rate",modifier=Modifier.testTag("call_estimate_open")){estimate=true}
-    if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)PrimaryButton("Call timeline · purani baat",modifier=Modifier.testTag("call_timeline_open")){timeline=true}
+    Row(Modifier.fillMaxWidth().padding(bottom=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+        Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp)),contentAlignment=Alignment.Center){LdIcon(LdIcons.Edit,22.dp,p.accent)}
+        Column(Modifier.weight(1f)){
+            LdText("CALL NOTES",10f,FontWeight.Bold,p.muted,letter=1f)
+            LdText(name.ifBlank{number},18f,FontWeight.Bold,maxLines=3,modifier=Modifier.testTag("notes_identity_name"))
+            if(name.isNotBlank()&&name!=number)LdText(number,12f,color=p.muted,maxLines=3)
+        }
+    }
+    if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)CallToolsRow("call",{checklist=true},{estimate=true},{timeline=true})
+    Spacer(Modifier.height(6.dp))
+    LdText("Naya note",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(bottom=8.dp))
     LdField(text, { text = it }, "Call ke dauran note likho…", minLines = 3)
     if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=4)
     PrimaryButton("Save note", enabled = text.isNotBlank() && text.trim().length<=50000) {
@@ -851,7 +858,7 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     }
     if (list.isNotEmpty()) {
         Spacer(Modifier.height(10.dp))
-        LdText("PURANE NOTES", 12f, FontWeight.Bold, p.muted, letter = 1.2f)
+        LdText("SAVED NOTES · ${list.size}", 10f, FontWeight.Bold, p.muted, letter = 1f,modifier=Modifier.padding(bottom=8.dp))
         LazyColumn(Modifier.heightIn(max = 260.dp)) {
             items(list, key = { it.id }) { n ->
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).glass(p, RoundedCornerShape(16.dp), 2.dp).padding(12.dp)) {
