@@ -20,12 +20,21 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.*
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class CallIconStudioUiTest {
  @get:Rule val rule=createAndroidComposeRule<MainActivity>()
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private fun settle(){rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(1000);rule.waitForIdle()}
  private fun await(check:()->Boolean){rule.waitUntil(15000){settle();check()}}
- private fun reveal(tag:String):SemanticsNodeInteraction {repeat(25){val n=rule.onNodeWithTag(tag,true);if(n.isDisplayed())return n;val y=n.fetchSemanticsNode().boundsInRoot.top;rule.onRoot().performTouchInput{if(y<0)swipeDown(durationMillis=120)else swipeUp(durationMillis=120)};settle()};error("Hidden $tag")}
+ private fun reveal(tag:String):SemanticsNodeInteraction {
+  await{rule.onAllNodesWithTag(tag,true).fetchSemanticsNodes().isNotEmpty()}
+  repeat(40){
+   val n=rule.onNodeWithTag(tag,true);val r=n.getUnclippedBoundsInRoot()
+   val sc=rule.onAllNodes(hasScrollAction(),true).onLast();val v=sc.getUnclippedBoundsInRoot()
+   if(r.bottom>r.top&&r.top>=v.top&&r.bottom<=v.bottom)return n
+   sc.performTouchInput{if(r.top<v.top)swipeDown(durationMillis=120)else swipeUp(durationMillis=120)};settle()
+  };error("Hidden $tag")
+ }
  private fun click(tag:String){reveal(tag).performClick();settle()}
  private fun seed(theme:String="daylight",font:Float=1f){rule.mainClock.autoAdvance=false;settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.callCardStyle]="glass";it[K.callIconConfig]="";it[K.cleanGlass]=false}};await{LdApp.settings.value.let{it.theme==theme&&it.fontScale==font&&it.callIconConfig.isEmpty()}}}
  @After fun reset(){CallManager.calls.value=emptyList();CallManager.bump()}
@@ -33,7 +42,7 @@ class CallIconStudioUiTest {
   seed();rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallIconStudioPage({})}}};settle();saveShot(rule,"ICONS364-studio-day")
   click("call_icons_style_6");await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).base.style==6}
   click("call_icons_color_2");await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).base.color==2}
-  click("call_icons_target");rule.onNodeWithTag("call_icons_pick_mic").performClick();settle();click("call_icons_style_2");click("call_icons_color_3")
+  click("call_icons_target");rule.onNodeWithTag("call_icons_pick_mic").performClick();settle();click("call_icons_style_2");await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).choice("mic").style==2};click("call_icons_color_3")
   await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).choice("mic")==CallIconChoice(2,3)}
   val c=CallIconConfig.decode(LdApp.settings.value.callIconConfig);assertEquals(CallIconChoice(6,2),c.choice("video"));assertFalse(c.polish)
   click("call_icons_reset_one");await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).overrides.isEmpty()}
