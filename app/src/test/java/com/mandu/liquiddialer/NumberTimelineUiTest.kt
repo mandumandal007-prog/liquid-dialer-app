@@ -57,7 +57,7 @@ class NumberTimelineUiTest {
  }
  private fun show(theme:String="daylight",font:Float=1f,notes:Boolean=false,details:Boolean=false){
   rule.mainClock.autoAdvance=false;settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}};await{LdApp.settings.value.let{it.theme==theme&&it.fontScale==font}}
-  val g=++generation;rule.runOnUiThread{rule.activity.setContent{key(g){LdThemeHost{var page by remember{mutableStateOf(!details)}
+  val g=++generation;rule.runOnUiThread{rule.activity.mountTestPage{key(g){LdThemeHost{var page by remember{mutableStateOf(!details)}
    if(details&&!page)PageFrame("Number details",{}){NumberSheet(number,null,rule.activity.state,rule.activity,{},{},{},onTimeline={page=true})}
    else if(notes)Sheet({}){NotesSheet(number,"Office",{})}else NumberTimelinePage(number,{})
   }}}};settle();if(!notes&&!details)await{exists("timeline_count")||exists("timeline_error")||exists("timeline_permission")}
@@ -86,7 +86,7 @@ class NumberTimelineUiTest {
  }
  @Test fun simulatedActiveCallHandoffRetainsEndAndDoesNotChangeLog(){
   val manager=com.mandu.liquiddialer.telecom.CallManager;val call=FakeCall.make(number,"Office",android.telecom.Call.STATE_ACTIVE,System.currentTimeMillis()-60000);show();manager.calls.value=listOf(call);manager.bump()
-  try{rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallScreen({},{},{},{})}}};settle();rule.onNodeWithTag("end_call",true).assertIsDisplayed()
+  try{rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallScreen({},{},{},{})}}};settle();rule.onNodeWithTag("end_call",true).assertIsDisplayed()
    val label=rule.onNodeWithText("Notes",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot;val controls=rule.onAllNodes(hasClickAction(),true);val nodes=controls.fetchSemanticsNodes();val index=nodes.indices.filter{val b=nodes[it].boundsInRoot;b.left<=label.center.x&&b.right>=label.center.x&&b.bottom<=label.top}.maxBy{nodes[it].boundsInRoot.bottom};controls[index].performClick();settle();await{exists("call_timeline_open")};click("call_timeline_open");await{exists("timeline_count")};reveal("timeline_number").assertTextEquals(number);saveShot(rule,"TIME380-active");click("timeline_notes_back");rule.runOnUiThread{rule.activity.onBackPressedDispatcher.onBackPressed()};settle();rule.onNodeWithTag("end_call",true).assertIsDisplayed();assertEquals(android.telecom.Call.STATE_ACTIVE,manager.state(call));assertEquals(0,writes);assertNull(rule.activity.state.confirmNumber)
   }finally{manager.calls.value=emptyList();manager.bump()}
  }
