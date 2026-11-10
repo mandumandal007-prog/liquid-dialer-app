@@ -299,7 +299,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                         NumberSheet(sn, sheetContact, st, act, onClose = { sheetNumber = null; sheetContact = null }, onEdit = { id -> openEditor(id, sn) },
                             onLongNumber = { menuNumber = it },
                             onNotes = { sheetNumber = null; pages.add("notes:" + sn) },
-                            onChecklist = { sheetNumber = null; pages.add("checklist:" + sn) })
+                            onChecklist = { sheetNumber = null; pages.add("checklist:" + sn) },
+                            onEstimate = { sheetNumber = null; pages.add("estimate:" + sn) })
                     }
                 }
             }
