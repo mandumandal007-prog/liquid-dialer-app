@@ -830,6 +830,8 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     var error by remember {mutableStateOf("")}
     var list by remember { mutableStateOf(try{Repo.notesChecked(ctx).filter{ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}catch(_:Exception){error="Notes khul nahi rahe. Saved file nahi badli.";emptyList()}) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
+    var timeline by remember(number) { mutableStateOf(false) }
+    if(timeline){NumberTimelineWorkspace(number,{timeline=false},inSheet=true);return}
     var estimate by remember(number) { mutableStateOf(false) }
     if(estimate){CallEstimateWorkspace(number,{estimate=false},inSheet=true);return}
     var checklist by remember(number) { mutableStateOf(false) }
@@ -840,6 +842,7 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     SheetTitle("Notes · $name")
     if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)PrimaryButton("Call checklist · baat ke topics",modifier=Modifier.testTag("call_checklist_open")){checklist=true}
     if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)PrimaryButton("Call calculator · quantity × rate",modifier=Modifier.testTag("call_estimate_open")){estimate=true}
+    if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)PrimaryButton("Call timeline · purani baat",modifier=Modifier.testTag("call_timeline_open")){timeline=true}
     LdField(text, { text = it }, "Call ke dauran note likho…", minLines = 3)
     if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=4)
     PrimaryButton("Save note", enabled = text.isNotBlank() && text.trim().length<=50000) {
