@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.*
 import kotlinx.coroutines.launch
+import androidx.datastore.preferences.core.edit
 
 val LocalCallIcons=staticCompositionLocalOf<CallIconConfig?>{null}
 val CALL_ICON_COLORS=listOf("Original","Blue","Violet","Emerald","Rose","Amber","Mono")
@@ -40,9 +41,11 @@ val CALL_ICON_ITEMS:List<Pair<String,ImageVector>> get()=listOf(
  val config=remember(s.callIconConfig){CallIconConfig.decode(s.callIconConfig)}
  var selected by remember {mutableStateOf<String?>(null)}
  var menu by remember{mutableStateOf(false)}
- fun save(c:CallIconConfig){scope.launch{LdApp.instance.repo.set(K.callIconConfig,c.encode())}}
+ // Read the current value inside the DataStore transaction. Rapid taps must not
+ // rebuild a config from a stale Compose snapshot and erase the previous choice.
+ fun change(update:(CallIconConfig)->CallIconConfig){scope.launch{LdApp.instance.ldStore.edit{prefs->prefs[K.callIconConfig]=update(CallIconConfig.decode(prefs[K.callIconConfig] ?: "")).encode()}}}
  val current=selected?.let{config.choice(it)} ?: config.base
- fun choose(v:CallIconChoice){save(if(selected==null)config.copy(base=v)else config.copy(overrides=config.overrides+(selected!! to v)))}
+ fun choose(update:(CallIconChoice)->CallIconChoice){val target=selected;change{latest->if(target==null)latest.copy(base=update(latest.base))else latest.copy(overrides=latest.overrides+(target to update(latest.choice(target))))}}
  PageFrame("UI aur call icons",onBack){
   Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
    Column(Modifier.weight(1f)){LdText("Clean glass · poora app",16f,FontWeight.Bold,maxLines=2);LdText("Kam effects, saaf glass cards. Theme ke rang wahi; background motion aur blur band.",12f,color=p.muted,maxLines=5)}
@@ -54,7 +57,7 @@ val CALL_ICON_ITEMS:List<Pair<String,ImageVector>> get()=listOf(
   LdText("Yahan ke controls call screen aur uske sheets ke liye hain.",12f,color=p.muted,maxLines=3)
   Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
    Column(Modifier.weight(1f)){LdText("Premium glass polish",16f,FontWeight.Bold,maxLines=2);LdText("Avatar ring, soft rim aur saaf labels. Call actions wahi.",12f,color=p.muted,maxLines=3)}
-   Switch(config.polish,{save(config.copy(polish=it))},modifier=Modifier.testTag("call_icons_polish"))
+   Switch(config.polish,{val on=it;change{c->c.copy(polish=on)}},modifier=Modifier.testTag("call_icons_polish"))
   }
   LdText("Sab icons ka style/rang chuno, ya ek icon alag set karo.",12f,color=p.muted,maxLines=3)
   LdText("Live preview · koi call nahi",12f,color=p.muted,maxLines=2)
@@ -71,12 +74,12 @@ val CALL_ICON_ITEMS:List<Pair<String,ImageVector>> get()=listOf(
   }
   LdText(if(selected==null)"Sabka default. Alag set kiye icons apna override rakhenge." else if(selected in config.overrides)"Is icon ka alag override hai." else "Abhi sabka default use ho raha hai.",12f,color=p.muted,maxLines=3)
   SecTitle("Icon style")
-  (listOf(-1 to "App jaisa")+LdIcons.ICON_STYLES.mapIndexed{i,x->i to x}).chunked(2).forEach{row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach{(i,label)->PrimaryButton((if(current.style==i)"✓ "else "")+label,modifier=Modifier.weight(1f).testTag("call_icons_style_$i")){choose(current.copy(style=i))}};if(row.size==1)Spacer(Modifier.weight(1f))}}
+  (listOf(-1 to "App jaisa")+LdIcons.ICON_STYLES.mapIndexed{i,x->i to x}).chunked(2).forEach{row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach{(i,label)->PrimaryButton((if(current.style==i)"✓ "else "")+label,modifier=Modifier.weight(1f).testTag("call_icons_style_$i")){choose{it.copy(style=i)}}};if(row.size==1)Spacer(Modifier.weight(1f))}}
   SecTitle("Icon rang")
-  CALL_ICON_COLORS.mapIndexed{i,x->i to x}.chunked(2).forEach{row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach{(i,label)->PrimaryButton((if(current.color==i)"✓ "else "")+label,modifier=Modifier.weight(1f).testTag("call_icons_color_$i")){choose(current.copy(color=i))}};if(row.size==1)Spacer(Modifier.weight(1f))}}
+  CALL_ICON_COLORS.mapIndexed{i,x->i to x}.chunked(2).forEach{row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){row.forEach{(i,label)->PrimaryButton((if(current.color==i)"✓ "else "")+label,modifier=Modifier.weight(1f).testTag("call_icons_color_$i")){choose{it.copy(color=i)}}};if(row.size==1)Spacer(Modifier.weight(1f))}}
   LdText("Rang light/dark background ke liye adjust hoga. Active controls ke white icons aur red hang-up/decline par white glyph suraksha ke liye rahenge; unka style badal sakte ho. Phone ke status/navigation-bar icons app ke control mein nahi.",12f,color=p.muted,maxLines=7)
-  if(selected!=null)PrimaryButton("Is icon ko sabke default par lao",modifier=Modifier.testTag("call_icons_reset_one")){save(config.copy(overrides=config.overrides-selected!!))}
-  PrimaryButton("Call icons aur polish reset",modifier=Modifier.testTag("call_icons_reset")){save(CallIconConfig())}
+  if(selected!=null)PrimaryButton("Is icon ko sabke default par lao",modifier=Modifier.testTag("call_icons_reset_one")){val target=selected!!;change{it.copy(overrides=it.overrides-target)}}
+  PrimaryButton("Call icons aur polish reset",modifier=Modifier.testTag("call_icons_reset")){change{CallIconConfig()}}
   LdText("Changes isi phone par save hote hain. Appearance-only backup abhi in naye controls ko include nahi karta.",11.5f,color=p.muted,maxLines=4)
  }
 }
