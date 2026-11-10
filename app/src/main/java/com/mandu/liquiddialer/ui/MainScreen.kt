@@ -301,7 +301,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             onNotes = { sheetNumber = null; pages.add("notes:" + sn) },
                             onChecklist = { sheetNumber = null; pages.add("checklist:" + sn) },
                             onEstimate = { sheetNumber = null; pages.add("estimate:" + sn) },
-                            onTimeline = { sheetNumber = null; pages.add("timeline:" + sn) })
+                            onTimeline = { sheetNumber = null; pages.add("timeline:" + sn) },
+                            onBriefing = { sheetNumber = null; pages.add("brief:" + sn) })
                     }
                 }
             }
