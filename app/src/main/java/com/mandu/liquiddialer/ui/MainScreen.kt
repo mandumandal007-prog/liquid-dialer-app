@@ -118,13 +118,13 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 // recents dikhte hi missed-seen mark karo (tab badge isi se clear hota hai)
                 LaunchedEffect(st.tab, st.recents) { if (st.tab == "recents") { val nowMs = System.currentTimeMillis(); if (s.recentsSeenAt < nowMs) LdApp.instance.scope.launch { LdApp.instance.repo.setRecentsSeen(nowMs) } } }
                 LaunchedEffect(st.tab) { if (st.tab in tabKeys) { val i = tabKeys.indexOf(st.tab); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) } }
-                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), userScrollEnabled = s.tabSwipe) { page ->
+                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (s.searchBottom) 156.dp else 90.dp).testTag("home_content_viewport"), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
-                        "recents" -> RecentsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = if (s.searchBottom) 156.dp else 90.dp, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
+                        "recents" -> RecentsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = 12.dp, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
                             onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } },
                             onClear = { confirmClear = true }, onInsights = { openPage("stats") })
-                        else -> ContactsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = if (s.searchBottom) 156.dp else 90.dp, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
+                        else -> ContactsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = 12.dp, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
                     }
                 }
             }
@@ -649,31 +649,35 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         }
         item(key = "recent-controls") {
             Column(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(26.dp), 0.dp)
-                .padding(horizontal = 14.dp, vertical = 14.dp).testTag("recent_controls"),
-                verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                .padding(horizontal = 12.dp, vertical = 12.dp).testTag("recent_controls"),
+                verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Column(Modifier.weight(1f)) {
-                        LdText("LIQUID DIALER", 9.5f, FontWeight.Bold, p.accent, letter = 1.8f)
-                        LdText("Recent calls", 24f, FontWeight.ExtraBold, modifier = Modifier.padding(top=3.dp), maxLines=2, letter=-.7f)
+                        LdText("Recent calls", 22f, FontWeight.Bold, maxLines=2, letter=-.5f)
                     }
                     if (st.recents.isNotEmpty()) {
                         HomeHeaderTool(LdIcons.Chart,"Hisab (call stats)","insights_open",p.accent,onInsights)
                         HomeHeaderTool(LdIcons.Trash,"Clear call history","recent_clear",p.muted,onClear)
                     }
                 }
-                val largeFilters = LocalDensity.current.fontScale > 1.15f
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalArrangement = Arrangement.spacedBy(3.dp),
-                    maxItemsInEachRow = if (largeFilters) 2 else 4,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-                        .background(p.text.copy(alpha=if(p.isLight).045f else .08f)).padding(4.dp).testTag("recent_filters")) {
-                    chipLabels.forEachIndexed { i, label ->
-                        val on = filter == i
-                        Box(Modifier.weight(1f).heightIn(min=44.dp)
-                            .then(if(on)Modifier.buttonGlass(p,RoundedCornerShape(14.dp),p.accent) else Modifier.clip(RoundedCornerShape(14.dp)))
-                            .clickable { filter = i }.padding(horizontal=4.dp,vertical=9.dp)
-                            .testTag("recent_filter_$i"), contentAlignment=Alignment.Center) {
-                            LdText(label,12f,if(on)FontWeight.Bold else FontWeight.Medium,if(on)p.text else p.muted)
+                val measure=rememberTextMeasurer()
+                val density=LocalDensity.current
+                val fontFamily=when(LocalFontStyle.current){1->androidx.compose.ui.text.font.FontFamily.Serif;2->androidx.compose.ui.text.font.FontFamily.Monospace;3->androidx.compose.ui.text.font.FontFamily.Cursive;else->null}
+                val labels=chipLabels.map{T(it)}
+                BoxWithConstraints(Modifier.fillMaxWidth()){
+                    val widest=remember(labels,density.fontScale,fontFamily){labels.maxOf{measure.measure(it,TextStyle(fontSize=12.sp,fontWeight=FontWeight.Bold,fontFamily=fontFamily),softWrap=false).size.width}}
+                    val fitsFour=with(density){widest.toDp()}+12.dp <= (maxWidth-17.dp)/4
+                    FlowRow(horizontalArrangement=Arrangement.spacedBy(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp),
+                        maxItemsInEachRow=if(fitsFour)4 else 2,
+                        modifier=Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.text.copy(alpha=if(p.isLight).04f else .07f)).padding(4.dp).testTag("recent_filters")){
+                        chipLabels.forEachIndexed{i,label->
+                            val on=filter==i
+                            Box(Modifier.weight(1f).heightIn(min=44.dp)
+                                .then(if(on)Modifier.buttonGlass(p,RoundedCornerShape(12.dp),p.accent) else Modifier.clip(RoundedCornerShape(12.dp)))
+                                .semantics{contentDescription=labels[i]}.clickable{filter=i}.padding(horizontal=4.dp,vertical=9.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
+                                LdText(label,12f,if(on)FontWeight.Bold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=2,textAlign=TextAlign.Center,modifier=Modifier.testTag("recent_filter_label_$i"))
+                            }
                         }
                     }
                 }
@@ -754,8 +758,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = 2)
                             }
                         }
-                        VideoMini(40.dp, tint = rstyle.tint) { act.videoCall(r.number) }
-                        CallMini(40.dp, tint = rstyle.tint) { act.callUi(r.number) }
+                        VideoMini(44.dp, tint = rstyle.tint, subtle = true) { act.videoCall(r.number) }
+                        CallMini(44.dp, tint = rstyle.tint) { act.callUi(r.number) }
                     }
                     }
                 }
@@ -839,19 +843,19 @@ fun CallMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, onC
     val c = tint ?: p.accent
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).testTag("call_mini").buttonGlass(p,CircleShape,c)
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).testTag("call_mini").semantics{contentDescription="Call"}.buttonGlass(p,CircleShape,c)
         .clickable(src, null, onClick = onClick), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Phone, size * .45f, c) }
 }
 
 /** .video-mini: seedhi native video call (ViLTE); support na mile to call screen saaf batata hai */
 @Composable
-fun VideoMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, onClick: () -> Unit) {
+fun VideoMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, subtle: Boolean = false, onClick: () -> Unit) {
     val p = LocalLd.current
     val c = tint ?: p.accent
     val src = remember { MutableInteractionSource() }
     val s = pressScale(src, .9f)
-    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).buttonGlass(p,CircleShape,c)
-        .clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, size * .45f, c) }
+    Box(Modifier.graphicsLayer { scaleX = s; scaleY = s }.size(size).then(if(subtle)Modifier.clip(CircleShape).background(c.copy(alpha=if(p.isLight).065f else .11f)) else Modifier.buttonGlass(p,CircleShape,c))
+        .semantics{contentDescription="Video call"}.clickable(src, null, onClick = onClick).testTag("video_mini"), contentAlignment = Alignment.Center) { LdIcon(LdIcons.Video, size * .45f, c) }
 }
 
 @Composable
@@ -871,15 +875,12 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
     LazyColumn(Modifier.fillMaxSize().testTag("main_list"), state = listState, contentPadding = PaddingValues(start = 16.dp, end = if (showRail) 30.dp else 16.dp, top = topPad, bottom = bottomPad), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         item {
             Row(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(22.dp),0.dp)
-                .padding(horizontal=14.dp,vertical=14.dp).testTag("contacts_controls"),
+                .padding(horizontal=12.dp,vertical=12.dp).testTag("contacts_controls"),
                 verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f)) {
-                    LdText("LIQUID DIALER",9.5f,FontWeight.Bold,p.accent,letter=1.8f)
-                    LdText("Contacts",24f,FontWeight.ExtraBold,modifier=Modifier.padding(top=3.dp),maxLines=2,letter=-.7f)
+                    LdText("Contacts",22f,FontWeight.Bold,maxLines=2,letter=-.5f)
+                    LdText("${list.size} ${T("Contacts")}",11.5f,FontWeight.Medium,p.muted,modifier=Modifier.padding(top=2.dp).semantics{contentDescription="${list.size} contacts"})
                 }
-                LdText("${list.size}",11.5f,FontWeight.Bold,p.muted,
-                    Modifier.clip(RoundedCornerShape(10.dp)).background(p.glass)
-                        .border(1.dp,p.stroke,RoundedCornerShape(10.dp)).padding(horizontal=8.dp,vertical=5.dp))
                 if (dups.isNotEmpty()) Box(Modifier.heightIn(min=44.dp).buttonGlass(p,RoundedCornerShape(14.dp))
                     .clickable { onShowDups() }.padding(horizontal=8.dp,vertical=6.dp).testTag("dups_open"),
                     contentAlignment=Alignment.Center) {
@@ -892,9 +893,9 @@ private fun ContactsScreen(st: AppState, act: MainActivity, query: String, topPa
         else if (list.isEmpty()) item { EmptyState(LdIcons.Users, if (query.isBlank()) "Koi contact nahi" else "Kuch nahi mila", if (query.isBlank()) "Naya contact add karo" else "Naam, number ya T9 se search karo", if (query.isBlank()) "Contact add karo" else null, onAdd) }
         if (hasPerm) items(list, key = { it.id }) { c ->
             val display = if (s.lastNameFirst) c.altName else c.name
-            GlassRow(onClick = { onOpen(c) }, onLongClick = { onLong(c.number) }) {
-                // recents ke saath same density (42dp avatar) - app-wide rows ek jaisi
-                Avatar(c.name, c.photo, size = 42.dp, fontSize = 14f, seed = c.name)
+            GlassRow(onClick = { onOpen(c) }, onLongClick = { onLong(c.number) }, tight = true) {
+                // Same compact avatar as Recents; leave width for the contact identity.
+                Avatar(c.name, c.photo, size = 38.dp, fontSize = 13f, seed = c.name)
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                         LdText(display, 14.5f, FontWeight.SemiBold, modifier = Modifier.weight(1f, false), maxLines = 2)
