@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Contact
 import com.mandu.liquiddialer.data.Repo
 
@@ -247,8 +248,10 @@ fun androidx.compose.foundation.layout.BoxScope.VoiceListeningCard(align: Alignm
 @Composable
 fun androidx.compose.foundation.layout.BoxScope.VoiceConfirmCard(m: VoiceMatch, align: Alignment, onCall: () -> Unit, onCancel: () -> Unit) {
     val p = LocalLd.current
+    val settings by LdApp.settings.collectAsState()
+    val premium=LocalConfirmPreview.current ?: settings.premiumConfirm
     Column(Modifier.align(align).widthIn(max=400.dp).fillMaxWidth(.90f).clip(RoundedCornerShape(28.dp))
-        .background(p.bg2).border(1.dp,Brush.verticalGradient(listOf(Color.White.copy(alpha=.75f),p.accent.copy(alpha=.25f))),RoundedCornerShape(28.dp))
+        .then(if(premium)Modifier.background(Brush.verticalGradient(listOf(p.bg2,mix(p.bg2,p.accent,if(p.isLight).955f else .965f)))).border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=if(p.isLight).9f else .4f),p.accent.copy(alpha=.28f),p.stroke)),RoundedCornerShape(28.dp)) else Modifier.background(p.bg2).border(1.dp,Brush.verticalGradient(listOf(Color.White.copy(alpha=.75f),p.accent.copy(alpha=.25f))),RoundedCornerShape(28.dp)))
         .testTag("voice_confirm").padding(horizontal=22.dp,vertical=24.dp),horizontalAlignment=Alignment.CenterHorizontally) {
         LdText("Call karein?",14f,FontWeight.SemiBold,p.muted)
         LdText(m.name,22f,FontWeight.Bold,maxLines=3,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(top=10.dp))
@@ -256,8 +259,8 @@ fun androidx.compose.foundation.layout.BoxScope.VoiceConfirmCard(m: VoiceMatch, 
         Spacer(Modifier.height(22.dp))
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
             Column(horizontalAlignment=Alignment.CenterHorizontally){
-                Box(Modifier.size(64.dp).clip(CircleShape).background(Brush.verticalGradient(listOf(Color(0xFFF45A4F),Color(0xFFD93025))))
-                    .border(1.dp,Color.White.copy(alpha=.45f),CircleShape).clickable(role=Role.Button,onClick=onCancel).semantics{contentDescription="Cancel call"}.testTag("voice_cancel"),contentAlignment=Alignment.Center){LdIcon(LdIcons.X,26.dp,Color.White)}
+                Box(Modifier.size(64.dp).clip(CircleShape).then(if(premium)Modifier.buttonGlass(p,CircleShape).background(p.danger.copy(alpha=.06f),CircleShape)else Modifier.background(Brush.verticalGradient(listOf(Color(0xFFF45A4F),Color(0xFFD93025)))))
+                    .border(1.dp,Color.White.copy(alpha=.45f),CircleShape).clickable(role=Role.Button,onClick=onCancel).semantics{contentDescription="Cancel call"}.testTag("voice_cancel"),contentAlignment=Alignment.Center){LdIcon(LdIcons.X,26.dp,if(premium)p.danger else Color.White)}
                 LdText("Rehne do",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(top=8.dp))
             }
             Column(horizontalAlignment=Alignment.CenterHorizontally){
