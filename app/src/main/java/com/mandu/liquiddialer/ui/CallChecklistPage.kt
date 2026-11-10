@@ -25,6 +25,7 @@ import kotlinx.coroutines.withContext
  var rows by remember(number){mutableStateOf<List<CallChecklist.Item>>(emptyList())}
  var loaded by remember(number){mutableStateOf(false)};var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")}
  var editor by remember(number){mutableStateOf<String?>(null)};var draft by remember(number){mutableStateOf("")};var original by remember(number){mutableStateOf("")}
+ var templates by remember(number){mutableStateOf(false)}
  var discard by remember(number){mutableStateOf(false)};var confirm by remember(number){mutableStateOf<String?>(null)}
  fun update(action:()->List<CallChecklist.Item>,after:()->Unit={}) {
   if(busy)return;busy=true;scope.launch{try{val next=withContext(Dispatchers.IO){action()};rows=next;loaded=true;error="";after()}catch(e:Exception){error=(e as? IllegalArgumentException)?.message ?: "Checklist save/load nahi hui. Purana data nahi badla; dobara load karo."}finally{busy=false}}
@@ -32,7 +33,7 @@ import kotlinx.coroutines.withContext
  LaunchedEffect(number){busy=true;try{rows=withContext(Dispatchers.IO){CallChecklist.read(ctx,number)};loaded=true}catch(_:Exception){error="Checklist khul nahi rahi. Saved file nahi badli."}finally{busy=false}}
  fun closeEditor(){if(draft!=original)discard=true else editor=null}
  fun back(){if(editor!=null)closeEditor()else onBack()}
- BackHandler{back()}
+ BackHandler(enabled=!templates){back()}
  val content: @Composable ColumnScope.()->Unit = {
  LdText(number,16f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("checklist_number"))
  LdText("Is number se baat ke topics. Pehle taiyar karo, call ke dauran tick karo. Tick sirf tumhara mark hai, call ya awaaz se automatic nahi badlega.",13f,color=p.muted,maxLines=8)
@@ -52,6 +53,8 @@ import kotlinx.coroutines.withContext
   LdText("${rows.count{it.done}} / ${rows.size} discussed",14f,FontWeight.Bold,modifier=Modifier.testTag("checklist_progress"))
   Spacer(Modifier.height(8.dp))
   PrimaryButton(if(busy)"Save/load ho raha hai..."else "Topic jodo",enabled=!busy&&error.isEmpty()&&rows.size<CallChecklist.MAX_ITEMS,modifier=Modifier.testTag("checklist_add")){editor="new";draft="";original=""}
+  Spacer(Modifier.height(8.dp))
+  PrimaryButton("Reusable templates",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_templates")){templates=true}
   if(rows.isEmpty())LdText("Abhi koi topic nahi. Agli call ke liye sawaal, order ya follow-up likho.",13f,color=p.muted,maxLines=4)
   rows.forEach{item->GlassCard(Modifier.padding(top=10.dp).testTag("checklist_item_${item.id}")){
    Row(verticalAlignment=Alignment.Top){Checkbox(item.done,{on->update({CallChecklist.done(ctx,number,item.id,on)})},enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_tick_${item.id}"));Column(Modifier.weight(1f).padding(top=10.dp)){
@@ -71,6 +74,7 @@ import kotlinx.coroutines.withContext
  }
 
  }
+ if(templates){ChecklistTemplatesWorkspace(number,{templates=false},{next->rows=next},inSheet);return}
  if(inSheet)Column{SheetTitle("Call checklist");PrimaryButton("Notes par wapas",modifier=Modifier.testTag("checklist_notes_back")){back()};content()}else PageFrame("Call checklist",{back()},content=content)
  if(discard)AlertDialog(onDismissRequest={discard=false},title={Text("Badlav save nahi hue")},text={Text("Likha hua topic chhodna hai? Saved checklist nahi badlegi.")},confirmButton={TextButton(onClick={discard=false;editor=null},modifier=Modifier.testTag("checklist_discard")){Text("Chhod do")}},dismissButton={TextButton(onClick={discard=false},modifier=Modifier.testTag("checklist_keep")){Text("Likhte raho")}})
  confirm?.let{action->AlertDialog(onDismissRequest={if(!busy)confirm=null},title={Text(if(action=="reset")"Sab topics Pending karein?"else "Checklist se mitayein?")},text={Text(if(action=="reset")"Topics rahenge, discussed ticks saaf honge. Isse koi call nahi lagegi."else if(action=="clear")"Sirf is number ke saare topics aur ticks mitenge. Wapas nahi la sakte."else "Sirf yeh topic aur iska tick mitega. Wapas nahi la sakte.")},confirmButton={TextButton(enabled=!busy,onClick={update({when(action){"reset"->CallChecklist.reset(ctx,number);"clear"->CallChecklist.clear(ctx,number);else->CallChecklist.remove(ctx,number,action)}}){confirm=null}},modifier=Modifier.testTag("checklist_confirm")){Text(if(action=="reset")"Pending karo"else "Mitao")}},dismissButton={TextButton(enabled=!busy,onClick={confirm=null},modifier=Modifier.testTag("checklist_cancel_confirm")){Text("Rehne do")}})}
