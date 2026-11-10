@@ -213,7 +213,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                 Sheet(onDismiss = { sheet = null }) {
                     when (sheet) {
                         "reply" -> QuickReplySheet(s.quickReplies) { msg -> CallManager.reject(c, msg); sheet = null }
-                        "notes" -> NotesSheet(CallManager.number(c), CallManager.nameFor(ctx, c)) { sheet = null }
+                        "notes" -> key(CallManager.number(c)) { NotesSheet(CallManager.number(c), CallManager.nameFor(ctx, c)) { sheet = null } }
                         "audio" -> AudioRouteSheet(audio) { CallManager.setRoute(it); sheet = null }
                         "sim" -> SimPickSheet { h -> c.phoneAccountSelected(h, false); sheet = null }
                         "conference" -> ConferenceSheet(c) { sheet = null }
@@ -830,7 +830,13 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     var error by remember {mutableStateOf("")}
     var list by remember { mutableStateOf(try{Repo.notesChecked(ctx).filter{ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}catch(_:Exception){error="Notes khul nahi rahe. Saved file nahi badli.";emptyList()}) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
+    var checklist by remember(number) { mutableStateOf(false) }
+    if(checklist){
+        CallChecklistWorkspace(number,{checklist=false},inSheet=true)
+        return
+    }
     SheetTitle("Notes · $name")
+    if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)PrimaryButton("Call checklist · baat ke topics",modifier=Modifier.testTag("call_checklist_open")){checklist=true}
     LdField(text, { text = it }, "Call ke dauran note likho…", minLines = 3)
     if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=4)
     PrimaryButton("Save note", enabled = text.isNotBlank() && text.trim().length<=50000) {
