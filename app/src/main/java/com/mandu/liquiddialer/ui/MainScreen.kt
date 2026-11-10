@@ -648,41 +648,29 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             }
         }
         item(key = "recent-controls") {
-            Column(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(26.dp), 0.dp)
-                .padding(horizontal = 12.dp, vertical = 12.dp).testTag("recent_controls"),
-                verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Column(Modifier.weight(1f)) {
-                        LdText("Recent calls", 22f, FontWeight.Bold, maxLines=2, letter=-.5f)
-                    }
-                    if (st.recents.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=4.dp).testTag("recent_controls"),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    LdText("Recent calls",16f,FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2)
+                    if(st.recents.isNotEmpty()) {
                         HomeHeaderTool(LdIcons.Chart,"Hisab (call stats)","insights_open",p.accent,onInsights)
                         HomeHeaderTool(LdIcons.Trash,"Clear call history","recent_clear",p.muted,onClear)
                     }
                 }
-                val measure=rememberTextMeasurer()
-                val density=LocalDensity.current
-                val fontFamily=when(LocalFontStyle.current){1->androidx.compose.ui.text.font.FontFamily.Serif;2->androidx.compose.ui.text.font.FontFamily.Monospace;3->androidx.compose.ui.text.font.FontFamily.Cursive;else->null}
-                val labels=chipLabels.map{T(it)}
-                BoxWithConstraints(Modifier.fillMaxWidth()){
-                    val widest=remember(labels,density.fontScale,fontFamily){labels.maxOf{measure.measure(it,TextStyle(fontSize=12.sp,fontWeight=FontWeight.Bold,fontFamily=fontFamily),softWrap=false).size.width}}
-                    val fitsFour=with(density){widest.toDp()}+12.dp <= (maxWidth-17.dp)/4
-                    FlowRow(horizontalArrangement=Arrangement.spacedBy(3.dp),verticalArrangement=Arrangement.spacedBy(3.dp),
-                        maxItemsInEachRow=if(fitsFour)4 else 2,
-                        modifier=Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(p.text.copy(alpha=if(p.isLight).04f else .07f)).padding(4.dp).testTag("recent_filters")){
-                        chipLabels.forEachIndexed{i,label->
-                            val on=filter==i
-                            Box(Modifier.weight(1f).heightIn(min=44.dp)
-                                .then(if(on)Modifier.buttonGlass(p,RoundedCornerShape(12.dp),p.accent) else Modifier.clip(RoundedCornerShape(12.dp)))
-                                .semantics{contentDescription=labels[i]}.clickable{filter=i}.padding(horizontal=4.dp,vertical=9.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
-                                LdText(label,12f,if(on)FontWeight.Bold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=2,textAlign=TextAlign.Center,modifier=Modifier.testTag("recent_filter_label_$i"))
-                            }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("recent_filters"),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                    chipLabels.forEachIndexed{i,label->
+                        val on=filter==i
+                        val spoken=T(label)
+                        Box(Modifier.heightIn(min=44.dp).clip(RoundedCornerShape(12.dp))
+                            .background(if(on)p.accent.copy(alpha=if(p.isLight).12f else .19f)else Color.Transparent)
+                            .border(1.dp,if(on)p.accent.copy(alpha=.28f)else p.text.copy(alpha=if(p.isLight).17f else .22f),RoundedCornerShape(12.dp))
+                            .semantics{contentDescription=spoken}.clickable{filter=i}.padding(horizontal=18.dp,vertical=10.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
+                            LdText(label,13f,if(on)FontWeight.SemiBold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=1,modifier=Modifier.testTag("recent_filter_label_$i"))
                         }
                     }
                 }
             }
         }
+
         // NAYA: aaj ke call stats ka chhota strip (passive info, koi auto-action nahi)
         if (hasLog && s.showTodayStats) item(key = "today-stats") {
             val stats = remember(st.recents) { Repo.dayStats(st.recents, System.currentTimeMillis()) }
