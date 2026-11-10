@@ -1,5 +1,5 @@
 package com.mandu.liquiddialer
-import androidx.activity.compose.setContent
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -24,11 +24,11 @@ class CleanCallToolsUiTest {
  private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
  private fun await(f:()->Boolean){rule.waitUntil(15000){settle();f()};settle()}
  private fun reveal(tag:String):SemanticsNodeInteraction{
-  repeat(40){val n=rule.onNodeWithTag(tag,true);val r=n.getUnclippedBoundsInRoot();val sc=rule.onAllNodes(hasScrollAction(),true).onLast();val v=sc.getUnclippedBoundsInRoot();if(r.bottom>r.top&&r.top>=v.top&&r.bottom<=v.bottom)return n;sc.performTouchInput{if(r.top<v.top)swipeDown()else swipeUp()};settle()};error("Not visible $tag")
+  repeat(40){val n=rule.onNodeWithTag(tag,true);val r=n.getUnclippedBoundsInRoot();val sc=rule.onAllNodes(hasScrollAction() and SemanticsMatcher.keyNotDefined(SemanticsProperties.HorizontalScrollAxisRange),true).onLast();val v=sc.getUnclippedBoundsInRoot();if(r.bottom>r.top&&r.top>=v.top&&r.bottom<=v.bottom){rule.mainClock.autoAdvance=true;n.performScrollTo();rule.mainClock.autoAdvance=false;settle();return n};sc.performTouchInput{if(r.top<v.top)swipeDown()else swipeUp()};settle()};error("Not visible $tag")
  }
  private fun show(theme:String="daylight",font:Float=1f,notes:Boolean=false,tools:Boolean=true){
   rule.mainClock.autoAdvance=false;settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}};await{LdApp.settings.value.let{it.theme==theme&&it.fontScale==font}}
-  val g=++generation;rule.runOnUiThread{rule.activity.setContent{key(g){LdThemeHost{
+  val g=++generation;rule.runOnUiThread{rule.activity.mountTestPage{key(g){LdThemeHost{
    if(notes)Sheet({}){NotesSheet(number,"बहुत लंबा दुकान का नाम · Supplier Office Delivery Department",{})}
    else PageFrame("Number details",{}){NumberSheet(number,null,rule.activity.state,rule.activity,{},{},{},onChecklist=if(tools){{selected="checklist"}}else null,onEstimate=if(tools){{selected="estimate"}}else null,onTimeline=if(tools){{selected="timeline"}}else null)}
   }}}};settle()
