@@ -166,14 +166,15 @@ class ChromeOverlapShotTest {
             .any { n -> val b = n.boundsInRoot; chrome.any { c -> b.overlaps(c) } }
     }
 
-    private fun ensureCoveredRow() {
-        var swipes = 0
-        while (!coveredRowExists() && swipes < 8) {
-            rule.onAllNodesWithTag("main_list", useUnmergedTree = true)[0]
-                .performTouchInput { swipeUp(durationMillis = 200) }
-            settle(600); swipes++
+    private fun ensureViewportProtectsRows() {
+        val viewport = rule.onNodeWithTag("home_content_viewport",true).fetchSemanticsNode().boundsInRoot
+        val chrome = rule.onNodeWithTag("bottom_bar",true).fetchSemanticsNode().boundsInRoot
+        assertTrue("list viewport ends above chrome",viewport.bottom<=chrome.top)
+        repeat(3){
+            assertTrue("no call button may be covered by bottom chrome",!coveredRowExists())
+            rule.onAllNodesWithTag("main_list",true)[0].performTouchInput{swipeUp(durationMillis=200)}
+            settle(600)
         }
-        assertTrue("precondition: koi call row bottom chrome ke peeche honi chahiye (warna test kuch prove nahi karta)", coveredRowExists())
     }
 
     private fun stateOf(f: (com.mandu.liquiddialer.MainActivity) -> Boolean): Boolean {
@@ -189,10 +190,10 @@ class ChromeOverlapShotTest {
     }
 
     @Test
-    fun fabTapOverCoveredRowDoesNotCall() {
+    fun fabCoordinateTapWithProtectedRowsDoesNotCall() {
         seedRecentsForIntercept()
         enableConfirm()
-        ensureCoveredRow()
+        ensureViewportProtectsRows()
         rule.onAllNodesWithTag("dialer_fab", useUnmergedTree = true)[0].performTouchInput {
             click(androidx.compose.ui.geometry.Offset(width / 2f, height / 2f))
         }
@@ -202,13 +203,13 @@ class ChromeOverlapShotTest {
     }
 
     @Test
-    fun navPillTapOverCoveredRowNoFallThrough() {
+    fun navCoordinateTapWithProtectedRowsNoFallThrough() {
         // Coordinate tap proof (semantics performClick nahi - wo hit-test bypass karta hai):
         // pill ke contacts segment par ASLI tap (1) tab switch kare, (2) neeche covered
         // row tak touch fall-through na kare (na call, na details page).
         seedRecentsForIntercept()
         enableConfirm()
-        ensureCoveredRow()
+        ensureViewportProtectsRows()
         rule.onAllNodesWithTag("bottom_bar", useUnmergedTree = true)[0].performTouchInput {
             click(androidx.compose.ui.geometry.Offset(width * 0.75f, height / 2f))
         }
