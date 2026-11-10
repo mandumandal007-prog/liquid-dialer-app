@@ -29,7 +29,7 @@ class ReminderCenterUiTest {
   runBlocking{ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}}
   rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font}
   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{ReminderCenterPage({},{})}}};settle()
-  rule.waitUntil(15000){rule.onAllNodesWithTag("reminder_new").filter(isEnabled()).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag("reminder_new").filter(isEnabled()).fetchSemanticsNodes().isNotEmpty()};settle()
  }
  private fun awaitRows(count:Int){rule.waitUntil(15000){CallReminders.all(ctx).size==count};settle()}
  @Test fun createValidateRescheduleSearchAndConfirmedCancel(){
