@@ -22,6 +22,8 @@ object LdIcons {
     val Menu: ImageVector by lazy { build("menu", *PARTS.getValue("menu")) }
     val Search: ImageVector by lazy { build("search", *PARTS.getValue("search")) }
     val X: ImageVector by lazy { build("x", *PARTS.getValue("x")) }
+    val Checklist: ImageVector by lazy { build("checklist", *PARTS.getValue("checklist")) }
+    val Calculator: ImageVector by lazy { build("calculator", *PARTS.getValue("calculator")) }
     val Chart: ImageVector by lazy { build("chart", *PARTS.getValue("chart")) }
     val History: ImageVector by lazy { build("history", *PARTS.getValue("history")) }
     val Contacts: ImageVector by lazy { build("contacts", *PARTS.getValue("contacts")) }
@@ -78,6 +80,8 @@ object LdIcons {
     private val STROKE_MULT = floatArrayOf(1f, .65f, 1.5f, 1f, .65f, 1.5f)
 
     private val PARTS: Map<String, Array<Triple<String, Boolean, Float>>> = mapOf(
+        "checklist" to arrayOf(Triple("M4 6l1.7 1.7L8 4.8M11 6h9M4 13l1.7 1.7L8 11.8M11 13h9M4 20l1.7 1.7L8 18.8M11 20h9", false, 1.8f)),
+        "calculator" to arrayOf(Triple("M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 7h8M8 12h2M9 11v2M14 12h2M8 17h2M14 16h2M14 18h2", false, 1.8f)),
         "chart" to arrayOf(Triple("M4 4v16h17M8 15v-4M13 15V7M18 15v-6", false, 1.8f)),
         "history" to arrayOf(Triple("M4 9V4M4 9h5M4.3 8a8 8 0 1 1-.1 7", false, 1.8f), Triple("M12 7.5V12l3.5 2", false, 1.8f)),
         "contacts" to arrayOf(Triple("M6 3.5h12a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2zM2.5 8h3M2.5 16h3", false, 1.8f), Triple("M10.5 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0M9 17c.3-2 1.8-3 4-3s3.7 1 4 3", false, 1.8f)),
@@ -133,6 +137,8 @@ object LdIcons {
 
     private val NAMES: Map<ImageVector, String> by lazy {
         val m = java.util.IdentityHashMap<ImageVector, String>()
+        m[Checklist] = "checklist"
+        m[Calculator] = "calculator"
         m[History] = "history"
         m[Contacts] = "contacts"
         m[Chart] = "chart"
