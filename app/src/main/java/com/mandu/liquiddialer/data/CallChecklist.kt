@@ -40,6 +40,14 @@ object CallChecklist {
   val k=key(number);val all=readAll(ctx);val old=all[k].orEmpty();require(old.size<MAX_ITEMS){"Ek number par 30 topics tak rakho"};require(k in all||all.size<MAX_NUMBERS){"100 numbers ki limit hai; koi purani checklist mitao"}
   val next=old+Item(UUID.randomUUID().toString(),text(value));all[k]=next;write(ctx,all);return next
  }
+ /** Re-read under the same lock: all-or-nothing append, preserving IDs, order and ticks. */
+ @Synchronized fun appendTopics(ctx:Context,number:String,values:List<String>):List<Item>{
+  val k=key(number);val all=readAll(ctx);val old=all[k].orEmpty();val missing=ChecklistTemplates.missing(old,values)
+  require(old.size+missing.size<=MAX_ITEMS){"Jagah kam hai: ${missing.size} naye topics, ${MAX_ITEMS-old.size} jagah. Koi topic nahi juda."}
+  if(missing.isEmpty())return old
+  require(k in all||all.size<MAX_NUMBERS){"100 numbers ki limit hai; koi purani checklist mitao"}
+  val next=old+missing.map{Item(UUID.randomUUID().toString(),it)};all[k]=next;write(ctx,all);return next
+ }
  private fun change(ctx:Context,number:String,id:String,f:(Item)->Item?):List<Item> {
   val k=key(number);val all=readAll(ctx);val old=all[k].orEmpty();require(old.any{it.id==id}){"Topic ab nahi mila; dobara load karo"};val next=old.mapNotNull{if(it.id==id)f(it)else it};if(next.isEmpty())all.remove(k)else all[k]=next;write(ctx,all);return next
  }
