@@ -93,6 +93,9 @@ class RecentsDensityShotTest {
         settle()
         val defCount = waitRows()
         val defTops = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
+            // Prefetched nodes outside the clipped home viewport have empty bounds.
+            // They are not visible rows and cannot be used as a row-pitch anchor.
+            .filter { it.boundsInRoot.height > 1f }
             .map { it.boundsInRoot.top }.sorted()
         assertTrue("kam se kam 2 rows chahiye pitch naapne ke liye", defTops.size >= 2)
         val defPitch = defTops[1] - defTops[0]
@@ -104,6 +107,9 @@ class RecentsDensityShotTest {
         settle()
         val compactCount = waitRows(defCount)
         val compTops = rule.onAllNodesWithTag("call_mini", useUnmergedTree = true).fetchSemanticsNodes()
+            // Prefetched nodes outside the clipped home viewport have empty bounds.
+            // They are not visible rows and cannot be used as a row-pitch anchor.
+            .filter { it.boundsInRoot.height > 1f }
             .map { it.boundsInRoot.top }.sorted()
         val compPitch = compTops[1] - compTops[0]
         saveShot(rule, "20-recents-density-compact")
