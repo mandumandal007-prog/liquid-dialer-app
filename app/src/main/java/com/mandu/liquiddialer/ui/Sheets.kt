@@ -36,7 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @Composable
-fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null) {
+fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null, onTimeline: (() -> Unit)? = null) {
     val p = LocalLd.current
     val ctx = LocalContext.current
     val detail = remember(contact) { contact?.let { Repo.contactDetail(ctx, it.id) } }
@@ -204,6 +204,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
         }
         if(onChecklist!=null && runCatching{CallLists.number(number)}.isSuccess) PrimaryButton("Call checklist · baat ke topics",modifier=Modifier.testTag("details_checklist")){onChecklist()}
         if(onEstimate!=null && runCatching{CallLists.number(number)}.isSuccess) PrimaryButton("Call calculator · quantity × rate",modifier=Modifier.testTag("details_estimate")){onEstimate()}
+        if(onTimeline!=null && runCatching{CallLists.number(number)}.isSuccess) PrimaryButton("Call timeline · purani baat",modifier=Modifier.testTag("details_timeline")){onTimeline()}
         SheetRow(LdIcons.Edit, if(notesRead.isFailure) "Notes load nahi hue" else "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
         if (remindOpen) {
