@@ -2,7 +2,6 @@ package com.mandu.liquiddialer
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.setContent
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
@@ -43,7 +42,7 @@ class FullBackupUiTest {
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=if(night)"midnight" else "daylight";it[K.fontScale]=if(night)1.4f else 1f}}
   rule.waitUntil(30000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{BackupPage({})}}};settle()
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{BackupPage({})}}};settle()
   // A frozen Compose clock needs snapshot notifications and frames while IO settings publish.
   // Keep the existing 30-second bound and the same screen-ready assertion.
   rule.waitUntil(30000){
