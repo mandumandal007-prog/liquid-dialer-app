@@ -112,8 +112,19 @@ class NumberDetailsFullScreenTest {
         rule.onNodeWithText("Notes (", substring = true, useUnmergedTree = true).assertExists()
         rule.onNodeWithText("WhatsApp", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "04-number-details-full")
-        // last row (Contact delete karo) bhi dikhe: tall viewport (h1440) me sab rows aa jaate hain.
-        // performScrollToNode is harness me extra row ke saath kabhi idle nahi hota tha (scroll-chain hang).
+        // Extra tools can put the last row below even this tall viewport. Reveal it by
+        // bounded actual swipes, then retain the original visibility assertion.
+        val last=rule.onNodeWithText("Contact delete karo",substring=true,useUnmergedTree=true)
+        var reached=false
+        repeat(20){
+            if(!reached){
+                val r=last.getUnclippedBoundsInRoot()
+                val scroller=rule.onAllNodes(hasScrollAction(),useUnmergedTree=true).onLast()
+                val view=scroller.getUnclippedBoundsInRoot()
+                if(r.bottom>r.top&&r.top>=view.top&&r.bottom<=view.bottom)reached=true
+                else{scroller.performTouchInput{if(r.top<view.top)swipeDown()else swipeUp()};settle(100)}
+            }
+        }
         rule.onNodeWithText("Contact delete karo", substring = true, useUnmergedTree = true).assertIsDisplayed()
         saveShot(rule, "04b-number-details-scrolled")
         // back se wapas recents (bottom bar dobara dikhe, page band)
