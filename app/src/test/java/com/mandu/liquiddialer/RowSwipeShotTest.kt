@@ -149,6 +149,7 @@ class RowSwipeShotTest {
     @Test fun incomingFilterChipStaysReachableAtLargeFont() {
         try {
             setup(true, 1.3f)
+            rule.mainClock.autoAdvance = true
             rule.onNodeWithText("Incoming", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
         } finally { RuntimeEnvironment.setFontScale(1.0f) }
     }
