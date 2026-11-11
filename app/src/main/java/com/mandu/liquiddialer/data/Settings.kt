@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.map
 val Context.ldStore by preferencesDataStore(name = "ld_settings")
 
 data class LdSettings(
+    val hiddenFeatures: Set<String> = emptySet(),
+    val quietRows: Boolean = false,
     val lang: String = "hinglish",
     val theme: String = "midnight",
     val accent: Long = 0xFF5B8CFF,
@@ -137,6 +139,8 @@ val DEFAULT_REPLIES = listOf(
 )
 
 object K {
+    val hiddenFeatures = stringSetPreferencesKey("hiddenFeatures")
+    val quietRows = booleanPreferencesKey("quietRows")
     val lang = stringPreferencesKey("lang")
     val theme = stringPreferencesKey("theme")
     val accent = longPreferencesKey("accent")
@@ -258,6 +262,8 @@ internal fun simUseMapOf(p: Preferences): Map<String, String> = (p[K.simUse] ?: 
 fun Preferences.toSettings(): LdSettings {
     val d = LdSettings()
     return LdSettings(
+        quietRows = this[K.quietRows] ?: false,
+        hiddenFeatures = (this[K.hiddenFeatures] ?: emptySet()).filter{it in FeatureControls.ids}.toSet(),
         lang = this[K.lang] ?: d.lang,
         theme = this[K.theme] ?: d.theme,
         accent = this[K.accent] ?: d.accent,
