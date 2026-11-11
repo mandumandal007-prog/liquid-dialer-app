@@ -446,7 +446,9 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val muted = audio?.isMuted == true
     val speaker = audio?.route == CallAudioState.ROUTE_SPEAKER
     val bt = audio?.route == CallAudioState.ROUTE_BLUETOOTH
+    val pace by com.mandu.liquiddialer.telecom.CallPace.status.collectAsState()
     val badges = buildList {
+        pace?.takeIf{it.target===call&&CallManager.state(call)==Call.STATE_ACTIVE}?.let{v->val left=((v.deadline-android.os.SystemClock.uptimeMillis()+999)/1000).coerceAtLeast(0);add((if(v.deadline>0)"PACE ${fmtDur(left)}"else"PACE REMINDED") to p.accent)}
         if(call.details?.hasProperty(Call.Details.PROPERTY_HIGH_DEF_AUDIO)==true) add("HD VOICE" to p.ok)
         if (vs != VideoProfile.STATE_AUDIO_ONLY && !videoStage) add("VIDEO" to p.accent)
         if (rec != null) add("REC ${fmtDur((now - rec.started) / 1000)}" to p.danger)
