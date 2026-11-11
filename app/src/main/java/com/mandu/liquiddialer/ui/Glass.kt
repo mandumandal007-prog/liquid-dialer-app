@@ -36,6 +36,9 @@ import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeChild
 
+val LocalQuietRows=staticCompositionLocalOf{false}
+val LocalRefinedHeaders=staticCompositionLocalOf{false}
+
 val LocalCallPhoto = staticCompositionLocalOf { false }
 val LocalCallGlass = staticCompositionLocalOf { false }
 
