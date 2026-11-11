@@ -21,6 +21,8 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun ClipboardNumberPicker(preview: ClipboardNumbers.Preview, replacing: Boolean, onChoose: (String) -> Unit, onClose: () -> Unit, onSaved: () -> Unit) {
+    val features by com.mandu.liquiddialer.LdApp.settings.collectAsState()
+    val listsOn=com.mandu.liquiddialer.data.FeatureControls.enabled(features,"calllists")
     val p=LocalLd.current;val ctx=LocalContext.current;val scope=rememberCoroutineScope()
     var selected by remember(preview) {mutableStateOf(preview.numbers.toSet())}
     val title="Pasted numbers"
@@ -37,12 +39,12 @@ internal fun ClipboardNumberPicker(preview: ClipboardNumbers.Preview, replacing:
                 LdText("Saaf phone number nahi mila",16f,FontWeight.SemiBold)
                 LdText("7-15 digits wala number alag line mein copy karo. URL, email, extension aur service code yahan nahi chunte; keypad par khud likho.",13f,color=p.muted,maxLines=5)
             } else {
-                LdText("Nayi list: Pasted numbers. Save ke baad Call Lists mein naam badal sakte ho.",12f,color=p.muted,maxLines=3)
-                LdText("${selected.size} / ${preview.numbers.size} selected",12f,color=p.muted)
+                if(listsOn) LdText("Nayi list: Pasted numbers. Save ke baad Call Lists mein naam badal sakte ho.",12f,color=p.muted,maxLines=3)
+                if(listsOn) LdText("${selected.size} / ${preview.numbers.size} selected",12f,color=p.muted)
                 Column(Modifier.weight(1f,fill=false).verticalScroll(rememberScrollState()).testTag("paste_numbers_scroll"),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                     preview.numbers.forEachIndexed { i, number ->
                         Row(Modifier.fillMaxWidth().buttonGlass(p,RoundedCornerShape(16.dp),p.accent).padding(4.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically) {
-                            Column(Modifier.width(64.dp).heightIn(min=64.dp).toggleable(value=number in selected,enabled=!busy,role=Role.Checkbox,onValueChange={checked->selected=if(checked)selected+number else selected-number}).semantics {contentDescription="List mein $number"}.testTag("paste_select_$i"),horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+                            if(listsOn) Column(Modifier.width(64.dp).heightIn(min=64.dp).toggleable(value=number in selected,enabled=!busy,role=Role.Checkbox,onValueChange={checked->selected=if(checked)selected+number else selected-number}).semantics {contentDescription="List mein $number"}.testTag("paste_select_$i"),horizontalAlignment=androidx.compose.ui.Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
                                 LdText(if(number in selected) "✓" else "○",20f,color=p.accent)
                                 LdText("List",11f,color=p.accent)
                             }
@@ -53,7 +55,7 @@ internal fun ClipboardNumberPicker(preview: ClipboardNumbers.Preview, replacing:
                         }
                     }
                 }
-                Box(Modifier.fillMaxWidth().heightIn(min=48.dp).buttonGlass(p,RoundedCornerShape(14.dp),p.accent)
+                if(listsOn) Box(Modifier.fillMaxWidth().heightIn(min=48.dp).buttonGlass(p,RoundedCornerShape(14.dp),p.accent)
                     .clickable(enabled=!busy && selected.isNotEmpty() && title.isNotBlank()) {
                         busy=true;error="";val numbers=preview.numbers.filter {it in selected};val name=title
                         scope.launch {try {withContext(Dispatchers.IO) {CallLists.createFromNumbers(ctx,name,numbers)};onSaved()}
