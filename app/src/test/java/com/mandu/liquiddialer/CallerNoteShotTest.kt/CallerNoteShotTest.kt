@@ -32,7 +32,7 @@ class CallerNoteShotTest {
     fun seed() = runBlocking {
         CallManager.calls.value = emptyList(); CallManager.bump()
         ctx.ldStore.edit { p ->
-            p[K.onboarded] = true; p[K.profileName] = "Mandu Mandal"; p[K.theme] = "daylight"
+            p[K.onboarded] = true; p[K.profileName] = "Mandu Mandal"; p[K.theme] = "midnight"
             p[K.gridScale] = 1f; p[K.bottomScale] = 1f; p[K.callCardScale] = 1f; p[K.dialerScale] = 1f
             p[K.callBgStyle] = "blobs"; p[K.callAvatarShape] = "circle"; p[K.callShowNumber] = true
         }
@@ -44,16 +44,7 @@ class CallerNoteShotTest {
         Unit
     }
 
-    private fun waitCard() {
-        rule.mainClock.autoAdvance = false
-        val t0 = System.currentTimeMillis()
-        while (System.currentTimeMillis() - t0 < 6000) {
-            rule.mainClock.advanceTimeBy(200); rule.waitForIdle()
-            if (rule.onAllNodesWithTag("caller_note_card").fetchSemanticsNodes().isNotEmpty()) return
-            Thread.sleep(80)
-        }
-        throw AssertionError("caller_note_card kabhi nahi dikha")
-    }
+    private fun waitCard() { settle(2500);rule.onNodeWithTag("caller_note_card").assertDoesNotExist();org.junit.Assert.assertTrue(Repo.notesFor(ctx,"+91 98765 43210").isNotEmpty()) }
 
     private fun settle(ms: Long = 1500) {
         rule.mainClock.autoAdvance = false
