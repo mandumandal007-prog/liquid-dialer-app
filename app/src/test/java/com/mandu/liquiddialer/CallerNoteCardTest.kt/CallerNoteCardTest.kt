@@ -42,16 +42,7 @@ class CallerNoteCardTest {
         Unit
     }
 
-    private fun waitCard() {
-        rule.mainClock.autoAdvance = false
-        val t0 = System.currentTimeMillis()
-        while (System.currentTimeMillis() - t0 < 6000) {
-            rule.mainClock.advanceTimeBy(200); rule.waitForIdle()
-            if (rule.onAllNodesWithTag("caller_note_card").fetchSemanticsNodes().isNotEmpty()) return
-            Thread.sleep(80)
-        }
-        throw AssertionError("caller_note_card kabhi nahi dikha")
-    }
+    private fun waitCard() { settle(2500);rule.onNodeWithTag("caller_note_card").assertDoesNotExist();org.junit.Assert.assertTrue(Repo.notesFor(ctx,"+91 98765 43210").isNotEmpty()) }
 
     private fun settle(ms: Long = 1500) {
         rule.mainClock.autoAdvance = false
@@ -68,23 +59,23 @@ class CallerNoteCardTest {
     }
 
     @Test
-    fun incomingCallShowsSavedNoteCard() {
+    fun incomingCallHidesButPreservesSavedNote() {
         Repo.addNote(ctx, "+91 98765 43210", "Rahul Sharma", "payment ki baat karni hai")
         settle(2500)
         showCall(Call.STATE_RINGING)
         waitCard()
-        rule.onNodeWithTag("caller_note_card").assertIsDisplayed()
-        rule.onNodeWithText("payment ki baat karni hai", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("caller_note_card").assertDoesNotExist()
+        rule.onNodeWithText("payment ki baat karni hai", substring = true, useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
-    fun ongoingCallShowsSavedNoteCard() {
+    fun ongoingCallHidesButPreservesSavedNote() {
         Repo.addNote(ctx, "+91 98765 43210", "Rahul Sharma", "docs bhejne hain")
         settle(2500)
         showCall(Call.STATE_ACTIVE)
         waitCard()
-        rule.onNodeWithTag("caller_note_card").assertIsDisplayed()
-        rule.onNodeWithText("docs bhejne hain", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("caller_note_card").assertDoesNotExist()
+        rule.onNodeWithText("docs bhejne hain", substring = true, useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
