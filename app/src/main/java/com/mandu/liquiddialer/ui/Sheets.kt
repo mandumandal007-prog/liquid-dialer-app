@@ -37,6 +37,7 @@ import java.util.*
 
 @Composable
 fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null, onTimeline: (() -> Unit)? = null, onBriefing: (() -> Unit)? = null) {
+    val s by com.mandu.liquiddialer.LdApp.settings.collectAsState()
     val p = LocalLd.current
     val ctx = LocalContext.current
     val detail = remember(contact) { contact?.let { Repo.contactDetail(ctx, it.id) } }
@@ -203,7 +204,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             }
         }
         if(runCatching{CallLists.number(number)}.isSuccess)CallToolsRow("details",onChecklist,onEstimate,onTimeline,onBriefing)
-        SheetRow(LdIcons.Edit, if(notesRead.isFailure) "Notes load nahi hue" else "Notes (${notes.size})") { onNotes() }
+        if(com.mandu.liquiddialer.data.FeatureControls.enabled(s,"notes")) SheetRow(LdIcons.Edit, if(notesRead.isFailure) "Notes load nahi hue" else "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
         if (remindOpen) {
             listOf("30min" to "30 min baad", "1h" to "1 ghante baad", "evening" to "Shaam 6 baje", "morning" to "Kal subah 9 baje").forEach { (preset, label) ->
