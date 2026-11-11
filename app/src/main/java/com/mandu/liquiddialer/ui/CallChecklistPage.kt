@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mandu.liquiddialer.data.CallChecklist
+import com.mandu.liquiddialer.data.FeatureControls
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -21,6 +22,7 @@ import kotlinx.coroutines.withContext
 
 /** Shared by number-details page and the existing call-time Notes sheet. All durable IO is off Main. */
 @Composable fun CallChecklistWorkspace(number:String,onBack:()->Unit,inSheet:Boolean=false) {
+ val features by com.mandu.liquiddialer.LdApp.settings.collectAsState()
  val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope()
  var rows by remember(number){mutableStateOf<List<CallChecklist.Item>>(emptyList())}
  var loaded by remember(number){mutableStateOf(false)};var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")}
@@ -55,9 +57,9 @@ import kotlinx.coroutines.withContext
   Spacer(Modifier.height(8.dp))
   PrimaryButton(if(busy)"Save/load ho raha hai..."else "Topic jodo",enabled=!busy&&error.isEmpty()&&rows.size<CallChecklist.MAX_ITEMS,modifier=Modifier.testTag("checklist_add")){editor="new";draft="";original=""}
   Spacer(Modifier.height(8.dp))
-  PrimaryButton("Reusable templates",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_templates")){templates=true}
+  if(FeatureControls.enabled(features,"templates")) PrimaryButton("Reusable templates",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_templates")){templates=true}
   Spacer(Modifier.height(8.dp))
-  PrimaryButton("Ek-ek topic · Focus",enabled=!busy&&error.isEmpty()&&rows.isNotEmpty(),modifier=Modifier.testTag("checklist_focus")){focus=true}
+  if(FeatureControls.enabled(features,"focus")) PrimaryButton("Ek-ek topic · Focus",enabled=!busy&&error.isEmpty()&&rows.isNotEmpty(),modifier=Modifier.testTag("checklist_focus")){focus=true}
   if(rows.isEmpty())LdText("Abhi koi topic nahi. Agli call ke liye sawaal, order ya follow-up likho.",13f,color=p.muted,maxLines=4)
   rows.forEach{item->GlassCard(Modifier.padding(top=10.dp).testTag("checklist_item_${item.id}")){
    Row(verticalAlignment=Alignment.Top){Checkbox(item.done,{on->update({CallChecklist.done(ctx,number,item.id,on)})},enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_tick_${item.id}"));Column(Modifier.weight(1f).padding(top=10.dp)){
