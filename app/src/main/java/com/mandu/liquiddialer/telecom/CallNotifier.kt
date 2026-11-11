@@ -83,6 +83,18 @@ object CallNotifier {
             .setPublicVersion(NotificationCompat.Builder(ctx,CH_ASSIST).setSmallIcon(R.drawable.ic_stat_call).setContentTitle("Call-time help").build()).build()
         try {NotificationManagerCompat.from(ctx).notify(id,n)}catch(_:Exception){}
     }
+    internal fun pace(ctx:Context,minutes:Int){
+        if(minutes !in CallPace.intervals)return
+        val text="$minutes min ka active call stretch hua. Zaroorat ho to break lo; call khud nahi kategi."
+        val n=NotificationCompat.Builder(ctx,CH_ASSIST).setSmallIcon(R.drawable.ic_stat_call)
+            .setContentTitle("Call pace reminder").setContentText(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            .setContentIntent(callActivityPi(ctx,req=ID_PACE)).setAutoCancel(true).setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(NotificationCompat.Builder(ctx,CH_ASSIST).setSmallIcon(R.drawable.ic_stat_call).setContentTitle("Call-time help").build()).build()
+        try{NotificationManagerCompat.from(ctx).notify(ID_PACE,n)}catch(_:Exception){}
+    }
+    internal fun cancelPace(ctx:Context){NotificationManagerCompat.from(ctx).cancel(ID_PACE)}
+    private const val ID_PACE=95
+
     internal fun cancelAssist(ctx:Context,kind:CallAssistMonitor.Kind?=null){
         val nm=NotificationManagerCompat.from(ctx)
         if(kind==null || kind==CallAssistMonitor.Kind.MUTE)nm.cancel(ID_MUTE_ASSIST)
