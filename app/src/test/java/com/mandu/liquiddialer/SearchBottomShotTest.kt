@@ -89,9 +89,9 @@ class SearchBottomShotTest {
         finally { RuntimeEnvironment.setFontScale(1.0f) }
     }
 
-    @Test fun scrimExistsOnlyInOptInMode() {
+    @Test fun scrimAlsoFadesTopSearchMode() {
         setup(false)
-        assertEquals(0, rule.onAllNodesWithTag("bottom_scrim", useUnmergedTree = true).fetchSemanticsNodes().size)
+        assertEquals(1, rule.onAllNodesWithTag("bottom_scrim", useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 
     @Test fun lastRowScrollsFullyAboveBottomControls() {
