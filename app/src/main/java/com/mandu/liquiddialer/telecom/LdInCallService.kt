@@ -58,10 +58,10 @@ class LdInCallService : InCallService() {
 
     private val cb = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) { onCallChanged(call, state) }
-        override fun onDetailsChanged(call: Call, details: Call.Details) { com.mandu.liquiddialer.data.ReceivedNames.observe(this@LdInCallService, call); watchVideo(call); CallManager.bump(); CallNotifier.update(this@LdInCallService);assistMonitor.refresh() }
+        override fun onDetailsChanged(call: Call, details: Call.Details) { com.mandu.liquiddialer.data.ReceivedNames.observe(this@LdInCallService, call); watchVideo(call); CallManager.bump(); CallNotifier.update(this@LdInCallService);assistMonitor.refresh();paceMonitor.refresh() }
         override fun onConferenceableCallsChanged(call: Call, c: MutableList<Call>) { CallManager.bump() }
-        override fun onChildrenChanged(call: Call, children: MutableList<Call>) { CallManager.bump();assistMonitor.refresh() }
-        override fun onParentChanged(call: Call, parent: Call?) { CallManager.bump();assistMonitor.refresh() }
+        override fun onChildrenChanged(call: Call, children: MutableList<Call>) { CallManager.bump();assistMonitor.refresh();paceMonitor.refresh() }
+        override fun onParentChanged(call: Call, parent: Call?) { CallManager.bump();assistMonitor.refresh();paceMonitor.refresh() }
     }
 
     private val assistScope=kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob()+kotlinx.coroutines.Dispatchers.Main)
@@ -72,15 +72,19 @@ class LdInCallService : InCallService() {
         val c=live.singleOrNull()?.takeIf{CallManager.state(it)==Call.STATE_ACTIVE && !CallManager.isConference(it)}
         CallAssistMonitor.Input(c,CallManager.audio.value?.isMuted==true,CallManager.audio.value?.route ?: 0,assistMute,assistRoute)
     },notify={kind,route->CallNotifier.assist(this,kind,route)},cancel={kind->CallNotifier.cancelAssist(this,kind)})
+    private var paceEnabled=false
+    private var paceMinutes=5
+    private var paceRepeat=false
+    private val paceMonitor=CallPaceMonitor(main,read={CallPaceMonitor.Input(CallPace.eligible(CallManager.calls.value),paceEnabled,paceMinutes,paceRepeat)},notify={CallNotifier.pace(this,it)},cancel={CallNotifier.cancelPace(this)})
     override fun onCreate() {
         super.onCreate();CallManager.service=this
         assistScope.launch {com.mandu.liquiddialer.data.SettingsRepo(this@LdInCallService).flow.collect {
-            assistMute=it.muteReminder;assistRoute=it.audioRouteAlert;assistMonitor.refresh()
+            assistMute=it.muteReminder;assistRoute=it.audioRouteAlert;paceEnabled=it.callPace;paceMinutes=it.callPaceMinutes;paceRepeat=it.callPaceRepeat;assistMonitor.refresh();paceMonitor.refresh()
         }}
     }
     override fun onDestroy() {
         endCallNotification()
-        assistMonitor.stop();assistScope.cancel()
+        assistMonitor.stop();paceMonitor.stop();assistScope.cancel()
         stopFlip(); tts?.shutdown(); tts = null
         if (CallManager.service === this) CallManager.service = null
         super.onDestroy()
@@ -190,7 +194,7 @@ class LdInCallService : InCallService() {
             CallNotifier.update(this)
             launchUi()
         }
-        assistMonitor.refresh()
+        assistMonitor.refresh();paceMonitor.refresh()
         CallManager.bump()
     }
 
@@ -234,7 +238,7 @@ class LdInCallService : InCallService() {
         } else CallNotifier.update(this)
         if (CallManager.ringing() == null) { stopFlip(); stopFlash() }
         if (CallManager.calls.value.none { CallManager.state(it) == Call.STATE_ACTIVE }) stopMinuteBeep()
-        assistMonitor.refresh()
+        assistMonitor.refresh();paceMonitor.refresh()
         CallManager.bump()
     }
 
@@ -255,14 +259,14 @@ class LdInCallService : InCallService() {
         }
         if (state != Call.STATE_RINGING) { stopFlip(); stopFlash(); tts?.stop() }
         CallNotifier.update(this)
-        assistMonitor.refresh()
+        assistMonitor.refresh();paceMonitor.refresh()
         CallManager.bump()
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState?) {
         CallManager.audio.value = audioState
         CallNotifier.update(this)
-        assistMonitor.refresh()
+        assistMonitor.refresh();paceMonitor.refresh()
         CallManager.bump()
     }
 
