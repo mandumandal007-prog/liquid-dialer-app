@@ -22,7 +22,7 @@ import org.robolectric.annotation.*
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class CallIconStudioUiTest {
- @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+ @get:Rule val rule=createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private fun settle(){rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(1000);rule.waitForIdle()}
  private fun await(check:()->Boolean){rule.waitUntil(15000){settle();check()}}
@@ -39,7 +39,7 @@ class CallIconStudioUiTest {
  private fun seed(theme:String="daylight",font:Float=1f){rule.mainClock.autoAdvance=false;settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.callCardStyle]="glass";it[K.callIconConfig]="";it[K.cleanGlass]=false}};await{LdApp.settings.value.let{it.theme==theme&&it.fontScale==font&&it.callIconConfig.isEmpty()}}}
  @After fun reset(){CallManager.calls.value=emptyList();CallManager.bump()}
  @Test fun studioPersistsGlobalAndSingleIconOverridesThenReset(){
-  seed();rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallIconStudioPage({})}}};settle();saveShot(rule,"ICONS364-studio-day")
+  seed();rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallIconStudioPage({})}}};settle();saveShot(rule,"ICONS364-studio-day")
   click("call_icons_style_6");await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).base.style==6}
   click("call_icons_color_2");await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).base.color==2}
   click("call_icons_target");rule.onNodeWithTag("call_icons_pick_mic").performClick();settle();click("call_icons_style_2");await{CallIconConfig.decode(LdApp.settings.value.callIconConfig).choice("mic").style==2};click("call_icons_color_3")
@@ -54,14 +54,14 @@ class CallIconStudioUiTest {
    val c=CallIconConfig(CallIconChoice(6,2),mapOf("mic" to CallIconChoice(2,3)),true);runBlocking{ctx.ldStore.edit{it[K.callIconConfig]=c.encode()}};await{CallIconConfig.decode(LdApp.settings.value.callIconConfig)==c}
    CallManager.audio.value=CallAudioState(false,CallAudioState.ROUTE_EARPIECE,CallAudioState.ROUTE_EARPIECE or CallAudioState.ROUTE_SPEAKER)
    CallManager.calls.value=listOf(FakeCall.make("139","Railway",Call.STATE_ACTIVE,System.currentTimeMillis()-42000));CallManager.bump()
-   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallScreen({},{},{},{})}}};settle();rule.onNodeWithTag("end_call",true).assertIsDisplayed();rule.onNodeWithTag("call_timer",true).assertIsDisplayed();saveShot(rule,"ICONS364-call-$theme")
+   rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallScreen({},{},{},{})}}};settle();rule.onNodeWithTag("end_call",true).assertIsDisplayed();rule.onNodeWithTag("call_timer",true).assertIsDisplayed();saveShot(rule,"ICONS364-call-$theme")
   }
  }
  @Test fun widerConfirmationLongNameCancelAndExplicitCallOnly(){
   var calls=0;var cancels=0
   for(theme in listOf("daylight","midnight")){
    seed(theme,if(theme=="midnight")1.3f else 1f)
-   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{Box(Modifier.fillMaxSize()){VoiceConfirmCard(VoiceMatch("Railway information and enquiry service","139"),Alignment.Center,onCall={calls++},onCancel={cancels++})}}}};settle()
+   rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{Box(Modifier.fillMaxSize()){VoiceConfirmCard(VoiceMatch("Railway information and enquiry service","139"),Alignment.Center,onCall={calls++},onCancel={cancels++})}}}};settle()
    val b=rule.onNodeWithTag("voice_confirm",true).fetchSemanticsNode().boundsInRoot;saveShot(rule,"ICONS364-confirm-width-$theme");assertTrue("width $b root ${rule.activity.resources.displayMetrics.widthPixels}",b.width>=rule.activity.resources.displayMetrics.widthPixels*.85f)
    rule.onNodeWithTag("voice_cancel",true).assertIsDisplayed();rule.onNodeWithTag("voice_call_now",true).assertIsDisplayed();saveShot(rule,"ICONS364-confirm-$theme")
    val old=calls;rule.onNodeWithTag("voice_cancel",true).performClick();settle();assertEquals(old,calls)
