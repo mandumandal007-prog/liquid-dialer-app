@@ -1,7 +1,6 @@
 package com.mandu.liquiddialer
 
 import androidx.compose.ui.test.*
-import androidx.activity.compose.setContent
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
@@ -40,13 +39,14 @@ class CleanGlassUiTest {
     @Test fun settingsAndStudioCleanPixelsAndReversibleWithoutClobberingPreferences(){
         seed("daylight",1f)
         var seen:LdPalette?=null
-        rule.runOnUiThread{rule.activity.setContent{LdThemeHost{seen=LocalLd.current;Page("settings",rule.activity.state,rule.activity,{}, {},null,"",{})}}};settle();saveShot(rule,"CLEAN366-settings")
+        rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{seen=LocalLd.current;Page("settings",rule.activity.state,rule.activity,{}, {},null,"",{})}}};rule.waitUntil(10000){settle();seen!=null};saveShot(rule,"CLEAN366-settings")
         assertEquals(0f,seen!!.blur);assertFalse(seen!!.motion);assertEquals(1,seen!!.glassDepth)
         assertTrue(LdApp.settings.value.motion)
-        rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallIconStudioPage({})}}};settle();saveShot(rule,"CLEAN366-studio")
+        rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallIconStudioPage({})}}};rule.waitUntil(10000){settle();rule.onAllNodesWithTag("clean_glass",true).fetchSemanticsNodes().isNotEmpty()};saveShot(rule,"CLEAN366-studio")
         rule.onNodeWithTag("clean_glass",true).performClick();settle();rule.waitUntil(15000){!LdApp.settings.value.cleanGlass}
         assertTrue(LdApp.settings.value.motion)
-        rule.runOnUiThread{rule.activity.setContent{LdThemeHost{seen=LocalLd.current;LdText("Original",16f)}}};settle()
+        seen=null
+        rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{seen=LocalLd.current;LdText("Original",16f)}}};rule.waitUntil(10000){settle();seen!=null}
         assertEquals(LdApp.settings.value.blur.toFloat(),seen!!.blur);assertEquals(LdApp.settings.value.motion,seen!!.motion);assertEquals(LdApp.settings.value.glassDepth,seen!!.glassDepth)
     }
     private fun controls() {
