@@ -118,13 +118,13 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 // recents dikhte hi missed-seen mark karo (tab badge isi se clear hota hai)
                 LaunchedEffect(st.tab, st.recents) { if (st.tab == "recents") { val nowMs = System.currentTimeMillis(); if (s.recentsSeenAt < nowMs) LdApp.instance.scope.launch { LdApp.instance.repo.setRecentsSeen(nowMs) } } }
                 LaunchedEffect(st.tab) { if (st.tab in tabKeys) { val i = tabKeys.indexOf(st.tab); if (pager.settledPage != i && !pager.isScrollInProgress) pager.animateScrollToPage(i) } }
-                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (s.searchBottom) 156.dp else 90.dp).testTag("home_content_viewport"), userScrollEnabled = s.tabSwipe) { page ->
+                HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().statusBarsPadding().testTag("home_content_viewport"), userScrollEnabled = s.tabSwipe) { page ->
                     when (tabKeys[page]) {
-                        "recents" -> RecentsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = 12.dp, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
+                        "recents" -> RecentsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if(s.searchBottom) 208.dp else 142.dp, onOpen = { r -> sheetNumber = r.number; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(r.number) } },
                             onFav = { c -> sheetContact = c; sheetNumber = c.number }, onLong = { menuNumber = it },
                             onOpenNumber = { n -> sheetNumber = n; sheetContact = st.contacts.firstOrNull { c -> Repo.key(c.number) == Repo.key(n) } },
                             onClear = { confirmClear = true }, onInsights = { openPage("stats") })
-                        else -> ContactsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = 12.dp, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
+                        else -> ContactsScreen(st, act, query, (if (s.searchBottom) 12.dp else 86.dp) + bannerPad, bottomPad = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if(s.searchBottom) 208.dp else 142.dp, onOpen = { c -> sheetContact = c; sheetNumber = c.number }, onAdd = { openEditor(null, "") }, onLong = { menuNumber = it }, onShowDups = { showDups = true })
                     }
                 }
             }
@@ -132,10 +132,10 @@ fun MainScreen(st: AppState, act: MainActivity) {
             val barBottom = s.searchBottom
             // Neeche wali controls ke peeche opaque (theme-matched) scrim: rows ke text/icons bar ya nav ke peeche se padhe na jaayein.
             // Blur ho ya na ho, scrim hamesha rehta hai (blur-unavailable fallback). Sirf opt-in mode me.
-            if (barBottom && st.tab != "dialer") {
+            if (st.tab != "dialer") {
                 Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                    .height(154.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
-                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to androidx.compose.ui.graphics.Color.Transparent, 0.16f to p.bg, 1f to p.bg))
+                    .height((if(barBottom) 196.dp else 130.dp) + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(0f to androidx.compose.ui.graphics.Color.Transparent, 0.32f to p.bg, 1f to p.bg))
                     .testTag("bottom_scrim"))
             }
             // keyboard khula ho to bar keyboard ke thik upar (bottom nav keyboard ke peeche hota hai), warna nav pill ke upar
@@ -146,7 +146,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     else Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)).testTag("top_bar")
                         .liquid(RoundedCornerShape(24.dp), 8.dp).padding(4.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(Modifier.size(48.dp).buttonGlass(p,RoundedCornerShape(18.dp),p.accent).semantics { contentDescription = "Menu" }.testTag("drawer_open").clickable { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
+                    Box(Modifier.size(48.dp).semantics { contentDescription = "Menu" }.testTag("drawer_open").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
                     Row(Modifier.weight(1f).height(48.dp).padding(start = 2.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LdIcon(LdIcons.Search, 20.dp, p.muted)
@@ -155,7 +155,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             BasicTextField(query, { query = it }, Modifier.fillMaxWidth().semantics { contentDescription = trNow("Search contacts or numbers") }, singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
-                        Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(16.dp)).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(44.dp).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
                             LdIcon(LdIcons.Mic, 22.dp, if (searchVoice.ui.listening) p.accent else p.muted)
                         }
                         if (query.isNotEmpty()) Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Clear search" }.testTag("search_clear").clickable { query = "" },
@@ -202,8 +202,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                         onDragCancel = { dragX = 0f },
                         onDragEnd = {
                             val cur = if (st.tab == "contacts") 1 else 0
-                            if (dragX < -40f && cur == 0) goTab("contacts")
-                            else if (dragX > 40f && cur == 1) goTab("recents")
+                            if (dragX > 40f && cur == 0) goTab("contacts")
+                            else if (dragX < -40f && cur == 1) goTab("recents")
                             dragX = 0f
                         },
                         onHorizontalDrag = { change, amount -> change.consume(); dragX += amount }
@@ -213,7 +213,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     val slot = maxWidth / navTabs.size
                     val sel = navTabs.indexOfFirst { it.first == st.tab }.coerceAtLeast(0)
                     val bx by animateDpAsState(slot * sel, tween(280, easing = CubicBezierEasing(.22f, 1f, .36f, 1f)), label = "navslide")
-                    Box(Modifier.offset(x = bx).width(slot).fillMaxHeight().buttonGlass(p,RoundedCornerShape(999.dp),p.accent))
+                    Box(Modifier.offset(x = bx).width(slot).fillMaxHeight().testTag("nav_indicator").buttonGlass(p,RoundedCornerShape(999.dp),p.accent))
                     Row(Modifier.fillMaxSize()) {
                         navTabs.forEach { (k, label, ic) ->
                             val on = st.tab == k
@@ -243,8 +243,8 @@ fun MainScreen(st: AppState, act: MainActivity) {
                 Row {
                     Spacer(Modifier.width(12.dp))
                     Box(Modifier.size(64.dp).testTag("dialer_fab").semantics { contentDescription = "Open keypad" }
-                        .clip(RoundedCornerShape(22.dp)).background(Brush.linearGradient(listOf(p.accent.pct(.30f),p.glass)))
-                        .border(1.dp,p.accent.pct(.65f),RoundedCornerShape(22.dp))
+                        .clip(CircleShape).background(Brush.linearGradient(listOf(p.accent.pct(.30f),p.glass)))
+                        .border(1.dp,p.accent.pct(.65f),CircleShape)
                         .clickable { st.tab = "dialer" }, contentAlignment = Alignment.Center) {
                         LdIcon(LdIcons.Dialpad, 31.dp, p.text)
                     }
@@ -992,7 +992,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
             Row(Modifier.fillMaxWidth().testTag("dial_toolbar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
                 Row(Modifier.padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(16.dp)).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(44.dp).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
                     LdIcon(LdIcons.Mic, 22.dp, if (voice.ui.listening) p.accent else p.muted)
                 }
                 Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Dialer menu" }.testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 22.dp, p.muted) }

@@ -332,10 +332,10 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
         Box(Modifier.graphicsLayer {
             translationY = if (p.motion) -7.dp.toPx() * fy else 0f
             if (ringing && p.motion) { scaleX = pr; scaleY = pr }
-        }) { Box(Modifier.testTag("hero_avatar").then(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS || LocalCallIcons.current?.polish==true)Modifier.border(1.5.dp,Brush.sweepGradient(listOf(p.accent,p.accent2,p.accent)),aShape) else Modifier).padding(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)6.dp else 3.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = true, seed = name, shape = aShape) } }
+        }) { Box(Modifier.testTag("hero_avatar").then(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS || LocalCallIcons.current?.polish==true)Modifier.border(1.5.dp,Brush.sweepGradient(listOf(p.accent,p.accent2,p.accent)),aShape) else Modifier.border(1.dp,p.stroke,aShape)).padding(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)6.dp else 5.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = false, seed = name, shape = aShape) } }
         Spacer(Modifier.height(2.dp * k))
-        LdText(name, nameF * k, FontWeight.Bold, letter = -.3f, maxLines = nameLines, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp).testTag("call_name"))
-        if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .3f)
+        LdText(name, nameF * k, FontWeight.Bold, letter = -.5f, maxLines = nameLines, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp).testTag("call_name"))
+        if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .7f)
         if (ringing && s.showContactType && number.isNotBlank()) {
             remember(number) { Repo.contactLabel(ctx, number) }?.let { LdText(it, 12f, FontWeight.SemiBold, p.accent) }
         }
@@ -359,7 +359,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
             val sty = LocalCallStyle.current
             val chipShape = if (sty.btnKind == BtnKind.SQUIRCLE) RoundedCornerShape(10.dp * k) else RoundedCornerShape(18.dp)
             val chipMod = when (sty.btnKind) {
-                BtnKind.GLASS -> Modifier.callGlass(p, chipShape)
+                BtnKind.GLASS -> Modifier.background(p.glass,chipShape).border(1.dp,p.stroke,chipShape)
                 BtnKind.FLAT -> Modifier.flatDisc(p, chipShape, false, p.accent)
                 BtnKind.SQUIRCLE -> Modifier.flatDisc(p, chipShape, false, p.accent)
                 BtnKind.OUTLINE -> Modifier.outlineDisc(p, chipShape, false, p.accent)
@@ -597,7 +597,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                     .graphicsLayer { scaleX = fitScale; scaleY = fitScale; transformOrigin = TransformOrigin(0.5f, 0f) },
                     horizontalAlignment = Alignment.CenterHorizontally) {
                         Hero(call, status, p.accent, timer, false, maxH = heroH - 8.dp)
-                        CallerNoteCard(CallManager.number(call)) { openSheet("notes") }
+
                     }
             }
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -621,31 +621,6 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     }
     }
 }
-@Composable
-private fun CallerNoteCard(number: String, onOpen: () -> Unit) {
-    val p = LocalLd.current
-    val ctx = LocalContext.current
-    // file-backed notes IO ko main thread se door (call screen perf-sensitive)
-    val notes by produceState<List<Note>?>(null, number) {
-        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Repo.notesFor(ctx, number) }
-    }
-    val list = notes
-    if (list.isNullOrEmpty()) return
-    val latest = list.maxByOrNull { it.time } ?: return
-    Row(
-        Modifier.padding(top = 8.dp).fillMaxWidth(0.94f).glass(p, RoundedCornerShape(20.dp))
-            .clickable(onClick = onOpen).padding(horizontal = 14.dp, vertical = 10.dp).testTag("caller_note_card"),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        LdIcon(LdIcons.Edit, 18.dp, p.accent)
-        Column(Modifier.weight(1f)) {
-            LdText(if (list.size > 1) "Note (${list.size}) · kholo" else "Note · kholo", 11f, FontWeight.Bold, p.accent)
-            LdText(latest.text, 13f, FontWeight.Medium, maxLines = 2)
-        }
-        LdIcon(LdIcons.ChevronDown, 16.dp, p.muted, Modifier.rotate(-90f))
-    }
-}
-
 /** Round D spam badge data: TRAI series (140/160), unknown-international, STIR/SHAKEN verification. */
 private data class SpamInfo(val series: Int?, val intlUnknown: Boolean, val verification: Int, val known: Boolean = true)
 
@@ -703,7 +678,7 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
                 }
             }
         }
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CallerNoteCard(CallManager.number(call), onOpen = onNotes) }
+
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
             SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
