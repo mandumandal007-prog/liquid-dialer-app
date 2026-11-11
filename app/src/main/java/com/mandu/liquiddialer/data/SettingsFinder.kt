@@ -86,6 +86,7 @@ object SettingsFinder{
   Entry("block-series","Spam series block","Number prefixes ki blocking list","blocking","settings:blocking","Spam series block"),
   Entry("block-history","Block history","Roki gayi calls ki local list","blocking","settings:blocking","Block history"),
   Entry("block-never","Kabhi block mat karo","Numbers jo blocking se exempt hain","blocking","settings:blocking","Kabhi block mat karo"),
+  Entry("callpace","Call pace reminders","Active stretch countdown and optional repeated reminder","calls","callpace"),
   Entry("ivrmenus","IVR menu helper","Saved menu choices, manual DTMF digits during one active call","calls","ivrmenus"),
   Entry("quietweek","Weekly Quiet hours","Start days, overnight windows aur silence schedule","quiet","quietweek"),
   Entry("feature-controls","Feature controls","Optional tools aur shortcuts ko dikhayein/chhupayein","display","featurecontrols"),

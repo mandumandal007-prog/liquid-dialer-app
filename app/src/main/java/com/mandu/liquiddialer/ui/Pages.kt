@@ -135,6 +135,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "callpace" -> CallPacePage(onBack)
         page == "ivrmenus" -> IvrMenusPage(onBack)
         page == "quietweek" -> QuietWeekPage(act,onBack,onOpen)
         page == "settingsfinder" -> SettingsFinderPage(onBack,onOpen)
@@ -370,6 +371,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         }
         if(group=="calls") {
+        GlassCard{SRow("Call pace reminders","Opt-in countdown aur active-stretch reminder",LdIcons.Clock,last=true){onOpen("callpace")}}
         GlassCard{SRow("IVR menu helper","Saved menu choices, one digit per explicit tap",LdIcons.Dialpad,last=true){onOpen("ivrmenus")}}
         SecTitle("Calls")
         GlassCard {
