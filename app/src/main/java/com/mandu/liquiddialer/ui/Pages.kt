@@ -135,6 +135,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "quietweek" -> QuietWeekPage(act,onBack,onOpen)
         page == "settingsfinder" -> SettingsFinderPage(onBack,onOpen)
         page == "lookprofiles" -> LookProfilesPage(onBack)
         page == "featurecontrols" -> FeatureControlsPage(onBack,onOpen)
@@ -462,11 +463,14 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         }
         if(group=="quiet") {
         SecTitle("Quiet hours")
+        GlassCard{SRow("Weekly Quiet hours","Alag din aur multiple windows ka draft planner",LdIcons.Clock,last=true){onOpen("quietweek")}}
+        Spacer(Modifier.height(10.dp))
         GlassCard {
             SwitchRow("Quiet hours", "Is time me incoming call silent (Android 10+, call screening role chahiye; call reject nahi hogi, log me rahegi)", s.quietHours, last = !s.quietHours) { save(K.quietHours, it); if (it) act.requestScreeningRole() }
             if (s.quietHours) {
                 if (!act.screeningRoleHeld())
                     SRow("Screening role nahi mila", "Quiet hours abhi kaam nahi karega — tap karke role do", LdIcons.Info) { act.requestScreeningRole() }
+                if(s.quietWeekMode)LdText("Weekly mode ON: daily Shuru/Khatam abhi use nahi honge. Weekly planner mein badlo.",12f,color=p.muted,maxLines=5)
                 TimeRow("Shuru", s.quietStart) { save(K.quietStart, it) }
                 TimeRow("Khatam", s.quietEnd) { save(K.quietEnd, it) }
                 SwitchRow("Favourites ko bajne do", "Starred contacts quiet hours me bhi ring karenge (contacts permission chahiye; permission nahi to sab bajenge)", s.quietAllowFav, last = true) { save(K.quietAllowFav, it) }

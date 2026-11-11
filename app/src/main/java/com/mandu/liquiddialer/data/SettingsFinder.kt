@@ -86,6 +86,7 @@ object SettingsFinder{
   Entry("block-series","Spam series block","Number prefixes ki blocking list","blocking","settings:blocking","Spam series block"),
   Entry("block-history","Block history","Roki gayi calls ki local list","blocking","settings:blocking","Block history"),
   Entry("block-never","Kabhi block mat karo","Numbers jo blocking se exempt hain","blocking","settings:blocking","Kabhi block mat karo"),
+  Entry("quietweek","Weekly Quiet hours","Start days, overnight windows aur silence schedule","quiet","quietweek"),
   Entry("feature-controls","Feature controls","Optional tools aur shortcuts ko dikhayein/chhupayein","display","featurecontrols"),
   Entry("looks","Look profiles","Named appearance looks save, preview aur apply","display","lookprofiles"),
   Entry("appearance","Theme, accent, font & icons","Theme, glass, text size, app icon style","display","appearance"),
