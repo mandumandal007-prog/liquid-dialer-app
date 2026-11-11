@@ -1,5 +1,4 @@
 package com.mandu.liquiddialer
-import androidx.activity.compose.setContent
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
@@ -33,15 +32,19 @@ class CallbacksUiTest {
   rule.runOnUiThread {
    st.recentsLoaded=true;st.recentsError=false
    st.recents=listOf(Recent(1,"+91 98765 43210","Papa",3,System.currentTimeMillis(),0,null,null))
-   rule.activity.setContent {LdThemeHost {CallbacksPage(st,rule.activity,{}, {opened=it})}}
+   rule.activity.mountTestPage {LdThemeHost {CallbacksPage(st,rule.activity,{}, {opened=it})}}
   };settle()
   assertNull(rule.activity.state.confirmNumber)
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag("callback_call_1").fetchSemanticsNodes().isNotEmpty()}
+  rule.mainClock.autoAdvance=true;rule.onNodeWithTag("callback_call_1").performScrollTo();rule.mainClock.autoAdvance=false;settle()
   rule.onNodeWithTag("callback_call_1").assertIsDisplayed()
   rule.onNodeWithTag("callback_details_1").assertIsDisplayed()
   saveShot(rule,"268-callbacks-"+suffix)
   rule.onNodeWithTag("callback_details_1").performClick();settle();assertEquals("+91 98765 43210",opened)
   rule.onNodeWithTag("callback_call_1").performClick();settle();assertEquals("+91 98765 43210",rule.activity.state.confirmNumber)
   rule.runOnUiThread {st.recents=st.recents+Recent(2,"+91 98765 43210",null,2,System.currentTimeMillis()+1000,15,null,null)};settle()
+  rule.waitUntil(15000){settle();rule.onAllNodesWithText("Abhi pending missed call nahi",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}
+  rule.mainClock.autoAdvance=true;rule.onNodeWithText("Abhi pending missed call nahi",useUnmergedTree=true).performScrollTo();rule.mainClock.autoAdvance=false;settle()
   rule.onNodeWithText("Abhi pending missed call nahi",useUnmergedTree=true).assertIsDisplayed()
  }
  @Test fun permissionLoadingAndErrorNeverShowCallActions() {
@@ -49,10 +52,10 @@ class CallbacksUiTest {
   val ctx=ApplicationProvider.getApplicationContext<LdApp>()
   val state=AppState().apply {recentsLoaded=true}
   org.robolectric.Shadows.shadowOf(ctx).denyPermissions(android.Manifest.permission.READ_CALL_LOG)
-  rule.runOnUiThread {rule.activity.setContent {LdThemeHost {CallbacksPage(state,rule.activity,{}, {})}}};settle()
+  rule.runOnUiThread {rule.activity.mountTestPage {LdThemeHost {CallbacksPage(state,rule.activity,{}, {})}}};settle()
   rule.onNodeWithText("Call history ki permission chahiye",useUnmergedTree=true).assertIsDisplayed()
   org.robolectric.Shadows.shadowOf(ctx).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
-  rule.runOnUiThread {state.recentsLoaded=false;state.recentsError=false;rule.activity.setContent {LdThemeHost {CallbacksPage(state,rule.activity,{}, {})}}};settle()
+  rule.runOnUiThread {state.recentsLoaded=false;state.recentsError=false;rule.activity.mountTestPage {LdThemeHost {CallbacksPage(state,rule.activity,{}, {})}}};settle()
   rule.onNodeWithText("Call history taiyaar ho rahi hai",useUnmergedTree=true).assertIsDisplayed()
   rule.runOnUiThread {state.recentsError=true};settle()
   rule.onNodeWithText("Call history load nahi hui",useUnmergedTree=true).assertIsDisplayed()
