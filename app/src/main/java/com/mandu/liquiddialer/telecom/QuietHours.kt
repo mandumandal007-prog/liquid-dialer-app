@@ -12,5 +12,9 @@ object QuietHours {
         allowFav: Boolean, isFav: Boolean
     ): Boolean = enabled && sdkInt >= 29 && incoming && inWindow(nowMin, start, end) && !(allowFav && isFav)
 
+    fun forSettings(s:com.mandu.liquiddialer.data.LdSettings,sdkInt:Int,incoming:Boolean,day:Int,nowMin:Int,isFav:Boolean,blocked:Boolean=false,favouriteUnchecked:Boolean=false,contactBypass:Boolean=false):Boolean{
+        if(blocked||favouriteUnchecked||contactBypass||!s.quietHours||sdkInt<29||!incoming||s.quietAllowFav&&isFav)return false
+        return if(s.quietWeekMode)com.mandu.liquiddialer.data.QuietWeek.active(s.quietWeekRules,day,nowMin)else inWindow(nowMin,s.quietStart,s.quietEnd)
+    }
     fun fmt(mins: Int): String = "%02d:%02d".format((mins / 60) % 24, mins % 60)
 }
