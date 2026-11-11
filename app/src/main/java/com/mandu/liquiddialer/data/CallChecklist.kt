@@ -52,6 +52,10 @@ object CallChecklist {
   val k=key(number);val all=readAll(ctx);val old=all[k].orEmpty();require(old.any{it.id==id}){"Topic ab nahi mila; dobara load karo"};val next=old.mapNotNull{if(it.id==id)f(it)else it};if(next.isEmpty())all.remove(k)else all[k]=next;write(ctx,all);return next
  }
  @Synchronized fun edit(ctx:Context,number:String,id:String,value:String)=change(ctx,number,id){it.copy(text=text(value))}
+ /** Compare the focused snapshot before a mark or Undo. Stale text/ticks never overwritten. */
+ @Synchronized fun markChecked(ctx:Context,number:String,original:Item,value:Boolean):List<Item>{
+  return change(ctx,number,original.id){current->require(current==original){"Topic doosri jagah badla hai; dobara load karo"};current.copy(done=value)}
+ }
  @Synchronized fun done(ctx:Context,number:String,id:String,value:Boolean)=change(ctx,number,id){it.copy(done=value)}
  @Synchronized fun remove(ctx:Context,number:String,id:String)=change(ctx,number,id){null}
  @Synchronized fun reset(ctx:Context,number:String):List<Item> {val k=key(number);val all=readAll(ctx);val next=all[k].orEmpty().map{it.copy(done=false)};if(next.isNotEmpty()){all[k]=next;write(ctx,all)};return next}
