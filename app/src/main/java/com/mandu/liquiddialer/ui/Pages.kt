@@ -93,9 +93,12 @@ fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Bo
     val p = LocalLd.current
     val quietRows=LocalQuietRows.current
     val requested=LocalSettingsTarget.current==title
-    val bring=remember{BringIntoViewRequester()}
-    LaunchedEffect(requested){if(requested){withFrameNanos{};bring.bringIntoView()}}
-    Column(Modifier.then(if(requested)Modifier.bringIntoViewRequester(bring).border(2.dp,p.accent,RoundedCornerShape(16.dp)).background(p.accent.copy(alpha=.08f),RoundedCornerShape(16.dp)).testTag("settings_found_row") else Modifier)) {
+    val targetModifier=if(requested){
+        val bring=remember{BringIntoViewRequester()}
+        LaunchedEffect(title){withFrameNanos{};bring.bringIntoView()}
+        Modifier.bringIntoViewRequester(bring).border(2.dp,p.accent,RoundedCornerShape(16.dp)).background(p.accent.copy(alpha=.08f),RoundedCornerShape(16.dp)).testTag("settings_found_row")
+    }else Modifier
+    Column(targetModifier) {
         Row(Modifier.fillMaxWidth().then(if (onClick != null) (if(quietRows)Modifier.clip(RoundedCornerShape(16.dp)) else Modifier.buttonGlass(p,RoundedCornerShape(16.dp))).clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) Box(Modifier.size(38.dp).then(if(quietRows)Modifier.background(p.accent.copy(alpha=.09f),RoundedCornerShape(12.dp)) else Modifier.raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp))), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
