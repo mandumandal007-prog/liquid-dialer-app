@@ -91,6 +91,7 @@ object SettingsFinder{
   Entry("appearance","Theme, accent, font & icons","Theme, glass, text size, app icon style","display","appearance"),
   Entry("headers","Refined page headers & Quiet shared rows","Shared pages aur option rows ka selectable finish","display","appearancehub"),
   Entry("callicons","Individual call icons","Call icons ke alag style aur rang","display","callicons"),
+  Entry("calllayoutstudio","Call layout studio","Draft, preview, apply aur undo button arrangements","display","calllayoutstudio"),
   Entry("calllayout","Call button layout","Calling card button order, size aur visibility","display","calllayout"),
   Entry("callassist","Call-time help","Mute reminder aur headset route-change notices","notifications","callassist")
  )
