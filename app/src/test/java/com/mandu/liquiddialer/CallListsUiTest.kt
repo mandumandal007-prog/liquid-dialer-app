@@ -1,5 +1,4 @@
 package com.mandu.liquiddialer
-import androidx.activity.compose.setContent
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
@@ -30,13 +29,13 @@ class CallListsUiTest {
   };error("Not visible: $tag")
  }
  private fun click(tag:String){reveal(tag).performClick();settle()}
- private fun awaitData(check:()->Boolean){rule.waitUntil(15000){check()};settle()}
+ private fun awaitData(check:()->Boolean){rule.waitUntil(15000){settle();check()};settle()}
  @Before fun clean(){listOf("",".bak",".new").forEach {File(ctx.filesDir,"manual_call_lists.json$it").delete()}}
  private fun show(theme:String="daylight",font:Float=1f){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
   rule.waitUntil(15000){LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
   // Background file read publishes into a frozen Compose clock. Pump composition while waiting.
   rule.waitUntil(15000){settle();rule.onAllNodesWithTag("lists_create").fetchSemanticsNodes().isNotEmpty()};settle()
  }
@@ -51,8 +50,8 @@ class CallListsUiTest {
   click("list_filter_Done");reveal("list_entry_${e.id}",true).assertIsDisplayed()
   click("list_done_${e.id}");awaitData{!CallLists.read(ctx).single().entries.single().done}
   click("list_filter_Pending")
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(15000){rule.onAllNodesWithTag("list_open_$id").fetchSemanticsNodes().isNotEmpty()};click("list_open_$id")
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag("list_open_$id").fetchSemanticsNodes().isNotEmpty()};click("list_open_$id")
   click("list_rename");rule.onNodeWithTag("list_title").performTextReplacement("Weekend calls");click("list_save");awaitData{CallLists.read(ctx).single().title=="Weekend calls"}
   click("list_remove_${e.id}");rule.onNodeWithTag("list_cancel_delete").performClick();settle();assertEquals(1,CallLists.read(ctx).single().entries.size)
   click("list_delete");rule.onNodeWithTag("list_cancel_delete").performClick();settle();assertEquals(1,CallLists.read(ctx).size)
@@ -74,7 +73,7 @@ class CallListsUiTest {
   rule.onNodeWithText("Contacts permission nahi hai. Number jodo se manually add kar sakte ho.",useUnmergedTree=true).assertIsDisplayed()
   click("list_form_close");click("list_add")
   rule.onNodeWithTag("list_number").performTextInput("*123#");click("entry_save")
-  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   assertTrue(CallLists.read(ctx).single().entries.isEmpty());assertNull(rule.activity.state.confirmNumber)
   rule.onNodeWithTag("list_number").performTextReplacement("9876543210");click("entry_save")
   awaitData{CallLists.read(ctx).single().entries.size==1}
@@ -82,8 +81,8 @@ class CallListsUiTest {
  @Test fun corruptStorageOffersNoMutationsOrCalls() {
   File(ctx.filesDir,"manual_call_lists.json").writeText("broken")
   rule.mainClock.autoAdvance=false;settle()
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
-  rule.waitUntil(15000){rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag("lists_error",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()};settle()
   rule.onNodeWithTag("lists_create").assertDoesNotExist();assertNull(rule.activity.state.confirmNumber)
   assertEquals("broken",File(ctx.filesDir,"manual_call_lists.json").readText())
  }
