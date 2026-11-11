@@ -10,12 +10,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.mandu.liquiddialer.data.CallEstimate
+import com.mandu.liquiddialer.data.FeatureControls
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable fun CallEstimatePage(number:String,onBack:()->Unit)=CallEstimateWorkspace(number,onBack)
 @Composable fun CallEstimateWorkspace(number:String,onBack:()->Unit,inSheet:Boolean=false){
+ val features by com.mandu.liquiddialer.LdApp.settings.collectAsState()
  val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope()
  var saved by remember(number){mutableStateOf(CallEstimate.Draft())};var draft by remember(number){mutableStateOf(CallEstimate.Draft())}
  var loaded by remember(number){mutableStateOf(false)};var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")}
@@ -77,7 +79,7 @@ import kotlinx.coroutines.withContext
      LdText("Tax: ${CallEstimate.money(t.tax)}",14f,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("estimate_tax_amount"))
      LdText("Total: ${CallEstimate.money(t.total)}",20f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("estimate_total"))
     }}?:LdText(totals.exceptionOrNull()?.message?:"Amounts sahi bharo",13f,color=p.danger,maxLines=5,modifier=Modifier.testTag("estimate_invalid"))
-    PrimaryButton("What-if compare",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_compare")){comparing=true}
+    if(FeatureControls.enabled(features,"compare")) PrimaryButton("What-if compare",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_compare")){comparing=true}
     LdText("Har item ka amount 2 decimals tak half-up round hota hai. Tax discount ke baad bachi rakam par, phir 2 decimals tak round. Apni tax rate khud check karo.",12f,color=p.muted,maxLines=6)
     Spacer(Modifier.height(8.dp))
     PrimaryButton(if(busy)"Save ho raha hai..."else "Draft save karo",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty()&&draft!=saved,modifier=Modifier.testTag("estimate_save")){
