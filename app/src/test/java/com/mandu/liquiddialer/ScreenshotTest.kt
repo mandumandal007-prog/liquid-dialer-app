@@ -24,11 +24,11 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
-class ScreenshotTest {
+abstract class ScreenshotFixture {
 
     @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
 
-    private fun settle(ms: Long = 1200) {
+    protected fun settle(ms: Long = 1200) {
         rule.mainClock.autoAdvance = false
         rule.mainClock.advanceTimeBy(ms)
         rule.waitForIdle()
@@ -49,6 +49,9 @@ class ScreenshotTest {
         Unit
     }
 
+}
+
+class ScreenshotDialerSheetTest : ScreenshotFixture() {
     @Test
     fun dialerSheet() {
         settle(2500)
@@ -122,6 +125,9 @@ class ScreenshotTest {
     }
     /** Contacts tab pixel coverage: GlassRow padding change ke baad bhi rows sahi dikhte hain. */
     /** Naye features: aaj-stats strip + missed-call tab badge (arrive while on Contacts, clear on Recents). */
+}
+
+class ScreenshotRecentsInsightsUiTest : ScreenshotFixture() {
     @Test
     fun recentsInsightsUi() {
         settle(2500)
@@ -177,6 +183,9 @@ class ScreenshotTest {
             rule.onAllNodesWithTag("missed_badge").fetchSemanticsNodes().isEmpty())
     }
 
+}
+
+class ScreenshotRemindersStripUiTest : ScreenshotFixture() {
     @Test
     fun remindersStripUi() {
         settle(2500)
@@ -219,6 +228,9 @@ class ScreenshotTest {
         cr.cancel(ctx, "+91 88776 65544"); cr.cancel(ctx, "+91 99887 76655")
     }
 
+}
+
+class ScreenshotContactsScreenTest : ScreenshotFixture() {
     @Test
     fun contactsScreen() {
         settle(2500)
@@ -241,6 +253,9 @@ class ScreenshotTest {
         saveShot(rule, "05-contacts")
     }
 
+}
+
+class ScreenshotVolumePageAndNumberMenuTest : ScreenshotFixture() {
     @Test
     fun volumePageAndNumberMenu() {
         settle(2500)
@@ -263,20 +278,28 @@ class ScreenshotTest {
         settle()
         saveShot(rule, "02c-number-menu-video")
         rule.onNodeWithText("Video call", substring = true, useUnmergedTree = true).assertExists()
-        rule.onNodeWithText("Number copy karo", substring = true, useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Number copy karo", substring = true, useUnmergedTree = true).performClick();
         settle()
 
+        
         // Volume page (light, boost off)
-        rule.onNodeWithTag("drawer_open").performClick(); settle()
-        rule.onNodeWithText("Settings", useUnmergedTree = true).performClick(); settle(1800)
-        openSettingsGroup(rule,"Volume")
-        var volOpened = false
-        repeat(15) {
+        rule.onNodeWithTag("drawer_open").performClick(); settle();
+        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick(); settle(1800)
+        var groupVisible=false
+        repeat(12){
+            val row=rule.onAllNodesWithText("Volume",useUnmergedTree=true).fetchSemanticsNodes().lastOrNull()
+            if(row!=null&&row.boundsInRoot.top>=110f&&row.boundsInRoot.bottom<=1500f)groupVisible=true
+            if(!groupVisible){rule.onAllNodes(hasScrollAction(),useUnmergedTree=true).onLast().performTouchInput{swipe(center,center.copy(y=center.y-180f),350)};settle(350)}
+        }
+        org.junit.Assert.assertTrue("Volume group visible",groupVisible)
+        rule.onAllNodesWithText("Volume",useUnmergedTree=true).onLast().performClick();settle(700);
+        var volOpened = false;
+        for(attempt in 0 until 15) {
             if (rule.onAllNodesWithText("Volume & boost", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
                 try {
                     rule.onNodeWithText("Volume & boost", substring = true, useUnmergedTree = true).assertIsDisplayed()
                     rule.onNodeWithText("Volume & boost", substring = true, useUnmergedTree = true).performClick()
-                    volOpened = true; return@repeat
+                    volOpened = true; break
                 } catch (e: AssertionError) { }
             }
             val sc = rule.onAllNodes(androidx.compose.ui.test.hasScrollAction(), useUnmergedTree = true).fetchSemanticsNodes().lastOrNull()

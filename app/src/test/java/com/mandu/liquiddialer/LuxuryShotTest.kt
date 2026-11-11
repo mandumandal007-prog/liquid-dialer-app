@@ -70,7 +70,7 @@ class LuxuryShotTest {
     fun settingsDark() {
         boot("midnight")
         openDrawer()
-        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick()
         settle()
         saveShot(rule, "L2-settings-dark")
     }
@@ -195,7 +195,7 @@ class LuxuryShotTest {
     fun backupSectionDark() {
         boot("midnight")
         openDrawer()
-        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick()
         settle()
         openSettingsGroup(rule,"Backup")
         rule.mainClock.autoAdvance = true
@@ -213,7 +213,7 @@ class LuxuryShotTest {
     fun backupSectionLight() {
         boot("daylight")
         openDrawer()
-        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick()
         settle()
         openSettingsGroup(rule,"Backup")
         rule.mainClock.autoAdvance = true
@@ -249,7 +249,7 @@ class LuxuryShotTest {
     fun voicemailSheetDark() {
         boot("midnight")
         openDrawer()
-        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick()
         settle()
         openSettingsGroup(rule,"Speed dial & voicemail")
         rule.mainClock.autoAdvance = true
@@ -370,7 +370,7 @@ class SettingsRestoreUiTest {
         com.mandu.liquiddialer.ui.SettingsBackup.pendingRestore.value = null
         rule.onNodeWithTag("drawer_open", useUnmergedTree = true).performTouchInput { click(center) }
         settle()
-        rule.onNodeWithText("Settings", substring = true, useUnmergedTree = true).performClick()
+        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick()
         settle()
         openSettingsGroup(rule,"Backup")
     }
