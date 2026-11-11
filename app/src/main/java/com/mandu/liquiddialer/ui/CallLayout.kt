@@ -94,7 +94,7 @@ private fun saveF(k: androidx.datastore.preferences.core.Preferences.Key<String>
 private fun saveFl(k: androidx.datastore.preferences.core.Preferences.Key<Float>, v: Float) { LdApp.instance.scope.launch { LdApp.instance.repo.set(k, v) } }
 
 @Composable
-fun CallLayoutPage(onIcons:()->Unit={},onBack: () -> Unit) {
+fun CallLayoutPage(onIcons:()->Unit={},onStudio:()->Unit={},onBack: () -> Unit) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val grid = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
@@ -106,6 +106,8 @@ fun CallLayoutPage(onIcons:()->Unit={},onBack: () -> Unit) {
         val m = l.toMutableList(); val t = m[i]; m[i] = m[j]; m[j] = t; return m
     }
     PageFrame("Calling card layout", onBack) {
+        PrimaryButton("Call layout studio",modifier=Modifier.testTag("call_layout_studio"),onClick=onStudio)
+        Spacer(Modifier.height(10.dp))
         PrimaryButton("Call icons aur premium glass",modifier=Modifier.testTag("call_icon_studio"),onClick=onIcons)
         Spacer(Modifier.height(12.dp))
         LdText("PREVIEW", 12f, FontWeight.Bold, p.muted, letter = 1.2f, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
