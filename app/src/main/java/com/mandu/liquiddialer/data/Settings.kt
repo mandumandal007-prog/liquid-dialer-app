@@ -79,6 +79,9 @@ data class LdSettings(
     val postCallSave: Boolean = true,        // unknown number ke baad Save/Block prompt
     val missedRemind: Boolean = false,       // opt-in: missed call reminder 5 min x3
     val birthdayRemind: Boolean = false,     // opt-in: birthday wale din subah 9 baje notification
+    val callPace: Boolean = false,
+    val callPaceMinutes: Int = 5,
+    val callPaceRepeat: Boolean = false,
     val ivrHelper: Boolean = false,
     val quietWeekMode: Boolean = false,
     val quietWeekRules: String = "",
@@ -217,6 +220,9 @@ object K {
     val postCallSave = booleanPreferencesKey("postCallSave")
     val missedRemind = booleanPreferencesKey("missedRemind")
     val birthdayRemind = booleanPreferencesKey("birthdayRemind")
+    val callPace = booleanPreferencesKey("call_pace")
+    val callPaceMinutes = intPreferencesKey("call_pace_minutes")
+    val callPaceRepeat = booleanPreferencesKey("call_pace_repeat")
     val ivrHelper = booleanPreferencesKey("ivr_helper")
     val quietWeekMode = booleanPreferencesKey("quietWeekMode")
     val quietWeekRules = stringPreferencesKey("quietWeekRules")
@@ -345,6 +351,9 @@ fun Preferences.toSettings(): LdSettings {
         postCallSave = this[K.postCallSave] ?: true,
         missedRemind = this[K.missedRemind] ?: false,
         birthdayRemind = this[K.birthdayRemind] ?: false,
+        callPace = this[K.callPace] ?: false,
+        callPaceMinutes = (this[K.callPaceMinutes] ?: 5).takeIf{it in listOf(1,3,5,10,15)} ?: 5,
+        callPaceRepeat = this[K.callPaceRepeat] ?: false,
         ivrHelper = this[K.ivrHelper] ?: false,
     quietWeekMode = this[K.quietWeekMode] ?: false,
         quietWeekRules = this[K.quietWeekRules] ?: "",
