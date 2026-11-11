@@ -155,7 +155,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             BasicTextField(query, { query = it }, Modifier.fillMaxWidth().semantics { contentDescription = trNow("Search contacts or numbers") }, singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
-                        Box(Modifier.size(44.dp).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                        if(FeatureControls.enabled(s,"searchvoice")) Box(Modifier.size(44.dp).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
                             LdIcon(LdIcons.Mic, 22.dp, if (searchVoice.ui.listening) p.accent else p.muted)
                         }
                         if (query.isNotEmpty()) Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Clear search" }.testTag("search_clear").clickable { query = "" },
@@ -653,8 +653,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                     LdText("Recent calls",16f,FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2)
                     if(st.recents.isNotEmpty()) {
-                        HomeHeaderTool(LdIcons.Chart,"Hisab (call stats)","insights_open",p.accent,onInsights)
-                        HomeHeaderTool(LdIcons.Trash,"Clear call history","recent_clear",p.muted,onClear)
+                        if(FeatureControls.enabled(s,"stats")) HomeHeaderTool(LdIcons.Chart,"Hisab (call stats)","insights_open",p.accent,onInsights)
+                        if(FeatureControls.enabled(s,"recentsclear")) HomeHeaderTool(LdIcons.Trash,"Clear call history","recent_clear",p.muted,onClear)
                     }
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("recent_filters"),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -839,6 +839,7 @@ fun CallMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, onC
 /** .video-mini: seedhi native video call (ViLTE); support na mile to call screen saaf batata hai */
 @Composable
 fun VideoMini(size: androidx.compose.ui.unit.Dp = 44.dp, tint: Color? = null, subtle: Boolean = false, onClick: () -> Unit) {
+    val features by LdApp.settings.collectAsState();if(!FeatureControls.enabled(features,"videomini"))return
     val p = LocalLd.current
     val c = tint ?: p.accent
     val src = remember { MutableInteractionSource() }
@@ -992,7 +993,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
             Row(Modifier.fillMaxWidth().testTag("dial_toolbar"), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 SimChip(if (sims.size > 1 && simIdx >= 0) "$simText · ${sims[simIdx].label}" else simText, onClick = { cycleSim() })
                 Row(Modifier.padding(3.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(44.dp).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
+                if(FeatureControls.enabled(s,"searchvoice")) Box(Modifier.size(44.dp).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("voice_mic").clickable { voice.trigger() }, contentAlignment = Alignment.Center) {
                     LdIcon(LdIcons.Mic, 22.dp, if (voice.ui.listening) p.accent else p.muted)
                 }
                 Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Dialer menu" }.testTag("dial_menu").clickable { dialMenu = !dialMenu }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Dots, 22.dp, p.muted) }
@@ -1079,7 +1080,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
                     }.heightIn(min = 48.dp).testTag("dial_paste").padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Number paste karo", 14f, FontWeight.SemiBold) }
                     Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += "," }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Pause add karo (,)", 14f, FontWeight.SemiBold) }
                     Row(Modifier.fillMaxWidth().clickable { dialMenu = false; if (st.dial.isNotEmpty()) st.dial += ";" }.padding(horizontal = 14.dp, vertical = 11.dp)) { LdText("Wait add karo (;)", 14f, FontWeight.SemiBold) }
-                    Row(Modifier.fillMaxWidth().clickable { dialMenu = false; onOpen("radio") }.padding(horizontal = 14.dp, vertical = 11.dp).testTag("radio_menu_item")) { LdText("Radio info", 14f, FontWeight.SemiBold) }
+                    if(FeatureControls.enabled(s,"radio")) Row(Modifier.fillMaxWidth().clickable { dialMenu = false; onOpen("radio") }.padding(horizontal = 14.dp, vertical = 11.dp).testTag("radio_menu_item")) { LdText("Radio info", 14f, FontWeight.SemiBold) }
                 }
             }
     }
@@ -1087,6 +1088,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
 
 internal data class DrawerTool(val id:String,val label:String,val group:String,val icon:androidx.compose.ui.graphics.vector.ImageVector,val keywords:String="")
 internal val DRAWER_TOOLS=listOf(
+ DrawerTool("featurecontrols","Feature controls","App & look",LdIcons.Checklist,"toggle visibility hide show"),
  DrawerTool("settings","Settings","App & look",LdIcons.Settings,"preferences options"),
  DrawerTool("appearance","Theme & appearance","App & look",LdIcons.Palette,"color colour font glass design"),
  DrawerTool("profile","My profile (naam + photo)","App & look",LdIcons.User),
@@ -1115,7 +1117,7 @@ internal fun drawerTools(query:String):List<DrawerTool>{
 @Composable
 private fun Drawer(s:LdSettings,st:AppState,onOpen:(String)->Unit,onClose:()->Unit,onVoicemail:()->Unit){
  val p=LocalLd.current;val w=LocalConfiguration.current.screenWidthDp
- var query by remember{mutableStateOf("")};val results=remember(query){drawerTools(query)};val toolScroll=rememberScrollState()
+ var query by remember{mutableStateOf("")};val results=remember(query,s.hiddenFeatures){drawerTools(query).filter{FeatureControls.enabled(s,it.id)}};val toolScroll=rememberScrollState()
  LaunchedEffect(query){toolScroll.scrollTo(0)}
  Column(Modifier.fillMaxHeight().width(minOf(w*.90f,360f).dp).liquid(RoundedCornerShape(topEnd=30.dp,bottomEnd=30.dp),24.dp)
   .background(p.bg2.copy(alpha=if(p.isLight).85f else .78f)).clickable(remember{MutableInteractionSource()},null){}
