@@ -3,6 +3,9 @@ import android.telecom.Call
 import android.telecom.CallScreeningService
 import com.mandu.liquiddialer.data.*
 import com.mandu.liquiddialer.telecom.LdScreeningService
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.runner.RunWith
@@ -14,7 +17,12 @@ import org.robolectric.annotation.Config
 class QuietWeekScreeningTest{
  private fun schedule():String{val c=java.util.Calendar.getInstance();val m=c.get(11)*60+c.get(12);return QuietWeek.encode(listOf(QuietWeek.Window("now","Now",(0..6).toSet(),(m+1439)%1440,(m+1)%1440)))}
  private fun screen(s:LdSettings,incoming:Boolean=true):CallScreeningService.CallResponse{
-  val controller=Robolectric.buildService(LdScreeningService::class.java).create();val svc=controller.get();LdApp.settings.value=s
+  val controller=Robolectric.buildService(LdScreeningService::class.java).create();val svc=controller.get()
+  // This service fixture supplies the complete settings snapshot. Join the app's
+  // asynchronous startup collector first so its default emission cannot race it.
+  val app=androidx.test.core.app.ApplicationProvider.getApplicationContext<LdApp>()
+  runBlocking{app.scope.coroutineContext[Job]!!.cancelAndJoin()}
+  LdApp.settings.value=s
   val details=FakeCall.make("+919876543210","",Call.STATE_RINGING).details
   val f=Call.Details::class.java.getDeclaredField("mCallDirection");f.isAccessible=true;f.set(details,if(incoming)Call.Details.DIRECTION_INCOMING else Call.Details.DIRECTION_OUTGOING)
   svc.onScreenCall(details);val response=Shadows.shadowOf(svc as CallScreeningService).lastRespondToCallInput.get().callResponse;return response // Robolectric CallScreeningService shadow is not a ShadowService; sandbox handles teardown.
