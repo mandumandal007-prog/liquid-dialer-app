@@ -1088,6 +1088,7 @@ private fun DialerSheet(st: AppState, act: MainActivity, onAddContact: (String) 
 
 internal data class DrawerTool(val id:String,val label:String,val group:String,val icon:androidx.compose.ui.graphics.vector.ImageVector,val keywords:String="")
 internal val DRAWER_TOOLS=listOf(
+ DrawerTool("settingsfinder","Settings finder","App & look",LdIcons.Search,"control search setting"),
  DrawerTool("lookprofiles","Look profiles","App & look",LdIcons.Palette,"save preview appearance theme icons"),
  DrawerTool("featurecontrols","Feature controls","App & look",LdIcons.Checklist,"toggle visibility hide show"),
  DrawerTool("settings","Settings","App & look",LdIcons.Settings,"preferences options"),

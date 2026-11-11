@@ -11,6 +11,8 @@ import android.provider.ContactsContract
 import android.provider.Settings
 import android.telecom.TelecomManager
 import android.widget.Toast
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -83,12 +85,17 @@ fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit
 
 @Composable fun SecTitle(t: String) = LdText(t.uppercase(), 12.5f, FontWeight.ExtraBold, LocalLd.current.muted, Modifier.padding(start = 6.dp, end = 6.dp, top = 22.dp, bottom = 10.dp), letter = 1.4f)
 
+val LocalSettingsTarget=staticCompositionLocalOf<String?>{null}
+
 /** .srow inside a .card */
 @Composable
 fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Boolean = false, subMaxLines: Int = 3, trailing: @Composable (() -> Unit)? = null, onClick: (() -> Unit)? = null) {
     val p = LocalLd.current
     val quietRows=LocalQuietRows.current
-    Column {
+    val requested=LocalSettingsTarget.current==title
+    val bring=remember{BringIntoViewRequester()}
+    LaunchedEffect(requested){if(requested){withFrameNanos{};bring.bringIntoView()}}
+    Column(Modifier.then(if(requested)Modifier.bringIntoViewRequester(bring).border(2.dp,p.accent,RoundedCornerShape(16.dp)).background(p.accent.copy(alpha=.08f),RoundedCornerShape(16.dp)).testTag("settings_found_row") else Modifier)) {
         Row(Modifier.fillMaxWidth().then(if (onClick != null) (if(quietRows)Modifier.clip(RoundedCornerShape(16.dp)) else Modifier.buttonGlass(p,RoundedCornerShape(16.dp))).clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) Box(Modifier.size(38.dp).then(if(quietRows)Modifier.background(p.accent.copy(alpha=.09f),RoundedCornerShape(12.dp)) else Modifier.raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp))), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
@@ -125,10 +132,11 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "settingsfinder" -> SettingsFinderPage(onBack,onOpen)
         page == "lookprofiles" -> LookProfilesPage(onBack)
         page == "featurecontrols" -> FeatureControlsPage(onBack,onOpen)
         page == "settings" -> SettingsGroupsPage(onBack,onOpen)
-        page.startsWith("settings:") -> SettingsPage(st, act, onBack, onOpen, page.removePrefix("settings:"))
+        page.startsWith("settings:") -> SettingsPage(st, act, onBack, onOpen, page.removePrefix("settings:").substringBefore('?'),SettingsFinder.resolve(page)?.target)
         page == "appearancehub" -> AppearanceHubPage(onBack,onOpen)
         page == "appearance" -> AppearancePage(onBack)
         page == "volume" -> VolumePage(onBack)
@@ -197,6 +205,8 @@ internal fun settingsGroupIcon(id:String):ImageVector=when(id){
 private fun SettingsGroupsPage(onBack:()->Unit,onOpen:(String)->Unit) {
     PageFrame("Settings",onBack) {
         LdText("Group kholo, phir uski settings chuno",13f,color=LocalLd.current.muted,modifier=Modifier.padding(bottom=12.dp))
+        GlassCard { SRow("Settings finder","Control ka naam likho aur matching row kholo",LdIcons.Search,last=true){onOpen("settingsfinder")} }
+        Spacer(Modifier.height(10.dp))
         GlassCard { SRow("Feature controls","Optional tools, pages aur shortcuts ek-ek karke",LdIcons.Checklist,last=true){onOpen("featurecontrols")} }
         Spacer(Modifier.height(10.dp))
         GlassCard { SRow("Appearance control center","Theme, icons, layouts aur calling card",LdIcons.Palette,last=true){onOpen("appearancehub")} }
@@ -210,7 +220,7 @@ private fun SettingsGroupsPage(onBack:()->Unit,onOpen:(String)->Unit) {
 }
 
 @Composable
-private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, group: String) {
+private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, group: String, findTarget:String?=null) {
     val p = LocalLd.current
     val s by LdApp.settings.collectAsState()
     val ctx = LocalContext.current
@@ -277,6 +287,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             dismissButton = { TextButton(onClick = { SettingsBackup.pendingRestore.value = null }) { LdText("Cancel", 14f, color = LocalLd.current.muted) } })
     }
 
+    CompositionLocalProvider(LocalSettingsTarget provides findTarget){
     PageFrame(SETTINGS_GROUPS.firstOrNull { it.id==group }?.title ?: "Settings", onBack) {
         if(group=="display") {
         // Profile and calling-card entry points stay under Display.
@@ -543,6 +554,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
     }
 
+    }
     when (sheet) {
         "lang" -> Sheet({ sheet = null }) {
             LANGS.forEach { (code, name) -> SheetRow(LdIcons.Check, name, if (s.lang == code) "\u2713" else null) { save(K.lang, code); sheet = null } }
