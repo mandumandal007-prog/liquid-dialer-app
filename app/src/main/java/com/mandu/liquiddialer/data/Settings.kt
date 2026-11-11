@@ -79,6 +79,7 @@ data class LdSettings(
     val postCallSave: Boolean = true,        // unknown number ke baad Save/Block prompt
     val missedRemind: Boolean = false,       // opt-in: missed call reminder 5 min x3
     val birthdayRemind: Boolean = false,     // opt-in: birthday wale din subah 9 baje notification
+    val ivrHelper: Boolean = false,
     val quietWeekMode: Boolean = false,
     val quietWeekRules: String = "",
     val quietHours: Boolean = false,         // opt-in: quiet hours me incoming call silent (sirf silence, reject nahi)
@@ -216,6 +217,7 @@ object K {
     val postCallSave = booleanPreferencesKey("postCallSave")
     val missedRemind = booleanPreferencesKey("missedRemind")
     val birthdayRemind = booleanPreferencesKey("birthdayRemind")
+    val ivrHelper = booleanPreferencesKey("ivr_helper")
     val quietWeekMode = booleanPreferencesKey("quietWeekMode")
     val quietWeekRules = stringPreferencesKey("quietWeekRules")
     val quietHours = booleanPreferencesKey("quietHours")
@@ -343,7 +345,8 @@ fun Preferences.toSettings(): LdSettings {
         postCallSave = this[K.postCallSave] ?: true,
         missedRemind = this[K.missedRemind] ?: false,
         birthdayRemind = this[K.birthdayRemind] ?: false,
-        quietWeekMode = this[K.quietWeekMode] ?: false,
+        ivrHelper = this[K.ivrHelper] ?: false,
+    quietWeekMode = this[K.quietWeekMode] ?: false,
         quietWeekRules = this[K.quietWeekRules] ?: "",
         quietHours = this[K.quietHours] ?: false,
         quietStart = this[K.quietStart] ?: 1320,

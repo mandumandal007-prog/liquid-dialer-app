@@ -126,7 +126,7 @@ fun CallBtn(icon: ImageVector, label: String, on: Boolean = false, size: Dp = 68
         }
         val polish=LocalCallIcons.current?.polish==true
         val polished=if(polish&&!(airy && !on && sty.btnKind==BtnKind.GLASS))m.border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.8f),p.accent.copy(alpha=.35f),Color.White.copy(alpha=.08f))),if(sty.btnKind==BtnKind.SQUIRCLE)RoundedCornerShape(size*.30f) else CircleShape) else m
-        Box(polished.clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
+        Box(polished.testTag("call_button_$label").clickable(src, null, enabled = enabled, onClick = onClick), contentAlignment = Alignment.Center) {
             LdIcon(icon, size * .38f, when (sty.btnKind) {
                 BtnKind.GLASS -> if (on) Color.White else if (flat) p.text else mix(p.text, p.accent, .82f)
                 else -> if (on) Color.White else p.text
@@ -176,6 +176,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     val haze = remember { HazeState() }
     val call = remember(ver, calls) { CallManager.primary() }
     var sheet by remember { mutableStateOf<String?>(null) }
+    var ivrTarget by remember { mutableStateOf<Call?>(null) }
     var confirmEnd by remember { mutableStateOf(false) }
     // keep the last call's identity so the end screen still shows who it was and how long it ran
     var lastEnded by remember { mutableStateOf<Triple<String, String, String>?>(null) }
@@ -204,7 +205,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
             } else {
                 val st = CallManager.state(call)
                 if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" }, onNotes = { sheet = "notes" })
-                else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { sheet = it },
+                else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { if(it=="ivr")ivrTarget=call;sheet = it },
                     onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) })
                 if (st == Call.STATE_SELECT_PHONE_ACCOUNT && sheet == null) sheet = "sim"
             }
@@ -217,6 +218,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                     when (sheet) {
                         "reply" -> QuickReplySheet(s.quickReplies) { msg -> CallManager.reject(c, msg); sheet = null }
                         "notes" -> key(CallManager.number(c)) { NotesSheet(CallManager.number(c), CallManager.nameFor(ctx, c)) { sheet = null } }
+                        "ivr" -> ivrTarget?.let{target->IvrCallSheet(target){sheet=null}}
                         "audio" -> AudioRouteSheet(audio) { CallManager.setRoute(it); sheet = null }
                         "sim" -> SimPickSheet { h -> c.phoneAccountSelected(h, false); sheet = null }
                         "conference" -> ConferenceSheet(c) { sheet = null }
@@ -604,7 +606,10 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
                 LdText(CallManager.nameFor(ctx, call) + (timer?.let { "  ·  $it" } ?: ""), 13f, FontWeight.SemiBold, p.muted)
                 LdText(dtmf.ifEmpty { " " }, 30f, FontWeight.SemiBold, letter = 2f)
                 Keypad(onKey = { k -> dtmf += k; CallManager.dtmf(k[0]) }, keyDp = (LocalConfiguration.current.screenHeightDp * .095f).coerceIn(58f, 84f).dp, letters = s.keypadLetters)
-                Row(Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp).clickable { keypad = false }.padding(horizontal = 18.dp, vertical = 10.dp),
+                if(s.ivrHelper)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                    GhostButton("IVR menu",Modifier.weight(1f).testTag("call_ivr_open")){openSheet("ivr")}
+                    GhostButton("Keypad band karo",Modifier.weight(1f)){keypad=false}
+                }else Row(Modifier.glass(p, RoundedCornerShape(999.dp), 4.dp).clickable { keypad = false }.padding(horizontal = 18.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LdIcon(LdIcons.X, 16.dp); LdText("Keypad band karo", 13f, FontWeight.SemiBold)
                 }

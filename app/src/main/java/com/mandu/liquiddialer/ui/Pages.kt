@@ -135,6 +135,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "ivrmenus" -> IvrMenusPage(onBack)
         page == "quietweek" -> QuietWeekPage(act,onBack,onOpen)
         page == "settingsfinder" -> SettingsFinderPage(onBack,onOpen)
         page == "lookprofiles" -> LookProfilesPage(onBack)
@@ -369,6 +370,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         }
         if(group=="calls") {
+        GlassCard{SRow("IVR menu helper","Saved menu choices, one digit per explicit tap",LdIcons.Dialpad,last=true){onOpen("ivrmenus")}}
         SecTitle("Calls")
         GlassCard {
             val sims = st.sims
