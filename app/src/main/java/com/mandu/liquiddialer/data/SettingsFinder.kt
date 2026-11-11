@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("call-touch-guard","Call touch guard","Manual guard against accidental on-screen call-control taps","calls","calltouchguard",aliases="touch accidental pocket mute speaker guard"),
   Entry("call-references","Call reference cards","Per-number facts with explicit reveal and copy","calls","callreferences",aliases="customer order reference address cards facts"),
   Entry("display-0","Appearance control center","Sab display controls ek jagah","display","settings:display","Appearance control center"),
   Entry("display-1","Call & Recents style","11 calling-card looks + 11 recents looks, live preview ke saath","display","settings:display","Call & Recents style"),
