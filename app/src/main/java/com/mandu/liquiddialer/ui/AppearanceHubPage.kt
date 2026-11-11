@@ -19,10 +19,15 @@ val LocalConfirmPreview=staticCompositionLocalOf<Boolean?>{null}
   LdText("Apna look, apne controls",18f,FontWeight.Bold,maxLines=3)
   LdText("Har section ka scope neeche hai. Choices isi phone par save hoti hain; call ya contact khud nahi badalta.",12f,color=p.muted,maxLines=6)
   SecTitle("App-wide")
+  GlassCard{SRow("Feature controls","Optional tools ko dikhayein/chhupayein; saved data wahi",LdIcons.Checklist,last=true){onOpen("featurecontrols")}}
+  Spacer(Modifier.height(10.dp))
   GlassCard{
    SRow("Theme, icons & text","Theme, accent, app icon style, font, glass aur motion",LdIcons.Palette){onOpen("appearance")}
    SRow("Clean UI & call icons","App ka clean-glass mode; call icons ke alag style/rang",LdIcons.Edit,last=true){onOpen("callicons")}
   }
+  Spacer(Modifier.height(10.dp))
+  GlassCard{SwitchRow("Quiet shared rows","Settings aur shared option rows par kam nested shine, saaf icon tile. Bahar ka glass aur call controls wahi.",s.quietRows){set(K.quietRows,it)}
+   SRow("Preview row","Shared rows ka selected finish",LdIcons.Palette,last=true)}
   SecTitle("Screen layouts")
   GlassCard{
    SRow("Home & dialer layout","Recents density, search position, contact names; dialer layout Theme section mein",LdIcons.Dialpad){onOpen("settings:display")}

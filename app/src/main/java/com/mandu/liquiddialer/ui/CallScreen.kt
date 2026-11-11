@@ -480,7 +480,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             "speaker" -> BtnSpec(LdIcons.SpeakerFill, if (speaker) "Speaker on" else "Speaker", speaker, flat = true) {
                 if (CallManager.hasBluetooth() && !speaker) openSheet("audio") else CallManager.toggleSpeaker()
             }
-            "notes" -> BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") }
+            "notes" -> if(com.mandu.liquiddialer.data.FeatureControls.enabled(s,"notes")) BtnSpec(LdIcons.Edit, "Notes") { openSheet("notes") } else null
             else -> null
         }
     }

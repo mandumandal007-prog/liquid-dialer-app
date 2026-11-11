@@ -86,10 +86,11 @@ fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit
 @Composable
 fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Boolean = false, subMaxLines: Int = 3, trailing: @Composable (() -> Unit)? = null, onClick: (() -> Unit)? = null) {
     val p = LocalLd.current
+    val rowSettings by LdApp.settings.collectAsState()
     Column {
-        Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.buttonGlass(p,RoundedCornerShape(16.dp)).clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
+        Row(Modifier.fillMaxWidth().then(if (onClick != null) (if(rowSettings.quietRows)Modifier.clip(RoundedCornerShape(16.dp)) else Modifier.buttonGlass(p,RoundedCornerShape(16.dp))).clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (icon != null) Box(Modifier.size(38.dp).raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
+            if (icon != null) Box(Modifier.size(38.dp).then(if(rowSettings.quietRows)Modifier.background(p.accent.copy(alpha=.09f),RoundedCornerShape(12.dp)) else Modifier.raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp))), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
             Column(Modifier.weight(1f)) {
                 LdText(title, 14f, FontWeight.SemiBold, maxLines = 2)
                 if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = subMaxLines, modifier = Modifier.padding(top = 3.dp))
@@ -119,7 +120,11 @@ fun TimeRow(title: String, mins: Int, last: Boolean = false, onChange: (Int) -> 
 
 @Composable
 fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOpen: (String) -> Unit, editContactId: Long?, editPrefill: String, onOpenNumber: (String) -> Unit, onInsights: () -> Unit = {}) {
+    val featureSettings by LdApp.settings.collectAsState()
+    val featureId=FeatureControls.pageId(page)
+    if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "featurecontrols" -> FeatureControlsPage(onBack,onOpen)
         page == "settings" -> SettingsGroupsPage(onBack,onOpen)
         page.startsWith("settings:") -> SettingsPage(st, act, onBack, onOpen, page.removePrefix("settings:"))
         page == "appearancehub" -> AppearanceHubPage(onBack,onOpen)
@@ -179,15 +184,24 @@ internal val SETTINGS_GROUPS=listOf(
     SettingsGroup("about","About","App version aur jankari")
 )
 
+internal fun settingsGroupIcon(id:String):ImageVector=when(id){
+ "display"->LdIcons.Palette;"calls"->LdIcons.Phone;"sounds","volume"->LdIcons.Volume
+ "privacy","blocking"->LdIcons.Block;"default"->LdIcons.Check;"identity"->LdIcons.User
+ "quiet","notifications"->LdIcons.Clock;"recording"->LdIcons.Record;"speed"->LdIcons.Dialpad
+ "backup"->LdIcons.ArrowLeft;else->LdIcons.Info
+}
+
 @Composable
 private fun SettingsGroupsPage(onBack:()->Unit,onOpen:(String)->Unit) {
     PageFrame("Settings",onBack) {
         LdText("Group kholo, phir uski settings chuno",13f,color=LocalLd.current.muted,modifier=Modifier.padding(bottom=12.dp))
+        GlassCard { SRow("Feature controls","Optional tools, pages aur shortcuts ek-ek karke",LdIcons.Checklist,last=true){onOpen("featurecontrols")} }
+        Spacer(Modifier.height(10.dp))
         GlassCard { SRow("Appearance control center","Theme, icons, layouts aur calling card",LdIcons.Palette,last=true){onOpen("appearancehub")} }
         Spacer(Modifier.height(10.dp))
         GlassCard {
             SETTINGS_GROUPS.forEachIndexed { i,g ->
-                SRow(g.title,g.summary,LdIcons.Settings,last=i==SETTINGS_GROUPS.lastIndex) { onOpen("settings:"+g.id) }
+                SRow(g.title,g.summary,settingsGroupIcon(g.id),last=i==SETTINGS_GROUPS.lastIndex) { onOpen("settings:"+g.id) }
             }
         }
     }
