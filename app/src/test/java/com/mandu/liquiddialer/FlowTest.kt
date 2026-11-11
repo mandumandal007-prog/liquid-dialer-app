@@ -108,22 +108,22 @@ class FlowTest {
     @Test
     fun swipeBottomBarBothDirectionsSwitchesTabsWithoutCalling() {
         load()
-        rule.onNodeWithTag("bottom_bar").performTouchInput { swipeLeft() }
+        rule.onNodeWithTag("bottom_bar").performTouchInput { swipeRight() }
         rule.mainClock.autoAdvance = true
         rule.waitUntil(20000) { rule.activity.state.tab == "contacts" }
         assertEquals("contacts", rule.activity.state.tab)
-        rule.onNodeWithTag("bottom_bar").performTouchInput { swipeRight() }
+        rule.onNodeWithTag("bottom_bar").performTouchInput { swipeLeft() }
         rule.waitUntil(20000) { rule.activity.state.tab == "recents" }
         assertEquals("recents", rule.activity.state.tab)
         noCallStarted()
     }
 
     @Test
-    fun swipeRightWithActiveSearchClearsQuery() {
+    fun pillSwipeLeftWithActiveSearchClearsQuery() {
         load()
-        rule.onNodeWithTag("bottom_bar").performTouchInput { swipeLeft() }; settle(1500)
-        rule.onNode(hasSetTextAction()).performTextInput("Pap"); settle()
         rule.onNodeWithTag("bottom_bar").performTouchInput { swipeRight() }; settle(1500)
+        rule.onNode(hasSetTextAction()).performTextInput("Pap"); settle()
+        rule.onNodeWithTag("bottom_bar").performTouchInput { swipeLeft() }; settle(1500)
         assertEquals("recents", rule.activity.state.tab)
         rule.onNodeWithText("Khojo").assertExists()
     }

@@ -167,14 +167,14 @@ class ChromeOverlapShotTest {
     }
 
     private fun ensureViewportProtectsRows() {
+        // Full-height scrolling is deliberate: the gradient replaces the former hard clip.
+        // Exercise hit testing with a real row underneath, rather than asserting the old viewport.
         val viewport = rule.onNodeWithTag("home_content_viewport",true).fetchSemanticsNode().boundsInRoot
         val chrome = rule.onNodeWithTag("bottom_bar",true).fetchSemanticsNode().boundsInRoot
-        assertTrue("list viewport ends above chrome",viewport.bottom<=chrome.top)
-        repeat(3){
-            assertTrue("no call button may be covered by bottom chrome",!coveredRowExists())
-            rule.onAllNodesWithTag("main_list",true)[0].performTouchInput{swipeUp(durationMillis=200)}
-            settle(600)
-        }
+        val fade = rule.onNodeWithTag("bottom_scrim",true).fetchSemanticsNode().boundsInRoot
+        assertTrue("list scrolls behind chrome",viewport.bottom>chrome.top)
+        assertTrue("gradient starts above chrome",fade.top<chrome.top)
+        assertTrue("fixture needs a covered row to prove no fall-through",coveredRowExists())
     }
 
     private fun stateOf(f: (com.mandu.liquiddialer.MainActivity) -> Boolean): Boolean {
