@@ -19,6 +19,8 @@ val LocalConfirmPreview=staticCompositionLocalOf<Boolean?>{null}
   LdText("Apna look, apne controls",18f,FontWeight.Bold,maxLines=3)
   LdText("Har section ka scope neeche hai. Choices isi phone par save hoti hain; call ya contact khud nahi badalta.",12f,color=p.muted,maxLines=6)
   SecTitle("App-wide")
+  GlassCard{SRow("Look profiles","Preview, save aur appearance-only switching",LdIcons.Palette,last=true){onOpen("lookprofiles")}}
+  Spacer(Modifier.height(10.dp))
   GlassCard{SRow("Feature controls","Optional tools ko dikhayein/chhupayein; saved data wahi",LdIcons.Checklist,last=true){onOpen("featurecontrols")}}
   Spacer(Modifier.height(10.dp))
   GlassCard{
@@ -26,7 +28,8 @@ val LocalConfirmPreview=staticCompositionLocalOf<Boolean?>{null}
    SRow("Clean UI & call icons","App ka clean-glass mode; call icons ke alag style/rang",LdIcons.Edit,last=true){onOpen("callicons")}
   }
   Spacer(Modifier.height(10.dp))
-  GlassCard{SwitchRow("Quiet shared rows","Settings aur shared option rows par kam nested shine, saaf icon tile. Bahar ka glass aur call controls wahi.",s.quietRows){set(K.quietRows,it)}
+  GlassCard{SwitchRow("Refined page headers","Shared pages par quieter glass bar aur bare back icon; home/call card nahi badlenge",s.refinedHeaders){set(K.refinedHeaders,it)}
+   SwitchRow("Quiet shared rows","Settings aur shared option rows par kam nested shine, saaf icon tile. Bahar ka glass aur call controls wahi.",s.quietRows){set(K.quietRows,it)}
    SRow("Preview row","Shared rows ka selected finish",LdIcons.Palette,last=true)}
   SecTitle("Screen layouts")
   GlassCard{

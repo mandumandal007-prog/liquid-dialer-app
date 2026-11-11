@@ -61,15 +61,16 @@ private fun <T> save(key: Preferences.Key<T>, v: T) { LdApp.instance.scope.launc
 @Composable
 fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val p = LocalLd.current
+    val refined=LocalRefinedHeaders.current
     BackHandler { onBack() }
     Box(Modifier.fillMaxSize().background(p.bg).clickable(remember { MutableInteractionSource() }, null) {}) {
         BlobBackground()
         Box(Modifier.fillMaxSize().background(Brush.radialGradient(0f to p.accent.pct(.16f), .6f to Color.Transparent, center = Offset(540f, 0f), radius = 1500f)))
         Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)
-                .glass(p,RoundedCornerShape(22.dp),0.dp).padding(horizontal=8.dp,vertical=8.dp).testTag("page_header"),
+                .then(if(refined)Modifier.background(p.bg2.copy(alpha=.68f),RoundedCornerShape(22.dp)).border(1.dp,p.stroke,RoundedCornerShape(22.dp)) else Modifier.glass(p,RoundedCornerShape(22.dp),0.dp)).padding(horizontal=8.dp,vertical=8.dp).testTag("page_header"),
                 verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-                Box(Modifier.testTag("page_back")){IconBtn(LdIcons.ArrowLeft,onClick=onBack)}
+                Box(Modifier.testTag("page_back")){if(refined)Box(Modifier.size(42.dp).clip(CircleShape).clickable(onClick=onBack),contentAlignment=Alignment.Center){LdIcon(LdIcons.ArrowLeft,22.dp,p.accent)} else IconBtn(LdIcons.ArrowLeft,onClick=onBack)}
                 LdText(title,20f,FontWeight.ExtraBold,modifier=Modifier.weight(1f).testTag("page_title"),letter=-.3f,maxLines=4)
                 Spacer(Modifier.width(4.dp))
             }
@@ -86,11 +87,11 @@ fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit
 @Composable
 fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Boolean = false, subMaxLines: Int = 3, trailing: @Composable (() -> Unit)? = null, onClick: (() -> Unit)? = null) {
     val p = LocalLd.current
-    val rowSettings by LdApp.settings.collectAsState()
+    val quietRows=LocalQuietRows.current
     Column {
-        Row(Modifier.fillMaxWidth().then(if (onClick != null) (if(rowSettings.quietRows)Modifier.clip(RoundedCornerShape(16.dp)) else Modifier.buttonGlass(p,RoundedCornerShape(16.dp))).clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
+        Row(Modifier.fillMaxWidth().then(if (onClick != null) (if(quietRows)Modifier.clip(RoundedCornerShape(16.dp)) else Modifier.buttonGlass(p,RoundedCornerShape(16.dp))).clickable(onClick = onClick) else Modifier).padding(horizontal = 8.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (icon != null) Box(Modifier.size(38.dp).then(if(rowSettings.quietRows)Modifier.background(p.accent.copy(alpha=.09f),RoundedCornerShape(12.dp)) else Modifier.raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp))), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
+            if (icon != null) Box(Modifier.size(38.dp).then(if(quietRows)Modifier.background(p.accent.copy(alpha=.09f),RoundedCornerShape(12.dp)) else Modifier.raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp))), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
             Column(Modifier.weight(1f)) {
                 LdText(title, 14f, FontWeight.SemiBold, maxLines = 2)
                 if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = subMaxLines, modifier = Modifier.padding(top = 3.dp))
@@ -124,6 +125,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "lookprofiles" -> LookProfilesPage(onBack)
         page == "featurecontrols" -> FeatureControlsPage(onBack,onOpen)
         page == "settings" -> SettingsGroupsPage(onBack,onOpen)
         page.startsWith("settings:") -> SettingsPage(st, act, onBack, onOpen, page.removePrefix("settings:"))
