@@ -21,8 +21,9 @@ import org.robolectric.shadows.ShadowContentResolver
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class HistoryDatePickerUiTest {
- @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+ @get:Rule val rule=createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private var failQuery=false
  private var opened=""
@@ -54,7 +55,10 @@ class HistoryDatePickerUiTest {
    override fun update(u:Uri,v:ContentValues?,s:String?,a:Array<out String>?)=0
    override fun getType(u:Uri):String?=null
   })
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{HistoryExplorerPage(rule.activity.state,rule.activity,{}, {opened=it})}}};settle()
+  // Capture ActivityScenario-backed access on the test thread, never inside
+  // a composable which can run on the recomposer thread.
+  val activity=rule.activity
+  rule.runOnUiThread{activity.mountTestPage{LdThemeHost{HistoryExplorerPage(activity.state,activity,{}, {opened=it})}}};settle()
  }
  private fun dialog():android.app.DatePickerDialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as android.app.DatePickerDialog
  private fun pickerShot(d:android.app.DatePickerDialog){
