@@ -461,6 +461,25 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val others = CallManager.others()
     val s by LdApp.settings.collectAsState()
 
+    val guardEligible = com.mandu.liquiddialer.data.CallTouchGuard.eligibleCall(s.callTouchGuard,call)
+    var guard by remember(call,guardEligible) { mutableStateOf(com.mandu.liquiddialer.data.CallTouchGuard.State()) }
+    val guardOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(guardOwner,call,guardEligible) {
+        val observer=androidx.lifecycle.LifecycleEventObserver { _,event ->
+            if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP) guard=com.mandu.liquiddialer.data.CallTouchGuard.State()
+        }
+        guardOwner.lifecycle.addObserver(observer)
+        onDispose { guardOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(guard.armedAt) { if(guard.armedAt!=null){ delay(5000);guard=guard.cancelUnlock() } }
+    if(guardEligible && guard.locked){
+        CallTouchGuardView(CallManager.nameFor(ctx,call),CallManager.number(call),timer ?: "",badges,guard.armedAt!=null,
+            onArm={ if(com.mandu.liquiddialer.data.CallTouchGuard.eligibleCall(LdApp.settings.value.callTouchGuard,call)) guard=guard.arm(android.os.SystemClock.uptimeMillis()) },
+            onUnlock={ if(com.mandu.liquiddialer.data.CallTouchGuard.eligibleCall(LdApp.settings.value.callTouchGuard,call)) guard=guard.unlock(android.os.SystemClock.uptimeMillis()) },
+            onCancel={guard=guard.cancelUnlock()},onEnd={onEndRequest(call)})
+        return
+    }
+
     val gridL = remember(s.layoutGrid) { parseLayout(s.layoutGrid, GRID_IDS) }
     val bottomL = remember(s.layoutBottom) { parseLayout(s.layoutBottom, BOTTOM_IDS) }
     // audio-route button shows where the sound goes now, so it is not a second Speaker toggle
@@ -619,6 +638,9 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         if (!keypad) {
+            if(guardEligible) GhostButton("Touch guard",Modifier.fillMaxWidth().testTag("touch_guard_enable")){
+                if(com.mandu.liquiddialer.data.CallTouchGuard.eligibleCall(LdApp.settings.value.callTouchGuard,call)) guard=guard.lock()
+            }
             Box(Modifier.padding(top = 6.dp, bottom = 4.dp)) {
                 CallControlsLayout(gridL, bottomL, s.gridScale, s.bottomScale, spec, onEnd = { onEndRequest(call) })
             }
