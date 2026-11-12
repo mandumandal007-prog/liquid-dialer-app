@@ -1,6 +1,6 @@
 package com.mandu.liquiddialer
 
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -21,20 +21,36 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/** Call reminder flow ka decisive visual: tall viewport me poora preset section bina scroll
- *  dikhta hai - chips, approximate-timing note, aur notifications-band warning (fixture me
- *  notifications disabled). Koi performScrollTo nahi (wo harness me hang karta hai). */
+/** Reminder presets and both caveats stay visible together after explicit scroll reveal. */
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h1440dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class CallReminderUiTest {
 
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
 
     private fun settle(ms: Long = 1500) {
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        rule.runOnUiThread { androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications() }
         rule.mainClock.autoAdvance = false
         rule.mainClock.advanceTimeBy(ms)
         rule.waitForIdle()
+    }
+
+    /** The redesigned page keeps the toolbar fixed. Reveal the whole target before taps. */
+    private fun revealDetails(text:String) {
+        val node=rule.onNodeWithText(text,substring=true,useUnmergedTree=true)
+        repeat(30) {
+            val r=node.getUnclippedBoundsInRoot()
+            val scroll=rule.onNodeWithTag("page_content_scroll",true)
+            val view=scroll.getUnclippedBoundsInRoot()
+            if(r.top<view.top+androidx.compose.ui.unit.Dp(20f)||r.bottom>view.bottom-androidx.compose.ui.unit.Dp(80f)) {
+                scroll.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy){it(0f,if(r.top<view.top+androidx.compose.ui.unit.Dp(20f))-100f else 100f)}
+                settle(100)
+            }
+        }
+        node.assertIsDisplayed()
     }
 
     @Before
@@ -45,7 +61,7 @@ class CallReminderUiTest {
     }
 
     @Test
-    fun reminderFlowCaveatsVisibleWithoutScroll() {
+    fun reminderFlowCaveatsVisibleAfterReveal() {
         settle(2500)
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
         val act = rule.activity
@@ -59,10 +75,17 @@ class CallReminderUiTest {
         org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.app.NotificationManager::class.java))
             .setNotificationsEnabled(false)
         settle()
-        rule.onAllNodesWithText("Rahul Sharma", substring = true, useUnmergedTree = true).onFirst().performClick()
+        rule.runOnUiThread {act.mountTestPage {com.mandu.liquiddialer.ui.LdThemeHost {
+            com.mandu.liquiddialer.ui.ContactDetailsFrame({}) {
+                com.mandu.liquiddialer.ui.NumberSheet("+91 98765 43210",act.state.contacts.first(),act.state,act,{}, {}, {})
+            }
+        }}}
         settle()
-        rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).assertIsDisplayed().performClick()
+        revealDetails("Call reminder")
+        rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).assertIsDisplayed()
+        rule.onNode(hasClickAction() and hasAnyDescendant(hasText("Call reminder")),useUnmergedTree=true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
         settle(400)
+        revealDetails("Notifications band hain")
         rule.onNodeWithText("30 min baad", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("1 ghante baad", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("Shaam 6 baje", substring = true, useUnmergedTree = true).assertIsDisplayed()
