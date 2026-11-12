@@ -137,6 +137,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     when {
         page == "calltouchguard" -> CallTouchGuardPage(onBack)
         page == "callreferences" -> CallReferencesPage(onBack)
+        page == "launchershortcuts" -> LauncherContactsPage(act,onBack)
         page == "messagedrafts" -> MessageDraftsPage(onBack)
         page == "callpace" -> CallPacePage(onBack)
         page == "ivrmenus" -> IvrMenusPage(onBack)
@@ -375,6 +376,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         }
         if(group=="calls") {
         GlassCard{SRow("Call touch guard","Manual on-screen control guard, End stays available",LdIcons.Phone,last=true){onOpen("calltouchguard")}}
+        GlassCard{SRow("Icon long-press shortcuts","New contact and 3 chosen numbers",LdIcons.Phone,last=true){onOpen("launchershortcuts")}}
         GlassCard{SRow("Message drafts","Reusable local text, explicit preview and compose",LdIcons.Message,last=true){onOpen("messagedrafts")}}
         GlassCard{SRow("Call reference cards","Per-number facts, explicit reveal and copy",LdIcons.Edit,last=true){onOpen("callreferences")}}
         GlassCard{SRow("Call pace reminders","Opt-in countdown aur active-stretch reminder",LdIcons.Clock,last=true){onOpen("callpace")}}

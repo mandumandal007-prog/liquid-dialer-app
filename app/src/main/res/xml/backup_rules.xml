@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
+        <exclude domain="sharedpref" path="launcher_contacts.xml" />
     <exclude domain="file" path="message_drafts.json" />
     <exclude domain="file" path="message_drafts.json.bak" />
     <exclude domain="file" path="message_drafts.json.new" />
