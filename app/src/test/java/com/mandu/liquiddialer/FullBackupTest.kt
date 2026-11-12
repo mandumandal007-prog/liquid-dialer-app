@@ -88,4 +88,20 @@ class FullBackupTest {
   assertEquals(2,Repo.notesChecked(ctx).size);assertEquals(1,CallReminders.allRaw(ctx).size)
   assertEquals(1,CallLists.read(ctx).size);assertEquals(listOf("+91140"),prefixes())
  }
+ @Test fun exportReadsStoredSettingsNotStaleUiSnapshot(){
+  runBlocking{ctx.ldStore.edit{it[K.blockedPrefixes]="+9199";it[K.theme]="daylight"}}
+  LdApp.settings.value=LdSettings(theme="midnight",blockedPrefixes=listOf("+91140"))
+  val plan=FullBackup.parse(FullBackup.export(ctx))
+  assertEquals(listOf("+9199"),plan.blockedPrefixes)
+  assertEquals("daylight",plan.settings!!["theme"])
+ }
+ @Test fun prefixMergeReadsTransactionAndPreservesStoredLocalPrefixes(){
+  runBlocking{ctx.ldStore.edit{it[K.blockedPrefixes]="+9199"}}
+  LdApp.settings.value=LdSettings(blockedPrefixes=listOf("+91140"))
+  val plan=FullBackup.Plan(null,emptyList(),emptyList(),emptyList(),listOf("+91140"))
+  val result=FullBackup.apply(ctx,plan)
+  assertEquals(1,result.prefixesAdded);assertEquals(listOf("+9199","+91140"),prefixes())
+  val repeated=FullBackup.apply(ctx,plan);assertEquals(0,repeated.prefixesAdded);assertEquals(listOf("+9199","+91140"),prefixes())
+ }
+
 }

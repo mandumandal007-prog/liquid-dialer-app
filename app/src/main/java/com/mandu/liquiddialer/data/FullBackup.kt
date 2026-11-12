@@ -3,6 +3,7 @@ package com.mandu.liquiddialer.data
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import com.mandu.liquiddialer.LdApp
+import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -41,9 +42,10 @@ object FullBackup {
     // ---------------- export ----------------
 
     @Synchronized fun export(ctx: Context): String {
+        val settings = kotlinx.coroutines.runBlocking { LdApp.instance.repo.flow.first() }
         val root = JSONObject()
         root.put("kind", KIND); root.put("version", VERSION); root.put("createdAt", System.currentTimeMillis())
-        root.put("settings", JSONObject(com.mandu.liquiddialer.ui.SettingsBackup.buildJson(LdApp.settings.value)))
+        root.put("settings", JSONObject(com.mandu.liquiddialer.ui.SettingsBackup.buildJson(settings)))
         val notes = JSONArray(); Repo.notesChecked(ctx).forEach {
             notes.put(JSONObject().put("id", it.id).put("number", it.number).put("name", it.name).put("text", it.text).put("time", it.time))
         }
@@ -53,7 +55,7 @@ object FullBackup {
         }
         root.put("reminders", rems)
         root.put("callLists", JSONObject(CallLists.run { encode(read(ctx)) }))
-        val prefs = JSONArray(); LdApp.settings.value.blockedPrefixes.forEach { prefs.put(it) }
+        val prefs = JSONArray(); settings.blockedPrefixes.forEach { prefs.put(it) }
         root.put("blockedPrefixes", prefs)
         return root.toString().also { require(it.toByteArray(Charsets.UTF_8).size <= MAX_BYTES) { "Backup 5 MB se bada hai; pehle purane notes/recordings hatao" } }
     }
@@ -173,12 +175,13 @@ object FullBackup {
         }
         var prefixesAdded = 0
         if (plan.blockedPrefixes.isNotEmpty()) {
-            val cur = LdApp.settings.value.blockedPrefixes
-            val merged = (cur + plan.blockedPrefixes).distinct()
-            prefixesAdded = merged.size - cur.size
-            if (prefixesAdded > 0) {
-                kotlinx.coroutines.runBlocking {
-                    ctx.ldStore.edit { it[K.blockedPrefixes] = merged.joinToString(";") }
+            // Merge against the transaction's stored value, never the delayed UI cache.
+            kotlinx.coroutines.runBlocking {
+                ctx.ldStore.edit { prefs ->
+                    val cur = prefs[K.blockedPrefixes]?.split(";")?.filter { it.isNotBlank() } ?: emptyList()
+                    val merged = (cur + plan.blockedPrefixes).distinct()
+                    prefixesAdded = merged.size - cur.size
+                    if (prefixesAdded > 0) prefs[K.blockedPrefixes] = merged.joinToString(";")
                 }
             }
         }
