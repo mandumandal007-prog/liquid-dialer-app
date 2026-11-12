@@ -144,7 +144,14 @@ class FlowTest {
     fun searchMicWithoutRecognizerShowsNoticeAndLeavesQueryAlone() {
         load()
         shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.RECORD_AUDIO)
-        rule.onNodeWithTag("search_mic").performClick(); settle()
+        org.junit.Assert.assertFalse(android.speech.SpeechRecognizer.isRecognitionAvailable(rule.activity))
+        rule.onNodeWithTag("search_mic").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
+        rule.waitUntil(5000) {
+            rule.runOnUiThread { androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications() }
+            org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+            settle(100)
+            rule.onAllNodesWithText(com.mandu.liquiddialer.ui.VOICE_NOTICE_UNAVAILABLE).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithText(com.mandu.liquiddialer.ui.VOICE_NOTICE_UNAVAILABLE).assertExists()
         rule.onNode(hasSetTextAction()).assertTextEquals("")
     }
