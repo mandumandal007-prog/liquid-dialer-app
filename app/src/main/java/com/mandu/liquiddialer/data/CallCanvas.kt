@@ -41,12 +41,16 @@ object CallCanvas {
   if(points.size>=MAX_POINTS){val reduced=points.filterIndexed{i,_->i%2==0}.toMutableList();if(reduced.last()!=points.last())reduced+=points.last();points.clear();points.addAll(reduced)}
   points+=next
  }
- class History(initial:List<Stroke>){var strokes:List<Stroke> = initial.toList();private set;private var future=emptyList<Stroke>()
-  init{validate(initial)}
-  val canUndo get()=strokes.isNotEmpty();val canRedo get()=future.isNotEmpty()
-  fun add(stroke:Stroke):Boolean{val next=strokes+stroke;if(runCatching{validate(next)}.isFailure)return false;strokes=next;future=emptyList();return true}
-  fun undo(){if(strokes.isNotEmpty()){future=future+strokes.last();strokes=strokes.dropLast(1)}}
-  fun redo(){if(future.isNotEmpty()){strokes=strokes+future.last();future=future.dropLast(1)}}
-  fun clear(){strokes=emptyList();future=emptyList()}
+ class History(initial:List<Stroke>){var strokes:List<Stroke> = initial.toList();private set
+  private val past=mutableListOf<List<Stroke>>();private val future=mutableListOf<List<Stroke>>()
+  init{validate(initial);for(i in initial.indices)past.add(initial.take(i))}
+  val canUndo get()=past.isNotEmpty();val canRedo get()=future.isNotEmpty()
+  private fun commit(next:List<Stroke>):Boolean{if(next==strokes)return false;if(runCatching{validate(next)}.isFailure)return false;past.add(strokes);if(past.size>80)past.removeAt(0);strokes=next.toList();future.clear();return true}
+  fun add(stroke:Stroke)=commit(strokes+stroke)
+  fun replace(index:Int,stroke:Stroke):Boolean{if(index !in strokes.indices)return false;return commit(strokes.mapIndexed{i,s->if(i==index)stroke else s})}
+  fun remove(index:Int):Boolean{if(index !in strokes.indices)return false;return commit(strokes.filterIndexed{i,_->i!=index})}
+  fun undo(){if(past.isNotEmpty()){future.add(strokes);strokes=past.removeAt(past.lastIndex)}}
+  fun redo(){if(future.isNotEmpty()){past.add(strokes);strokes=future.removeAt(future.lastIndex)}}
+  fun clear(){strokes=emptyList();past.clear();future.clear()}
  }
 }
