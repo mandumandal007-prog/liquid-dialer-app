@@ -94,6 +94,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
     val openEditor: (Long?, String) -> Unit = { id, pre ->
         if(id == null) com.mandu.liquiddialer.data.ContactApps.open(act, com.mandu.liquiddialer.data.ContactApps.insert(pre))
         editContactId = id; editPrefill = pre; sheetNumber = null; sheetContact = null; menuNumber = null; pages.add("editor") }
+    LaunchedEffect(st.launcherNewContactRequest){if(st.launcherNewContactRequest){st.launcherNewContactRequest=false;com.mandu.liquiddialer.data.ContactApps.open(act,com.mandu.liquiddialer.data.ContactApps.insert(""))}}
     val editReq = st.editContactRequest
     LaunchedEffect(editReq) {
         if (editReq != null) { st.editContactRequest = null; openEditor(editReq.first, editReq.second) }
