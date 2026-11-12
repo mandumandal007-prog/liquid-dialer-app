@@ -52,6 +52,7 @@ class AppState {
     var permsTick by mutableIntStateOf(0)
     var birthdays by mutableStateOf<List<com.mandu.liquiddialer.data.Repo.Birthday>?>(null) // null = abhi load nahi hua
     var showOnboarding by mutableStateOf(false)
+    var launcherNewContactRequest by mutableStateOf(false)
     var editContactRequest by mutableStateOf<Pair<Long?, String>?>(null) // contact editor asked from the call screen
     var numberChoiceRequest by mutableStateOf<Pair<Long, String>?>(null) // widget favorite multi-number: chooser (contactId, naam)
     var numberChoiceCalls by mutableStateOf(false)
@@ -328,6 +329,18 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(i: Intent?) {
         i ?: return
+        if(i.action==com.mandu.liquiddialer.data.LauncherContacts.ACTION){
+            val config=try{com.mandu.liquiddialer.data.LauncherContacts.read(this).config}catch(_:Exception){null}
+            val shortcutId=i.getStringExtra("launcherShortcutId")?:""
+            if(config?.enabled==true&&shortcutId==com.mandu.liquiddialer.data.LauncherContacts.NEW){
+                state.launcherNewContactRequest=true
+            }else{
+                val target=config?.let{com.mandu.liquiddialer.data.LauncherContacts.resolve(it,shortcutId)}
+                if(target!=null){state.tab="dialer";state.dial=target.number}
+                else Toast.makeText(this,"Shortcut off/removed. Settings > Calls > Icon long-press shortcuts",Toast.LENGTH_LONG).show()
+            }
+            return
+        }
         if (i.action == com.mandu.liquiddialer.widget.FavWidgetModel.WIDGET_CALL) {
             val id = i.getLongExtra("numberContactId", i.getLongExtra("chooseNumber", -1L))
             if (id > 0) widgetTapCall(id, i.getStringExtra("number"), i.getStringExtra("numberName") ?: i.getStringExtra("chooseName") ?: "")
