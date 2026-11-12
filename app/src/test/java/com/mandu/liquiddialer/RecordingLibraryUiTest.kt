@@ -2,7 +2,9 @@ package com.mandu.liquiddialer
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.setContent
+import androidx.activity.ComponentActivity
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
@@ -19,21 +21,34 @@ import org.robolectric.Shadows
 import org.robolectric.annotation.*
 import java.io.File
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class RecordingLibraryUiTest {
- @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+ @get:Rule(order=0) val initialSettings=object:org.junit.rules.ExternalResource(){override fun before(){
+  org.robolectric.Shadows.shadowOf(ctx.packageManager).addActivityIfNotPresent(android.content.ComponentName(ctx,ComponentActivity::class.java))
+  runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.motion]=false}}
+ }}
+ @get:Rule(order=1) val rule=createAndroidComposeRule<ComponentActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
+ private fun ComponentActivity.mountTestPage(content:@Composable ()->Unit){val host=ComposeView(this);host.setContent(content=content);setContentView(host)}
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private val root get()=Repo.recordingsDir(ctx)
- private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
- private fun click(tag:String){rule.mainClock.autoAdvance=true;rule.onNodeWithTag(tag,useUnmergedTree=true).performScrollTo().assertIsDisplayed().performClick();settle();rule.mainClock.autoAdvance=false}
- private fun await(tag:String){repeat(50){settle();if(rule.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty())return;Thread.sleep(30)};error("Missing $tag")}
+ private fun settle(){rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
+ private fun reveal(node:SemanticsNodeInteraction){
+  rule.mainClock.autoAdvance=true
+  repeat(6){val n=node.fetchSemanticsNode();val root=rule.onRoot().fetchSemanticsNode();if(n.positionInRoot.y>=100&&n.positionInRoot.y+n.size.height<=root.size.height-20){settle();return}
+   val delta=n.positionInRoot.y+n.size.height/2f-root.size.height/2f
+   rule.onNode(SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.VerticalScrollAxisRange)).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy){it(0f,delta)};rule.waitForIdle()
+  };settle();node.assertIsDisplayed()
+ }
+ private fun click(tag:String){val node=rule.onNodeWithTag(tag,useUnmergedTree=true);if(!tag.startsWith("recording_rename_confirm")&&!tag.startsWith("recording_rename_cancel"))reveal(node);node.assertIsDisplayed().performClick();settle()}
+ private fun await(tag:String){rule.waitUntil(15000){settle();rule.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}}
  @Before fun clear(){CallManager.recording.value=null;root.listFiles()?.forEach{it.delete()}}
  private fun add(name:String,body:String="test audio"){File(root,name).writeText(body)}
  private fun show(night:Boolean=false){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=if(night)"midnight" else "daylight";it[K.fontScale]=if(night)1.5f else 1f}}
-  rule.waitUntil(15000){LdApp.settings.value.theme==if(night)"midnight" else "daylight"}
+  rule.waitUntil(15000){LdApp.settings.value.let{it.onboarded&&it.theme==(if(night)"midnight"else"daylight")&&it.fontScale==(if(night)1.5f else 1f)}}
   if(night)rule.runOnUiThread{val c=android.content.res.Configuration(rule.activity.resources.configuration);c.fontScale=1.5f;rule.activity.resources.updateConfiguration(c,rule.activity.resources.displayMetrics)}
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{RecordingsPage({})}}};settle();await("recordings_count");repeat(8){settle();Thread.sleep(20)}
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{RecordingsPage({})}}};settle();await("recordings_count")
  }
  private fun deliver(uri:Uri,result:Int=Activity.RESULT_OK){val started=Shadows.shadowOf(rule.activity).nextStartedActivityForResult;assertNotNull(started);rule.runOnUiThread{Shadows.shadowOf(rule.activity).receiveResult(started!!.intent,result,Intent().setData(uri))};settle()}
  @Test fun renameExplicitlyAndDeleteConfirmationCancelKeepsAudio(){
@@ -59,7 +74,7 @@ class RecordingLibraryUiTest {
   rule.onNodeWithTag("recording_Memo20.m4a",useUnmergedTree=true).assertDoesNotExist();click("recordings_next")
   rule.onNodeWithTag("recording_Memo20.m4a",useUnmergedTree=true).assertExists();rule.onNodeWithTag("recording_Memo00.m4a",useUnmergedTree=true).assertDoesNotExist()
   click("recordings_previous")
-  rule.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("recordings_search")),useUnmergedTree=true).performScrollTo().performTextInput("Memo23")
+  val search=rule.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("recordings_search")),useUnmergedTree=true);reveal(search);search.performTextInput("Memo23")
   settle();rule.onNodeWithTag("recording_Memo23.m4a",useUnmergedTree=true).assertExists();rule.onNodeWithTag("recording_Memo00.m4a",useUnmergedTree=true).assertDoesNotExist();assertEquals(24,RecordingLibrary.list(ctx).size)
   click("recordings_clear");rule.onNodeWithTag("recording_Memo00.m4a",useUnmergedTree=true).assertExists()
  }
@@ -84,7 +99,7 @@ class RecordingLibraryUiTest {
  }
  @Test fun largeFontNightLibraryRenameAndDeletePixels(){
   add("Papa meeting.m4a");show(true);
-  rule.onNodeWithTag("recording_rename_Papa meeting.m4a",useUnmergedTree=true).performScrollTo();settle();saveShot(rule,"277-recordings-night-large")
+  reveal(rule.onNodeWithTag("recording_rename_Papa meeting.m4a",useUnmergedTree=true));settle();saveShot(rule,"277-recordings-night-large")
   click("recording_rename_Papa meeting.m4a");saveShot(rule,"277-recording-rename-night-large")
   rule.onNodeWithTag("recording_rename_cancel",useUnmergedTree=true).performClick();settle()
   click("recording_delete_Papa meeting.m4a");saveDialogShot("277-recording-delete-night-large",0xFF101725)
