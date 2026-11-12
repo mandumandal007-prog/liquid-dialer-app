@@ -84,6 +84,7 @@ data class LdSettings(
     val callPaceRepeat: Boolean = false,
     val callTouchGuard: Boolean = false,
     val callReferences: Boolean = false,
+    val messageDrafts: Boolean = false,
     val ivrHelper: Boolean = false,
     val quietWeekMode: Boolean = false,
     val quietWeekRules: String = "",
@@ -227,6 +228,7 @@ object K {
     val callPaceRepeat = booleanPreferencesKey("call_pace_repeat")
     val callTouchGuard = booleanPreferencesKey("call_touch_guard")
     val callReferences = booleanPreferencesKey("call_references")
+    val messageDrafts = booleanPreferencesKey("message_drafts")
     val ivrHelper = booleanPreferencesKey("ivr_helper")
     val quietWeekMode = booleanPreferencesKey("quietWeekMode")
     val quietWeekRules = stringPreferencesKey("quietWeekRules")
@@ -360,6 +362,7 @@ fun Preferences.toSettings(): LdSettings {
         callPaceRepeat = this[K.callPaceRepeat] ?: false,
         callTouchGuard = this[K.callTouchGuard] ?: false,
         callReferences = this[K.callReferences] ?: false,
+        messageDrafts = this[K.messageDrafts] ?: false,
         ivrHelper = this[K.ivrHelper] ?: false,
     quietWeekMode = this[K.quietWeekMode] ?: false,
         quietWeekRules = this[K.quietWeekRules] ?: "",
