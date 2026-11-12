@@ -34,7 +34,7 @@ import kotlin.math.roundToInt
  open?.let{key(it){CallCanvasWorkspace(it,{open=null})};return}
  PageFrame("Call canvas",onBack){
   LdText("Baat suno. Ungli se idea banao.",23f,FontWeight.Bold,maxLines=4)
-  LdText("Landmark, delivery map, quick sum, ya chhota diagram. Har full number ka apna saved canvas. Save dabao. App ya Notes sheet band hone par unsaved ink jaa sakti hai.",14f,color=p.muted,maxLines=7)
+  LdText("Pen, line, arrow, box aur oval se landmark, delivery map ya quick diagram banao. Har full number ka apna saved canvas. Save dabao. App ya Notes sheet band hone par unsaved ink jaa sakti hai.",14f,color=p.muted,maxLines=7)
   SwitchRow("Show canvas in call Notes","Default OFF. Entry hide karne se saved drawings delete nahi hote.",s.callCanvas,last=true){scope.launch{try{LdApp.instance.repo.set(K.callCanvas,it)}catch(_:Exception){error="Setting save nahi hui"}}}
   LdField(number,{number=it.take(40)},"Full phone number",modifier=Modifier.testTag("canvas_number_input"))
   PrimaryButton("Open this number's canvas",modifier=Modifier.testTag("canvas_open")){runCatching{CallCanvas.key(number)}.fold({open=number;error=""},{error="Sahi full phone number daalo"})}
@@ -47,6 +47,7 @@ import kotlin.math.roundToInt
  val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope()
  var snapshot by remember(number){mutableStateOf<CallCanvas.Snapshot?>(null)};var history by remember(number){mutableStateOf(CallCanvas.History(emptyList()))};var revision by remember(number){mutableIntStateOf(0)}
  var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")};var status by remember(number){mutableStateOf("")};var ink by remember(number){mutableIntStateOf(0)};var width by remember(number){mutableIntStateOf(2)}
+ var tool by remember(number){mutableStateOf(CanvasShapes.Tool.PEN)}
  var confirm by remember(number){mutableStateOf("")};var drawing by remember(number){mutableStateOf(false)}
  val strokes=remember(revision,history){history.strokes};val dirty=snapshot!=null&&strokes!=snapshot!!.strokes
  fun load(){busy=true;scope.launch{try{val next=withContext(Dispatchers.IO){CallCanvas.read(ctx,number)};snapshot=next;history=CallCanvas.History(next.strokes);revision++;error="";status="Saved canvas loaded"}catch(_:Exception){snapshot=null;error="Canvas load nahi hua. Saved file preserve hai; drawing/save band hain."}finally{busy=false}}}
@@ -60,7 +61,10 @@ import kotlin.math.roundToInt
    LdText(if(dirty)"Unsaved drawing"else"Saved · ${strokes.size} strokes",12f,FontWeight.Bold,color=if(dirty)p.accent else p.muted,modifier=Modifier.testTag("canvas_state"))
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){listOf("Ink","Blue","Red","Green").forEachIndexed{i,label->GhostButton((if(ink==i)"✓ "else"")+label,Modifier.weight(1f).testTag("canvas_ink_$i")){if(!drawing)ink=i}}}
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){listOf("Fine","Pen","Bold").forEachIndexed{i,label->GhostButton((if(width==i+1)"✓ "else"")+label,Modifier.weight(1f).testTag("canvas_width_${i+1}")){if(!drawing)width=i+1}}}
-   CanvasInk(strokes,ink,width,!busy,{drawing=it}){stroke->if(history.add(stroke)){revision++;status=""}else status="Canvas full. Undo/clear karke jagah banao; Save se limit reset nahi hoti."}
+   LdText("Drawing tools",12f,color=p.muted,maxLines=2)
+   Column(Modifier.fillMaxWidth().testTag("canvas_tools"),verticalArrangement=Arrangement.spacedBy(6.dp)){CanvasShapes.Tool.entries.chunked(3).forEach{tools->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){tools.forEach{t->GhostButton((if(tool==t)"✓ "else"")+t.label,Modifier.weight(1f).testTag("canvas_tool_${t.name.lowercase()}")){if(!busy&&!drawing)tool=t}}}}}
+   LdText(if(tool==CanvasShapes.Tool.PEN)"Pen: draw freely"else "${tool.label}: drag start to end, then lift. One shape = one Undo.",12f,color=p.muted,maxLines=4,modifier=Modifier.testTag("canvas_tool_hint"))
+   CanvasInk(strokes,ink,width,tool,!busy,{drawing=it}){stroke->if(history.add(stroke)){revision++;status=""}else status="Canvas full. Undo/clear karke jagah banao; Save se limit reset nahi hoti."}
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
     PrimaryButton("Undo",enabled=!busy&&!drawing&&history.canUndo,modifier=Modifier.weight(1f).testTag("canvas_undo")){history.undo();revision++;status=""}
     PrimaryButton("Redo",enabled=!busy&&!drawing&&history.canRedo,modifier=Modifier.weight(1f).testTag("canvas_redo")){history.redo();revision++;status=""}
@@ -84,23 +88,22 @@ import kotlin.math.roundToInt
 }
 
 private val CanvasColors=listOf(Color(0xff263449),Color(0xff245be0),Color(0xffd83d51),Color(0xff168054))
-@Composable private fun CanvasInk(strokes:List<CallCanvas.Stroke>,ink:Int,width:Int,enabled:Boolean,onDrawing:(Boolean)->Unit,onStroke:(CallCanvas.Stroke)->Unit){
+@Composable private fun CanvasInk(strokes:List<CallCanvas.Stroke>,ink:Int,width:Int,tool:CanvasShapes.Tool,enabled:Boolean,onDrawing:(Boolean)->Unit,onStroke:(CallCanvas.Stroke)->Unit){
  var preview by remember{mutableStateOf<List<CallCanvas.Point>>(emptyList())}
  val latestStroke by rememberUpdatedState(onStroke);val latestDrawing by rememberUpdatedState(onDrawing)
- Canvas(Modifier.fillMaxWidth().aspectRatio(1.1f).padding(vertical=8.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xfffffbef)).testTag("canvas_paper").semantics{contentDescription="Finger drawing canvas, ${strokes.size} strokes. Use text Notes if finger drawing is not accessible."}.pointerInput(ink,width,enabled){
+ Canvas(Modifier.fillMaxWidth().aspectRatio(1.1f).padding(vertical=8.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xfffffbef)).testTag("canvas_paper").semantics{contentDescription="Finger drawing canvas, ${strokes.size} strokes. Use text Notes if finger drawing is not accessible."}.pointerInput(ink,width,tool,enabled){
   if(!enabled)return@pointerInput
   awaitEachGesture{
    val first=awaitFirstDown(requireUnconsumed=true);first.consume();latestDrawing(true)
    fun point(o:Offset)=CallCanvas.Point((o.x/size.width*10000).roundToInt().coerceIn(0,10000),(o.y/size.height*10000).roundToInt().coerceIn(0,10000))
-   val points=mutableListOf(point(first.position));preview=points.toList();var cancelled=false
+   val start=point(first.position);val points=mutableListOf(start);preview=if(tool==CanvasShapes.Tool.PEN)points.toList()else emptyList();var cancelled=false
    try{
     while(true){val event=awaitPointerEvent();if(event.changes.size!=1){cancelled=true;event.changes.forEach{it.consume()};break};val change=event.changes.first();if(change.isConsumed){cancelled=true;break};change.consume();val next=point(change.position)
-     if(next!=points.last()){
-      CallCanvas.appendSample(points,next);preview=points.toList()
-     }
+     if(tool==CanvasShapes.Tool.PEN){if(next!=points.last()){CallCanvas.appendSample(points,next);preview=points.toList()}}
+     else{points.clear();points.addAll(CanvasShapes.points(tool,start,next));preview=points.toList()}
      if(!change.pressed)break
     }
-    if(!cancelled)latestStroke(CallCanvas.Stroke(ink,width,points.toList()))
+    if(!cancelled&&points.isNotEmpty()&&(tool==CanvasShapes.Tool.PEN||preview.isNotEmpty()))latestStroke(CallCanvas.Stroke(ink,width,points.toList()))
    }finally{preview=emptyList();latestDrawing(false)}
   }
  }){
