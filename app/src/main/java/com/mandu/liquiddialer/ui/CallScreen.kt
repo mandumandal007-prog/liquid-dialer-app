@@ -52,6 +52,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Repo
 import com.mandu.liquiddialer.data.CallReferences
+import com.mandu.liquiddialer.data.MessageDrafts
 import com.mandu.liquiddialer.data.Note
 import com.mandu.liquiddialer.data.ContactControls
 import com.mandu.liquiddialer.telecom.CallManager
@@ -839,6 +840,8 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     var list by remember { mutableStateOf(try{Repo.notesChecked(ctx).filter{ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}catch(_:Exception){error="Notes khul nahi rahe. Saved file nahi badli.";emptyList()}) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     val referenceSettings by LdApp.settings.collectAsState()
+    var messageDrafts by remember(number){mutableStateOf(false)}
+    if(messageDrafts&&referenceSettings.messageDrafts){MessageDraftsWorkspace(number,{messageDrafts=false},inSheet=true);return}
     var references by remember(number){mutableStateOf(false)}
     if(references&&referenceSettings.callReferences){CallReferencesWorkspace(number,{references=false},inSheet=true);return}
     var briefing by remember(number) { mutableStateOf(false) }
@@ -861,6 +864,7 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
         }
     }
     if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)CallToolsRow("call",{checklist=true},{estimate=true},{timeline=true},{briefing=true})
+    if(referenceSettings.messageDrafts&&runCatching{MessageDrafts.target(number)}.isSuccess)GhostButton("Message drafts",Modifier.testTag("call_message_drafts")){messageDrafts=true}
     if(referenceSettings.callReferences&&runCatching{CallReferences.key(number)}.isSuccess)GhostButton("Reference cards",Modifier.testTag("call_references_open")){references=true}
     Spacer(Modifier.height(6.dp))
     LdText("Naya note",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(bottom=8.dp))
