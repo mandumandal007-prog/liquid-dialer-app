@@ -21,8 +21,9 @@ import org.robolectric.shadows.ShadowContentResolver
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class HistoryDateRangeUiTest {
- @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+ @get:Rule val rule=createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private var failQuery=false
  private var opened=""
@@ -31,8 +32,8 @@ class HistoryDateRangeUiTest {
  private var lastSelection=""
  private var lastArgs=emptyList<String>()
  private val pageDate=System.currentTimeMillis()-10000
- private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
- private fun click(t:String){rule.onNodeWithTag(t).performScrollTo().performClick();settle()}
+ private fun settle(){org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
+ private fun click(t:String){rule.waitUntil(15000){settle();rule.onAllNodesWithTag(t).fetchSemanticsNodes().isNotEmpty()};rule.mainClock.autoAdvance=true;rule.onNodeWithTag(t).performScrollTo();rule.waitForIdle();rule.mainClock.autoAdvance=false;rule.onNodeWithTag(t).performClick();settle()}
  private fun show(theme:String="daylight",font:Float=1f){
   rule.mainClock.autoAdvance=false;settle()
   runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
@@ -54,7 +55,7 @@ class HistoryDateRangeUiTest {
    override fun update(u:Uri,v:ContentValues?,s:String?,a:Array<out String>?)=0
    override fun getType(u:Uri):String?=null
   })
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{HistoryExplorerPage(rule.activity.state,rule.activity,{}, {opened=it})}}};settle()
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{HistoryExplorerPage(rule.activity.state,rule.activity,{}, {opened=it})}}};settle()
  }
  @Test fun rangeButtonsFillDatesOnlyAndKeepLoadedResultsHonest(){
   show()
