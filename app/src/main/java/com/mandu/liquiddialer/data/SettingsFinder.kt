@@ -8,6 +8,7 @@ object SettingsFinder{
  val all=listOf(
   Entry("call-touch-guard","Call touch guard","Manual guard against accidental on-screen call-control taps","calls","calltouchguard",aliases="touch accidental pocket mute speaker guard"),
   Entry("launcher-contacts","Icon long-press shortcuts","New contact and selected phone numbers on home icon","calls","launchershortcuts",aliases="launcher tap hold home app icon shortcut contacts numbers"),
+  Entry("call-canvas","Call canvas","Per-number finger sketch with explicit local Save","calls","callcanvas",aliases="draw drawing sketch handwriting diagram map canvas"),
   Entry("message-drafts","Message drafts","Reusable local text with preview and explicit compose","calls","messagedrafts",aliases="sms whatsapp text message templates reply drafts"),
   Entry("call-references","Call reference cards","Per-number facts with explicit reveal and copy","calls","callreferences",aliases="customer order reference address cards facts"),
   Entry("display-0","Appearance control center","Sab display controls ek jagah","display","settings:display","Appearance control center"),
