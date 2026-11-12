@@ -52,6 +52,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.Repo
 import com.mandu.liquiddialer.data.CallReferences
+import com.mandu.liquiddialer.data.CallNoteReader
 import com.mandu.liquiddialer.data.MessageDrafts
 import com.mandu.liquiddialer.data.Note
 import com.mandu.liquiddialer.data.ContactControls
@@ -840,6 +841,8 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     var list by remember { mutableStateOf(try{Repo.notesChecked(ctx).filter{ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}catch(_:Exception){error="Notes khul nahi rahe. Saved file nahi badli.";emptyList()}) }
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     val referenceSettings by LdApp.settings.collectAsState()
+    var reader by remember(number){mutableStateOf(false)}
+    if(reader&&referenceSettings.callNoteReader){CallNotesReader(number,{reader=false});return}
     var canvas by remember(number){mutableStateOf(false)}
     if(canvas&&referenceSettings.callCanvas){CallCanvasWorkspace(number,{canvas=false},inSheet=true);return}
     var messageDrafts by remember(number){mutableStateOf(false)}
@@ -869,6 +872,7 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     if(referenceSettings.callCanvas&&runCatching{com.mandu.liquiddialer.data.CallCanvas.key(number)}.isSuccess)GhostButton("Call canvas",Modifier.testTag("call_canvas_open")){canvas=true}
     if(referenceSettings.messageDrafts&&runCatching{MessageDrafts.target(number)}.isSuccess)GhostButton("Message drafts",Modifier.testTag("call_message_drafts")){messageDrafts=true}
     if(referenceSettings.callReferences&&runCatching{CallReferences.key(number)}.isSuccess)GhostButton("Reference cards",Modifier.testTag("call_references_open")){references=true}
+    if(referenceSettings.callNoteReader&&CallNoteReader.eligible(number))GhostButton("Saved notes padho / khojo",Modifier.testTag("call_notes_reader_open")){reader=true}
     Spacer(Modifier.height(6.dp))
     LdText("Naya note",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(bottom=8.dp))
     LdField(text, { text = it }, "Call ke dauran note likho…", minLines = 3)
