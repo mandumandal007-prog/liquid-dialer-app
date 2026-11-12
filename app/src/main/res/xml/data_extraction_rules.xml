@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
     <cloud-backup>
+        <exclude domain="file" path="call_canvas.json" />
+        <exclude domain="file" path="call_canvas.json.bak" />
+        <exclude domain="file" path="call_canvas.json.new" />
+
         <exclude domain="sharedpref" path="launcher_contacts.xml" />
         <exclude domain="file" path="message_drafts.json" />
         <exclude domain="file" path="message_drafts.json.bak" />
@@ -12,6 +16,10 @@
         <exclude domain="sharedpref" path="call_background_photos.xml" />
         <exclude domain="file" path="call_backgrounds/" /></cloud-backup>
     <device-transfer>
+        <exclude domain="file" path="call_canvas.json" />
+        <exclude domain="file" path="call_canvas.json.bak" />
+        <exclude domain="file" path="call_canvas.json.new" />
+
         <exclude domain="sharedpref" path="launcher_contacts.xml" />
         <exclude domain="file" path="message_drafts.json" />
         <exclude domain="file" path="message_drafts.json.bak" />
