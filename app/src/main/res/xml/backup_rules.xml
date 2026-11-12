@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
+    <exclude domain="file" path="message_drafts.json" />
+    <exclude domain="file" path="message_drafts.json.bak" />
+    <exclude domain="file" path="message_drafts.json.new" />
     <exclude domain="file" path="manual_call_lists.json" />
         <exclude domain="file" path="manual_call_lists.json.bak" />
         <exclude domain="file" path="manual_call_lists.json.new" />
