@@ -20,17 +20,35 @@ import org.robolectric.annotation.GraphicsMode
 /** Number details ka "Home screen par call button" row: text + tap-safe + shot.
  *  Apni alag class me hai - doosri details-test ke saath ek JVM me Compose idle
  *  kabhi settle nahi hota tha (purani alarm/notification shadow state ke saath). */
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h1440dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class HomeShortcutUiTest {
 
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
 
     private fun settle(ms: Long = 1500) {
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        rule.runOnUiThread { androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications() }
         rule.mainClock.autoAdvance = false
         rule.mainClock.advanceTimeBy(ms)
         rule.waitForIdle()
+    }
+
+    /** The redesigned page keeps the toolbar fixed. Reveal the whole target before taps. */
+    private fun revealDetails(text:String) {
+        val node=rule.onNodeWithText(text,substring=true,useUnmergedTree=true)
+        repeat(30) {
+            val r=node.getUnclippedBoundsInRoot()
+            val scroll=rule.onNodeWithTag("page_content_scroll",true)
+            val view=scroll.getUnclippedBoundsInRoot()
+            if(r.top<view.top+androidx.compose.ui.unit.Dp(20f)||r.bottom>view.bottom-androidx.compose.ui.unit.Dp(80f)) {
+                scroll.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy){it(0f,if(r.top<view.top+androidx.compose.ui.unit.Dp(20f))-100f else 100f)}
+                settle(100)
+            }
+        }
+        node.assertIsDisplayed()
     }
 
     @Before
@@ -54,9 +72,14 @@ class HomeShortcutUiTest {
         org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.content.pm.ShortcutManager::class.java))
             .setIsRequestPinShortcutSupported(true)
         settle()
-        rule.onNodeWithText("Rahul Sharma", substring = true, useUnmergedTree = true).performClick()
+        rule.runOnUiThread {act.mountTestPage {com.mandu.liquiddialer.ui.LdThemeHost {
+            com.mandu.liquiddialer.ui.ContactDetailsFrame({}) {
+                com.mandu.liquiddialer.ui.NumberSheet("+91 98765 43210",act.state.contacts.first(),act.state,act,{}, {}, {})
+            }
+        }}}
         settle()
-        // tall viewport me row bina scroll ke dikhta hai (scroll-chain is harness me hang karta hai)
+        // Reveal the row on the redesigned page without the unbounded performScrollTo helper.
+        revealDetails("Home screen par call button")
         rule.onNodeWithText("Home screen par call button", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("Button dabate hi call lag jayega", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "42-home-shortcut-row")
