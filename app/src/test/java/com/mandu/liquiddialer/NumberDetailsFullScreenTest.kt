@@ -27,9 +27,26 @@ class NumberDetailsFullScreenTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
     private fun settle(ms: Long = 1500) {
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        rule.runOnUiThread { androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications() }
         rule.mainClock.autoAdvance = false
         rule.mainClock.advanceTimeBy(ms)
         rule.waitForIdle()
+    }
+
+    /** The redesigned page keeps the toolbar fixed. Reveal the whole target before taps. */
+    private fun revealDetails(text:String) {
+        val node=rule.onNodeWithText(text,substring=true,useUnmergedTree=true)
+        repeat(30) {
+            val r=node.getUnclippedBoundsInRoot()
+            val scroll=rule.onNodeWithTag("page_content_scroll",true)
+            val view=scroll.getUnclippedBoundsInRoot()
+            if(r.top<view.top+androidx.compose.ui.unit.Dp(20f)||r.bottom>view.bottom-androidx.compose.ui.unit.Dp(80f)) {
+                scroll.performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy){it(0f,if(r.top<view.top+androidx.compose.ui.unit.Dp(20f))-100f else 100f)}
+                settle(100)
+            }
+        }
+        node.assertIsDisplayed()
     }
 
     /** Content readiness, not a longer fixed sleep: navigation composition may still be pending. */
@@ -68,10 +85,11 @@ class NumberDetailsFullScreenTest {
         // notifications band state me warning row dikhni chahiye
         val nmShadow = org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.app.NotificationManager::class.java))
         nmShadow.setNotificationsEnabled(false)
-        rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performScrollTo()
+        revealDetails("Call reminder")
         settle(300)
         rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performClick()
         settle(400)
+        revealDetails("1 ghante baad")
         rule.onNodeWithText("30 min baad", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("1 ghante baad", substring = true, useUnmergedTree = true).assertIsDisplayed()
         rule.onNodeWithText("Shaam 6 baje", substring = true, useUnmergedTree = true).assertExists()
@@ -80,11 +98,11 @@ class NumberDetailsFullScreenTest {
         rule.onNodeWithText("Notifications band hain", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "38-call-reminder-presets")
         // preset set -> alarm + row par "Set:" dikhe
-        rule.onNodeWithText("1 ghante baad", substring = true, useUnmergedTree = true).performClick()
+        rule.onNode(hasClickAction() and hasAnyDescendant(hasText("1 ghante baad")),useUnmergedTree=true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick){it()}
         settle(400)
         val am = org.robolectric.Shadows.shadowOf(ctx.getSystemService(android.app.AlarmManager::class.java))
         assert(am.nextScheduledAlarm != null) { "preset click par alarm schedule hona chahiye" }
-        rule.onNodeWithText("Call reminder", substring = true, useUnmergedTree = true).performScrollTo()
+        revealDetails("Call reminder")
         settle(300)
         rule.onNodeWithText("Set:", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "38b-call-reminder-active")
