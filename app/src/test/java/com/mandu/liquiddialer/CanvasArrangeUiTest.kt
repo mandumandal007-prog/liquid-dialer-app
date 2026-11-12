@@ -1,0 +1,24 @@
+package com.mandu.liquiddialer
+import androidx.compose.ui.test.*
+import androidx.compose.ui.geometry.Offset
+import com.mandu.liquiddialer.data.*
+import org.junit.*
+import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.*
+@RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
+class CanvasArrangeUiTest:CallCanvasUiFixture(){
+ private fun select(night:Boolean=false){show(night);click("canvas_tool_select")}
+ private fun tapInk(){scrollTo("canvas_paper");rule.onNodeWithTag("canvas_paper",true).performTouchInput{click(Offset(width*.18f,height*.5f))};settle()}
+ private fun moveInk(cancelled:Boolean=false){scrollTo("canvas_paper");rule.onNodeWithTag("canvas_paper",true).performTouchInput{down(Offset(width*.18f,height*.5f));moveTo(Offset(width*.28f,height*.55f));if(cancelled)cancel()else up()};settle()}
+ @Test fun selectedSavedStrokeMovesOnlyOnLiftAndExplicitSave(){select();tapInk();rule.onNodeWithTag("canvas_selection",true).assertTextContains("Selected stroke 1",substring=true);moveInk();assertEquals(sketch,CallCanvas.read(ctx,number).strokes);click("canvas_save");await{CallCanvas.read(ctx,number).strokes.first()!=sketch.first()};val after=CallCanvas.read(ctx,number).strokes;assertEquals(sketch.drop(1),after.drop(1));assertEquals(sketch.first().points.size,after.first().points.size);click("canvas_undo");rule.onNodeWithTag("canvas_state",true).assertTextEquals("Unsaved drawing");click("canvas_redo");rule.onNodeWithTag("canvas_state",true).assertTextEquals("Saved · 3 strokes")}
+ @Test fun copyAndRemoveEachUndoWithDiskUntouched(){select();tapInk();click("canvas_copy");assertEquals(sketch,CallCanvas.read(ctx,number).strokes);click("canvas_save");await{CallCanvas.read(ctx,number).strokes.size==4};click("canvas_remove");assertEquals(4,CallCanvas.read(ctx,number).strokes.size);click("canvas_undo");rule.onNodeWithTag("canvas_state",true).assertTextEquals("Saved · 4 strokes");click("canvas_redo");click("canvas_save");await{CallCanvas.read(ctx,number).strokes==sketch}}
+ @Test fun emptyTapClearsSelectionWithoutChangingInk(){select();tapInk();scrollTo("canvas_paper");rule.onNodeWithTag("canvas_paper",true).performTouchInput{click(Offset(width*.95f,height*.1f))};settle();rule.onNodeWithTag("canvas_selection",true).assertTextContains("Nothing selected",substring=true);rule.onNodeWithTag("canvas_copy",true).assertIsNotEnabled();rule.onNodeWithTag("canvas_state",true).assertTextEquals("Saved · 3 strokes")}
+ @Test fun cancelledMovePreservesInkAndSelection(){select();tapInk();moveInk(true);rule.onNodeWithTag("canvas_selection",true).assertTextContains("Selected stroke 1",substring=true);rule.onNodeWithTag("canvas_state",true).assertTextEquals("Saved · 3 strokes");assertEquals(sketch,CallCanvas.read(ctx,number).strokes)}
+ @Test fun undoSelectionClearsAndPenStillDraws(){select();tapInk();click("canvas_remove");click("canvas_undo");rule.onNodeWithTag("canvas_selection",true).assertTextContains("Nothing selected",substring=true);click("canvas_tool_pen");stroke();click("canvas_save");await{CallCanvas.read(ctx,number).strokes.size==4}}
+ @Test fun movePreviewDoesNotCommitBeforeLiftAndMultitouchCancels(){select();tapInk();scrollTo("canvas_paper");rule.onNodeWithTag("canvas_paper",true).performTouchInput{down(Offset(width*.18f,height*.5f));moveTo(Offset(width*.28f,height*.55f))};settle();rule.onNodeWithTag("canvas_state",true).assertTextEquals("Saved · 3 strokes");rule.onNodeWithTag("canvas_copy",true).assertIsNotEnabled();assertEquals(sketch,CallCanvas.read(ctx,number).strokes);rule.onNodeWithTag("canvas_paper",true).performTouchInput{down(1,Offset(width*.6f,height*.6f));up(0);up(1)};settle();rule.onNodeWithTag("canvas_state",true).assertTextEquals("Saved · 3 strokes");rule.onNodeWithTag("canvas_selection",true).assertTextContains("Selected stroke 1",substring=true);assertEquals(sketch,CallCanvas.read(ctx,number).strokes)}
+ @Test fun movedInkReopensAndOtherNumbersStaySeparate(){select();moveInk();click("canvas_save");await{CallCanvas.read(ctx,number).strokes.first()!=sketch.first()};val saved=CallCanvas.read(ctx,number).strokes;rule.runOnUiThread{rule.activity.mountTestPage{com.mandu.liquiddialer.ui.LdThemeHost{com.mandu.liquiddialer.ui.CallCanvasWorkspace(number,{})}}};await{rule.onAllNodesWithTag("canvas_paper",true).fetchSemanticsNodes().isNotEmpty()};rule.onNodeWithTag("canvas_state",true).assertTextEquals("Saved · 3 strokes");assertEquals(saved,CallCanvas.read(ctx,number).strokes);assertTrue(CallCanvas.read(ctx,"+441234567890").strokes.isEmpty())}
+ @Test fun daySelectionPixels(){select();tapInk();scrollTo("canvas_paper");settle();saveShot(rule,"ARRANGE424-day")}
+ @Test fun nightLargeSelectionPixels(){select(true);tapInk();scrollTo("canvas_selection");settle();saveShot(rule,"ARRANGE424-night-large")}
+}
