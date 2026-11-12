@@ -37,6 +37,13 @@ import java.util.*
 
 @Composable
 fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null, onTimeline: (() -> Unit)? = null, onBriefing: (() -> Unit)? = null) {
+    CompositionLocalProvider(LocalContactDetails provides true,LocalQuietRows provides true){
+        NumberSheetContent(number,contact,st,act,onClose,onEdit,onNotes,onLongNumber,onChecklist,onEstimate,onTimeline,onBriefing)
+    }
+}
+
+@Composable
+private fun NumberSheetContent(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null, onTimeline: (() -> Unit)? = null, onBriefing: (() -> Unit)? = null) {
     val s by com.mandu.liquiddialer.LdApp.settings.collectAsState()
     val p = LocalLd.current
     val ctx = LocalContext.current
@@ -53,28 +60,17 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     val notesRead = remember(number) {runCatching {Repo.notesChecked(ctx).filter {ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}}
     val notes=notesRead.getOrDefault(emptyList())
 
-    Column(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(24.dp),0.dp).padding(14.dp).testTag("details_identity_card")) {
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
-            Avatar(name,contact?.photo,56.dp,20f,seed=name)
-            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
-                LdText(if(contact!=null)"CONTACT"else"PHONE NUMBER",9.5f,FontWeight.Bold,p.accent,letter=1.1f)
-                LdText(name,19f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.fillMaxWidth().then(if(contact==null&&number.isNotBlank())Modifier.combinedClickable(onClick={},onLongClick={onLongNumber(number)})else Modifier).testTag("details_name"))
-                if(contact!=null&&contact.label.isNotBlank())LdText(contact.label,11.5f,color=p.muted,maxLines=Int.MAX_VALUE)
-            }
-        }
-        if(number.isNotBlank()){
-            Spacer(Modifier.height(10.dp))
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.accent.copy(alpha=.06f))
-                .combinedClickable(onClick={},onLongClick={onLongNumber(number)}).padding(horizontal=12.dp,vertical=9.dp).testTag("details_number_options")){
-                if(contact!=null)LdText(Repo.pretty(number),15f,FontWeight.Medium,maxLines=Int.MAX_VALUE,modifier=Modifier.fillMaxWidth().testTag("details_number"))
-                LdText("Number par dabake rakho = options",10f,color=p.muted,maxLines=2)
-            }
-        }
-        Spacer(Modifier.height(14.dp))
+    Column(Modifier.fillMaxWidth().padding(top=12.dp,bottom=20.dp).testTag("details_identity_card"),horizontalAlignment=Alignment.CenterHorizontally) {
+        Avatar(name,contact?.photo,96.dp,34f,seed=name)
+        Spacer(Modifier.height(18.dp))
+        LdText(name,28f,FontWeight.Medium,maxLines=Int.MAX_VALUE,textAlign=androidx.compose.ui.text.style.TextAlign.Center,
+            modifier=Modifier.fillMaxWidth().then(if(contact==null&&number.isNotBlank())Modifier.combinedClickable(onClick={},onLongClick={onLongNumber(number)})else Modifier).testTag("details_name"))
+        if(contact!=null&&contact.label.isNotBlank())LdText(contact.label,13f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.padding(top=6.dp))
+        Spacer(Modifier.height(22.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            ActionBubble(LdIcons.Phone, "Call", true) { onClose(); act.call(number) }
+            ActionBubble(LdIcons.Phone, "Call", true,modifier=Modifier.testTag("details_call")) { onClose(); act.call(number) }
             ActionBubble(LdIcons.Message, "SMS",modifier=Modifier.testTag("details_sms")) { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
-            ActionBubble(LdIcons.Message, "WhatsApp") {
+            ActionBubble(LdIcons.Message, "WhatsApp",modifier=Modifier.testTag("details_whatsapp")) {
                 val wa = com.mandu.liquiddialer.data.WhatsAppLink.url(number)
                 if (wa == null) Toast.makeText(ctx, "Is number ke liye WhatsApp link nahi ban sakta", Toast.LENGTH_SHORT).show()
                 else try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(wa))) } catch (_: Exception) { Toast.makeText(ctx, "WhatsApp nahi khul paya", Toast.LENGTH_SHORT).show() }
@@ -84,7 +80,41 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             }
         }
     }
-    Spacer(Modifier.height(16.dp))
+    if(number.isNotBlank()){
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.accent.copy(alpha=if(p.isLight).07f else .12f))
+            .combinedClickable(onClick={},onLongClick={onLongNumber(number)}).padding(20.dp).testTag("details_number_options")){
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)){
+                LdIcon(LdIcons.Phone,22.dp,p.accent)
+                Column(Modifier.weight(1f)){
+                    LdText(Repo.pretty(number),18f,FontWeight.Medium,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("details_number"))
+                    LdText(contact?.label?.ifBlank{"Phone"}?:"Phone",12f,color=p.muted,modifier=Modifier.padding(top=4.dp))
+                }
+            }
+            LdText("Number par dabake rakho = options",11f,color=p.muted,maxLines=3,modifier=Modifier.padding(top=12.dp))
+        }
+    }
+    Spacer(Modifier.height(18.dp))
+    if (history.isNotEmpty()) {
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            LdText("Recent activity", 14f, FontWeight.Medium, p.muted)
+            Box(Modifier.clip(RoundedCornerShape(10.dp)).clickable { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }.padding(6.dp)) {
+                LdText("Delete", 12f, FontWeight.SemiBold, p.danger)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.accent.copy(alpha=if(p.isLight).07f else .12f)).padding(16.dp)) {
+            history.take(15).forEach { r ->
+                val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    LdIcon(typeIcon(r.type), 15.dp, if (missed) p.danger else p.muted)
+                    LdText(typeLabel(r.type), 13f, FontWeight.SemiBold, if (missed) p.danger else p.text, Modifier.weight(1f))
+                    LdText(df.format(Date(r.date)) + if (r.duration > 0) "  ·  " + fmtDur(r.duration) else "", 11.5f, color = p.muted)
+                }
+            }
+        }
+    }
+    SecTitle("Contact settings")
     if (number.isNotBlank()) Box(Modifier.testTag("autoredial_start")) {
         SheetRow(LdIcons.Phone, "Auto-redial", "Busy/na lage to khud 5 baar dobara try - Rok do se band") {
             onClose()
@@ -170,6 +200,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
                 }
             }
         }
+        SecTitle("Call preferences")
         var quietBypass by remember { mutableStateOf(com.mandu.liquiddialer.data.ContactControls.quietAllow(ctx, number)) }
         SwitchRow("Quiet hours me bajne do", "Is number ki call quiet hours me bhi ring karegi", quietBypass) {
             quietBypass = it; com.mandu.liquiddialer.data.ContactControls.setQuietAllow(ctx, number, it)
@@ -203,6 +234,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             Toast.makeText(ctx, "Yaad kiya naam hata diya", Toast.LENGTH_SHORT).show()
             }
         }
+        SecTitle("Call tools")
         if(runCatching{CallLists.number(number)}.isSuccess)CallToolsRow("details",onChecklist,onEstimate,onTimeline,onBriefing)
         if(com.mandu.liquiddialer.data.FeatureControls.enabled(s,"notes")) SheetRow(LdIcons.Edit, if(notesRead.isFailure) "Notes load nahi hue" else "Notes (${notes.size})") { onNotes() }
         SheetRow(LdIcons.Clock, "Call reminder", reminder?.let { "Set: " + df.format(Date(it.atMs)) }) { remindOpen = !remindOpen }
@@ -251,26 +283,6 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
             act.reload()
         }
     }
-    if (history.isNotEmpty()) {
-        Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            LdText("CALL HISTORY", 12f, FontWeight.Bold, p.muted, letter = 1.2f)
-            Box(Modifier.buttonGlass(p,RoundedCornerShape(10.dp)).clickable { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }.padding(6.dp)) {
-                LdText("Delete", 12f, FontWeight.SemiBold, p.danger)
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-        GlassCard(radius = 20.dp, padding = 12.dp) {
-            history.take(15).forEach { r ->
-                val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    LdIcon(typeIcon(r.type), 15.dp, if (missed) p.danger else p.muted)
-                    LdText(typeLabel(r.type), 13f, FontWeight.SemiBold, if (missed) p.danger else p.text, Modifier.weight(1f))
-                    LdText(df.format(Date(r.date)) + if (r.duration > 0) "  ·  " + fmtDur(r.duration) else "", 11.5f, color = p.muted)
-                }
-            }
-        }
-    }
     if (contact != null) {
         Spacer(Modifier.height(10.dp))
         SheetRow(LdIcons.Trash, "Contact delete karo", danger = true) { confirmDelete = true }
@@ -286,18 +298,22 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
 @Composable
 fun ActionBubble(icon: ImageVector, label: String, on: Boolean = false, modifier:Modifier=Modifier, onClick: () -> Unit) {
     val p = LocalLd.current
-    Column(modifier=modifier,horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        IconBtn(icon, 52.dp, 22.dp, on = on, onClick = onClick)
-        LdText(label, 11f, FontWeight.SemiBold, p.muted)
+    Column(modifier=modifier.then(if(LocalContactDetails.current)Modifier.clickable(onClick=onClick)else Modifier),horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if(LocalContactDetails.current)Box(Modifier.width(68.dp).height(48.dp).clip(RoundedCornerShape(24.dp))
+            .background(p.accent.copy(alpha=if(on).22f else .10f)),contentAlignment=Alignment.Center){LdIcon(icon,23.dp,p.accent)}
+        else IconBtn(icon, 52.dp, 22.dp, on = on, onClick = onClick)
+        LdText(label, 11f, if(LocalContactDetails.current)FontWeight.Medium else FontWeight.SemiBold, if(LocalContactDetails.current)p.text else p.muted,maxLines=2)
     }
 }
 
 @Composable
 fun SheetRow(icon: ImageVector, title: String, sub: String? = null, danger: Boolean = false, onLongClick: (() -> Unit)? = null, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val p = LocalLd.current
-    Row(modifier.fillMaxWidth().padding(vertical = 3.dp).buttonGlass(p, RoundedCornerShape(16.dp)).combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+    val flat=LocalContactDetails.current
+    Row(modifier.fillMaxWidth().padding(vertical = if(flat)1.dp else 3.dp)
+        .then(if(flat)Modifier.clip(RoundedCornerShape(18.dp))else Modifier.buttonGlass(p,RoundedCornerShape(16.dp))).combinedClickable(onLongClick = onLongClick, onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background((if (danger) p.danger else p.accent).pct(.16f)), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(if(flat)Color.Transparent else (if (danger) p.danger else p.accent).pct(.16f)), contentAlignment = Alignment.Center) {
             LdIcon(icon, 17.dp, if (danger) p.danger else p.accent)
         }
         Column(Modifier.weight(1f)) {
