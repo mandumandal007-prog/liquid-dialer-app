@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -36,6 +37,8 @@ import kotlin.math.roundToInt
   LdText("Baat suno. Ungli se idea banao.",23f,FontWeight.Bold,maxLines=4)
   LdText("Pen, line, arrow, box aur oval se diagram banao. Select se ink ko move, copy ya remove karo. Har full number ka apna saved canvas. Save dabao. App ya Notes sheet band hone par unsaved ink jaa sakti hai.",14f,color=p.muted,maxLines=7)
   SwitchRow("Show canvas in call Notes","Default OFF. Entry hide karne se saved drawings delete nahi hote.",s.callCanvas,last=true){scope.launch{try{LdApp.instance.repo.set(K.callCanvas,it)}catch(_:Exception){error="Setting save nahi hui"}}}
+  SwitchRow("Canvas resize, rotate & mirror","Default OFF. Select ink to show tools. Each edit has Undo; Save stays explicit.",s.canvasTransform,last=true){scope.launch{try{LdApp.instance.repo.set(K.canvasTransform,it)}catch(_:Exception){error="Setting save nahi hui"}}}
+  LdText("Size ±10%, rotate ±15°, mirror left/right or up/down around selected ink center. Paper edge par edit refuse hota hai, clip nahi. Pen width same rahegi. One stroke/shape at a time.",12f,color=p.muted,maxLines=8)
   LdField(number,{number=it.take(40)},"Full phone number",modifier=Modifier.testTag("canvas_number_input"))
   PrimaryButton("Open this number's canvas",modifier=Modifier.testTag("canvas_open")){runCatching{CallCanvas.key(number)}.fold({open=number;error=""},{error="Sahi full phone number daalo"})}
   LdText("Offline finger sketch only. Koi AI/handwriting recognition, call recording, auto-send ya cloud sync nahi. Plain local data, encrypted vault nahi; secrets mat likho. Backup/transfer mein include nahi.",12f,color=p.muted,maxLines=10)
@@ -44,13 +47,23 @@ import kotlin.math.roundToInt
 }
 
 @Composable fun CallCanvasWorkspace(number:String,onBack:()->Unit,inSheet:Boolean=false){
- val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope()
+ val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope();val settings by LdApp.settings.collectAsState()
+ var paperAspect by remember{mutableDoubleStateOf(0.0)}
  var snapshot by remember(number){mutableStateOf<CallCanvas.Snapshot?>(null)};var history by remember(number){mutableStateOf(CallCanvas.History(emptyList()))};var revision by remember(number){mutableIntStateOf(0)}
  var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")};var status by remember(number){mutableStateOf("")};var ink by remember(number){mutableIntStateOf(0)};var width by remember(number){mutableIntStateOf(2)}
  var selecting by remember(number){mutableStateOf(false)};var selected by remember(number){mutableStateOf<Int?>(null)}
  var tool by remember(number){mutableStateOf(CanvasShapes.Tool.PEN)}
  var confirm by remember(number){mutableStateOf("")};var drawing by remember(number){mutableStateOf(false)}
  val strokes=remember(revision,history){history.strokes};val dirty=snapshot!=null&&strokes!=snapshot!!.strokes
+ fun transform(edit:CanvasTransform.Edit){
+  if(busy||drawing||!settings.canvasTransform||paperAspect<=0)return
+  val i=selected?:return;val original=strokes.getOrNull(i)?:return
+  val next=CanvasTransform.apply(original,edit,paperAspect)
+  status=when{next==null->"Paper edge: edit nahi hua. Ink ko center ki taraf move karo ya chhota karo."
+   next==original->"Is stroke par is edit se koi badlav nahi hua."
+   history.replace(i,next)->{revision++;"${edit.label} · Unsaved · Undo available"}
+   else->"Edit nahi hua. Drawing unchanged."}
+ }
  fun load(){busy=true;scope.launch{try{val next=withContext(Dispatchers.IO){CallCanvas.read(ctx,number)};selected=null;snapshot=next;history=CallCanvas.History(next.strokes);revision++;error="";status="Saved canvas loaded"}catch(_:Exception){snapshot=null;error="Canvas load nahi hua. Saved file preserve hai; drawing/save band hain."}finally{busy=false}}}
  fun back(){if(busy||drawing)return;if(dirty)confirm="back"else onBack()}
  LaunchedEffect(number){load()};BackHandler{back()}
@@ -71,8 +84,16 @@ import kotlin.math.roundToInt
      PrimaryButton("Copy",enabled=selected!=null&&!busy&&!drawing,modifier=Modifier.weight(1f).testTag("canvas_copy")){selected?.let{i->if(history.add(CanvasArrange.duplicate(strokes[i]))){selected=history.strokes.lastIndex;revision++;status="Copy added · Undo available"}else status="Canvas full. Copy not added."}}
      PrimaryButton("Remove",enabled=selected!=null&&!busy&&!drawing,danger=true,modifier=Modifier.weight(1f).testTag("canvas_remove")){selected?.let{i->if(history.remove(i)){selected=null;revision++;status="Stroke removed · Undo available"}}}
     }
+    if(settings.canvasTransform){
+     Column(Modifier.fillMaxWidth().testTag("canvas_transforms"),verticalArrangement=Arrangement.spacedBy(6.dp)){
+      LdText("Resize · rotate · mirror",14f,FontWeight.Bold,maxLines=3)
+      LdText("Center pivot · pen width same · edge crossing refused. Har edit ka Undo; Save dabane tak local file nahi badlegi.",12f,color=p.muted,maxLines=5)
+      CanvasTransform.Edit.entries.chunked(2).forEach{edits->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){edits.forEach{edit->PrimaryButton(edit.label,enabled=selected!=null&&!busy&&!drawing&&paperAspect>0,modifier=Modifier.weight(1f).testTag("canvas_transform_${edit.name.lowercase()}")){transform(edit)}}}}
+      if(status.isNotEmpty())LdText(status,12f,color=p.muted,maxLines=5,modifier=Modifier.testTag("canvas_transform_status"))
+     }
+    }
    }
-   CanvasInk(strokes,ink,width,tool,selecting,selected,!busy,{drawing=it},{selected=it},{i,stroke->if(history.replace(i,stroke)){selected=i;revision++;status="Stroke moved · Undo available"}}){stroke->if(history.add(stroke)){revision++;status=""}else status="Canvas full. Undo/clear karke jagah banao; Save se limit reset nahi hoti."}
+   CanvasInk(strokes,ink,width,tool,selecting,selected,!busy,{paperAspect=it},{drawing=it},{selected=it},{i,stroke->if(history.replace(i,stroke)){selected=i;revision++;status="Stroke moved · Undo available"}}){stroke->if(history.add(stroke)){revision++;status=""}else status="Canvas full. Undo/clear karke jagah banao; Save se limit reset nahi hoti."}
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
     PrimaryButton("Undo",enabled=!busy&&!drawing&&history.canUndo,modifier=Modifier.weight(1f).testTag("canvas_undo")){history.undo();selected=null;revision++;status=""}
     PrimaryButton("Redo",enabled=!busy&&!drawing&&history.canRedo,modifier=Modifier.weight(1f).testTag("canvas_redo")){history.redo();selected=null;revision++;status=""}
@@ -96,12 +117,12 @@ import kotlin.math.roundToInt
 }
 
 private val CanvasColors=listOf(Color(0xff263449),Color(0xff245be0),Color(0xffd83d51),Color(0xff168054))
-@Composable private fun CanvasInk(strokes:List<CallCanvas.Stroke>,ink:Int,width:Int,tool:CanvasShapes.Tool,selecting:Boolean,selected:Int?,enabled:Boolean,onDrawing:(Boolean)->Unit,onSelect:(Int?)->Unit,onMove:(Int,CallCanvas.Stroke)->Unit,onStroke:(CallCanvas.Stroke)->Unit){
+@Composable private fun CanvasInk(strokes:List<CallCanvas.Stroke>,ink:Int,width:Int,tool:CanvasShapes.Tool,selecting:Boolean,selected:Int?,enabled:Boolean,onAspect:(Double)->Unit,onDrawing:(Boolean)->Unit,onSelect:(Int?)->Unit,onMove:(Int,CallCanvas.Stroke)->Unit,onStroke:(CallCanvas.Stroke)->Unit){
  var preview by remember{mutableStateOf<List<CallCanvas.Point>>(emptyList())}
  var movingIndex by remember{mutableStateOf<Int?>(null)};var moved by remember{mutableStateOf<CallCanvas.Stroke?>(null)}
  val latestStrokes by rememberUpdatedState(strokes);val latestSelect by rememberUpdatedState(onSelect);val latestMove by rememberUpdatedState(onMove)
  val latestStroke by rememberUpdatedState(onStroke);val latestDrawing by rememberUpdatedState(onDrawing)
- Canvas(Modifier.fillMaxWidth().aspectRatio(1.1f).padding(vertical=8.dp).clip(RoundedCornerShape(20.dp)).background(Color(0xfffffbef)).testTag("canvas_paper").semantics{contentDescription="Finger drawing canvas, ${strokes.size} strokes. Use text Notes if finger drawing is not accessible."}.pointerInput(ink,width,tool,selecting,enabled){
+ Canvas(Modifier.fillMaxWidth().aspectRatio(1.1f).padding(vertical=8.dp).onSizeChanged{if(it.height>0)onAspect(it.width.toDouble()/it.height)}.clip(RoundedCornerShape(20.dp)).background(Color(0xfffffbef)).testTag("canvas_paper").semantics{contentDescription="Finger drawing canvas, ${strokes.size} strokes. Use text Notes if finger drawing is not accessible."}.pointerInput(ink,width,tool,selecting,enabled){
   if(!enabled)return@pointerInput
   awaitEachGesture{
    val first=awaitFirstDown(requireUnconsumed=true);first.consume();latestDrawing(true)

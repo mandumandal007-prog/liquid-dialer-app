@@ -86,6 +86,7 @@ data class LdSettings(
     val callReferences: Boolean = false,
     val messageDrafts: Boolean = false,
     val callNoteReader: Boolean = false,
+    val canvasTransform: Boolean = false,
     val callCanvas: Boolean = false,
     val ivrHelper: Boolean = false,
     val quietWeekMode: Boolean = false,
@@ -232,6 +233,7 @@ object K {
     val callReferences = booleanPreferencesKey("call_references")
     val messageDrafts = booleanPreferencesKey("message_drafts")
     val callNoteReader = booleanPreferencesKey("call_note_reader")
+    val canvasTransform = booleanPreferencesKey("canvas_transform")
     val callCanvas = booleanPreferencesKey("call_canvas")
     val ivrHelper = booleanPreferencesKey("ivr_helper")
     val quietWeekMode = booleanPreferencesKey("quietWeekMode")
@@ -368,6 +370,7 @@ fun Preferences.toSettings(): LdSettings {
         callReferences = this[K.callReferences] ?: false,
         messageDrafts = this[K.messageDrafts] ?: false,
         callNoteReader = this[K.callNoteReader] ?: false,
+        canvasTransform = this[K.canvasTransform] ?: false,
         callCanvas = this[K.callCanvas] ?: false,
         ivrHelper = this[K.ivrHelper] ?: false,
     quietWeekMode = this[K.quietWeekMode] ?: false,
