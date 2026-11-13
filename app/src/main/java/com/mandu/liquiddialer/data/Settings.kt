@@ -86,6 +86,7 @@ data class LdSettings(
     val callReferences: Boolean = false,
     val messageDrafts: Boolean = false,
     val callNoteReader: Boolean = false,
+    val callConverter: Boolean = false,
     val checklistOrganizer: Boolean = false,
     val canvasTransform: Boolean = false,
     val callCanvas: Boolean = false,
@@ -234,6 +235,7 @@ object K {
     val callReferences = booleanPreferencesKey("call_references")
     val messageDrafts = booleanPreferencesKey("message_drafts")
     val callNoteReader = booleanPreferencesKey("call_note_reader")
+    val callConverter = booleanPreferencesKey("call_converter")
     val checklistOrganizer = booleanPreferencesKey("checklist_organizer")
     val canvasTransform = booleanPreferencesKey("canvas_transform")
     val callCanvas = booleanPreferencesKey("call_canvas")
@@ -372,6 +374,7 @@ fun Preferences.toSettings(): LdSettings {
         callReferences = this[K.callReferences] ?: false,
         messageDrafts = this[K.messageDrafts] ?: false,
         callNoteReader = this[K.callNoteReader] ?: false,
+        callConverter = this[K.callConverter] ?: false,
         checklistOrganizer = this[K.checklistOrganizer] ?: false,
         canvasTransform = this[K.canvasTransform] ?: false,
         callCanvas = this[K.callCanvas] ?: false,
