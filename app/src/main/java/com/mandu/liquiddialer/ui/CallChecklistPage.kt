@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
  var loaded by remember(number){mutableStateOf(false)};var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")}
  var editor by remember(number){mutableStateOf<String?>(null)};var draft by remember(number){mutableStateOf("")};var original by remember(number){mutableStateOf("")}
  var focus by remember(number){mutableStateOf(false)}
+ var organizer by remember(number){mutableStateOf(false)}
  var templates by remember(number){mutableStateOf(false)}
  var discard by remember(number){mutableStateOf(false)};var confirm by remember(number){mutableStateOf<String?>(null)}
  fun update(action:()->List<CallChecklist.Item>,after:()->Unit={}) {
@@ -60,6 +61,7 @@ import kotlinx.coroutines.withContext
   if(FeatureControls.enabled(features,"templates")) PrimaryButton("Reusable templates",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_templates")){templates=true}
   Spacer(Modifier.height(8.dp))
   if(FeatureControls.enabled(features,"focus")) PrimaryButton("Ek-ek topic · Focus",enabled=!busy&&error.isEmpty()&&rows.isNotEmpty(),modifier=Modifier.testTag("checklist_focus")){focus=true}
+  if(features.checklistOrganizer)PrimaryButton("Checklist organize karo",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_organizer_open")){organizer=true}
   if(rows.isEmpty())LdText("Abhi koi topic nahi. Agli call ke liye sawaal, order ya follow-up likho.",13f,color=p.muted,maxLines=4)
   rows.forEach{item->GlassCard(Modifier.padding(top=10.dp).testTag("checklist_item_${item.id}")){
    Row(verticalAlignment=Alignment.Top){Checkbox(item.done,{on->update({CallChecklist.done(ctx,number,item.id,on)})},enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_tick_${item.id}"));Column(Modifier.weight(1f).padding(top=10.dp)){
@@ -79,6 +81,7 @@ import kotlinx.coroutines.withContext
  }
 
  }
+ if(organizer){ChecklistOrganizerWorkspace(number,{organizer=false},{next->rows=next},inSheet);return}
  if(focus){ChecklistFocusWorkspace(number,{focus=false},{next->rows=next},inSheet);return}
  if(templates){ChecklistTemplatesWorkspace(number,{templates=false},{next->rows=next},inSheet);return}
  if(inSheet)Column{SheetTitle("Call checklist");PrimaryButton("Notes par wapas",modifier=Modifier.testTag("checklist_notes_back")){back()};content()}else PageFrame("Call checklist",{back()},content=content)
