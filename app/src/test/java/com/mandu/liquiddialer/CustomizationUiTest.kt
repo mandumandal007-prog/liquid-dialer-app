@@ -19,10 +19,23 @@ import org.robolectric.annotation.GraphicsMode
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(ExperimentalTestApi::class)
 class CustomizationUiTest {
-    @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+    // Keep settings-triggered test frames on the controlled test scheduler.
+    // Otherwise a Default-dispatcher settings emission can resume a frame there.
+    private val dispatcher=kotlinx.coroutines.test.StandardTestDispatcher()
+    @get:Rule(order=0) val initial=object:org.junit.rules.ExternalResource(){override fun before(){
+        runBlocking{app.ldStore.edit{p->p[K.onboarded]=true;p[K.motion]=false;p[K.theme]="daylight";p[K.fontScale]=1f;p[K.fontStyle]=0;p[K.iconStyle]=0}}
+    }}
+    @get:Rule(order=1) val rule=createAndroidComposeRule<MainActivity>(effectContext=dispatcher)
     private val app get()=ApplicationProvider.getApplicationContext<LdApp>()
-    private fun settle(){rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
+    private fun settle(){
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()}
+        dispatcher.scheduler.runCurrent()
+        rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(800)
+        dispatcher.scheduler.runCurrent();rule.waitForIdle()
+    }
     private fun await(c:()->Boolean){repeat(40){org.robolectric.shadows.ShadowLooper.idleMainLooper();settle();if(c())return;Thread.sleep(50)};error("timeout settings="+LdApp.settings.value)}
 
     @Before fun seed(){
@@ -44,6 +57,14 @@ class CustomizationUiTest {
         org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
         settle()
         await{rule.onAllNodesWithTag("drawer_open",useUnmergedTree=true).fetchSemanticsNodes().size==1}
+    }
+
+    @After fun disposeSceneBeforePendingSettingsUpdates(){
+        // Last style reset emits asynchronously. Dispose the owner before teardown
+        // so the collector cannot schedule a frame on a completed test clock.
+        rule.runOnUiThread{(rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content)).removeAllViews()}
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        dispatcher.scheduler.runCurrent()
     }
 
     private fun openAppearance(){
