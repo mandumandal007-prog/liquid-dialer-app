@@ -56,6 +56,14 @@ object CallChecklist {
  @Synchronized fun markChecked(ctx:Context,number:String,original:Item,value:Boolean):List<Item>{
   return change(ctx,number,original.id){current->require(current==original){"Topic doosri jagah badla hai; dobara load karo"};current.copy(done=value)}
  }
+ /** Exact snapshot and identity set: organize only, never add/delete/edit text. */
+ @Synchronized fun organizeChecked(ctx:Context,number:String,expected:List<Item>,next:List<Item>):List<Item>{
+  val k=key(number);val all=readAll(ctx);val current=all[k].orEmpty()
+  require(current==expected){"Checklist doosri jagah badli hai. Reload karo; draft save nahi hua."}
+  ChecklistOrganizer.validate(expected,next)
+  if(next!=current&&next.isNotEmpty()){all[k]=next.toList();write(ctx,all)}
+  return next.toList()
+ }
  @Synchronized fun done(ctx:Context,number:String,id:String,value:Boolean)=change(ctx,number,id){it.copy(done=value)}
  @Synchronized fun remove(ctx:Context,number:String,id:String)=change(ctx,number,id){null}
  @Synchronized fun reset(ctx:Context,number:String):List<Item> {val k=key(number);val all=readAll(ctx);val next=all[k].orEmpty().map{it.copy(done=false)};if(next.isNotEmpty()){all[k]=next;write(ctx,all)};return next}
