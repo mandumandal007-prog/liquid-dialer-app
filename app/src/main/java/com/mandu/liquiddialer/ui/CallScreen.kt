@@ -843,6 +843,8 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     val referenceSettings by LdApp.settings.collectAsState()
     var reader by remember(number){mutableStateOf(false)}
     if(reader&&referenceSettings.callNoteReader){CallNotesReader(number,{reader=false});return}
+    var dates by remember(number){mutableStateOf(false)}
+    if(dates&&referenceSettings.callDates){CallDatesWorkspace({dates=false},inSheet=true);return}
     var converter by remember(number){mutableStateOf(false)}
     if(converter&&referenceSettings.callConverter){CallConverterWorkspace({converter=false},inSheet=true);return}
     var canvas by remember(number){mutableStateOf(false)}
@@ -871,6 +873,7 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
         }
     }
     if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)CallToolsRow("call",{checklist=true},{estimate=true},{timeline=true},{briefing=true})
+    if(referenceSettings.callDates)GhostButton("Date calculator",Modifier.testTag("call_dates_open")){dates=true}
     if(referenceSettings.callConverter)GhostButton("Unit converter",Modifier.testTag("call_converter_open")){converter=true}
     if(referenceSettings.callCanvas&&runCatching{com.mandu.liquiddialer.data.CallCanvas.key(number)}.isSuccess)GhostButton("Call canvas",Modifier.testTag("call_canvas_open")){canvas=true}
     if(referenceSettings.messageDrafts&&runCatching{MessageDrafts.target(number)}.isSuccess)GhostButton("Message drafts",Modifier.testTag("call_message_drafts")){messageDrafts=true}
