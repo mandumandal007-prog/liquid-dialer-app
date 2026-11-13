@@ -26,8 +26,13 @@ import org.robolectric.shadows.ShadowContentResolver
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(ExperimentalTestApi::class)
 class FavWidgetCallUiTest {
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order=0) val initial=object:org.junit.rules.ExternalResource(){override fun before(){
+        runBlocking {app.ldStore.edit{it[K.onboarded]=true;it[K.motion]=false;it[K.undoCall]=false;it[K.simMemory]=false;it[K.theme]="daylight"}}
+    }}
+    private val dispatcher=kotlinx.coroutines.test.StandardTestDispatcher()
+    @get:Rule(order=1) val rule = createAndroidComposeRule<MainActivity>(effectContext=dispatcher)
     private val queryTrace=java.util.concurrent.CopyOnWriteArrayList<String>()
     private val fake = object : android.content.ContentProvider() {
         val delegate=FavWidgetChooserUiTest.FakeDetailProvider()
@@ -50,11 +55,18 @@ class FavWidgetCallUiTest {
     private val n = "+91 90000 11111"
     private val app get() = ApplicationProvider.getApplicationContext<LdApp>()
     private val tm get() = app.getSystemService(TelecomManager::class.java)
-    private fun settle() { rule.mainClock.autoAdvance = false; rule.mainClock.advanceTimeBy(400); rule.waitForIdle() }
+    private fun settle() {
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()}
+        dispatcher.scheduler.runCurrent()
+        rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(400)
+        dispatcher.scheduler.runCurrent();rule.waitForIdle()
+    }
     private fun await(check: () -> Boolean) {
         // CI runner local se kafi slow hota hai (worker coroutines late) - budget 2x rakha hai
         repeat(60) {
             org.robolectric.shadows.ShadowLooper.idleMainLooper()
+            settle()
             if(check()) return
             Thread.sleep(100); settle()
         }
@@ -74,7 +86,11 @@ class FavWidgetCallUiTest {
         await { rule.onAllNodesWithTag("drawer_open",useUnmergedTree=true).fetchSemanticsNodes().size==1 }
         Unit
     }
-    @After fun clear() { app.getSharedPreferences("contact_controls",0).edit().clear().apply() }
+    @After fun clear() {
+        rule.runOnUiThread{(rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content)).removeAllViews()}
+        org.robolectric.shadows.ShadowLooper.idleMainLooper();dispatcher.scheduler.runCurrent()
+        app.getSharedPreferences("contact_controls",0).edit().clear().apply()
+    }
     private fun tap(number: String? = n, id: Long = 11L) {
         val i=Intent(app,MainActivity::class.java).setAction(FavWidgetModel.WIDGET_CALL)
             .putExtra("numberContactId",id).putExtra("numberName","Rahul Sharma")
