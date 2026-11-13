@@ -140,6 +140,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "launchershortcuts" -> LauncherContactsPage(act,onBack)
         page == "messagedrafts" -> MessageDraftsPage(onBack)
         page == "callnotereader" -> CallNoteReaderPage(onBack)
+        page == "calldates" -> CallDatesPage(onBack)
         page == "callconverter" -> CallConverterPage(onBack)
         page == "checklistorganizer" -> ChecklistOrganizerPage(onBack)
         page == "callcanvas" -> CallCanvasPage(onBack)
@@ -382,6 +383,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         GlassCard{SRow("Call touch guard","Manual on-screen control guard, End stays available",LdIcons.Phone,last=true){onOpen("calltouchguard")}}
         GlassCard{SRow("Icon long-press shortcuts","New contact and 3 chosen numbers",LdIcons.Phone,last=true){onOpen("launchershortcuts")}}
         GlassCard{SRow("Call notes reader","Read full saved notes during a call",LdIcons.Edit,last=true){onOpen("callnotereader")}}
+        GlassCard{SRow("Call date calculator","Offline date arithmetic",LdIcons.Edit,last=true){onOpen("calldates")}}
         GlassCard{SRow("Call unit converter","Offline measurement conversion",LdIcons.Edit,last=true){onOpen("callconverter")}}
         GlassCard{SRow("Checklist organizer","Batch marks and topic order",LdIcons.Edit,last=true){onOpen("checklistorganizer")}}
         GlassCard{SRow("Call canvas","Finger sketch, saved separately for each number",LdIcons.Edit,last=true){onOpen("callcanvas")}}
