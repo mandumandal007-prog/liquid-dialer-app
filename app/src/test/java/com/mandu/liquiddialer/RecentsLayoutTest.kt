@@ -23,9 +23,15 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class RecentsLayoutTest {
-    // Layout fixture: establish settings before the activity owns its real app scene.
-    @get:Rule(order=0) val initial=object:org.junit.rules.ExternalResource(){override fun before(){
-        runBlocking {ctx.ldStore.edit {p->p[K.onboarded]=true;p[K.theme]="daylight";p[K.fontScale]=1f;p[K.motion]=false;p[K.showFavourites]=false;p[K.showTodayStats]=true;p[K.groupByDay]=true}}
+    // Select the test's settings before MainActivity installs its single real scene.
+    // This is a layout test, not a live theme-switch test. Late settings emissions
+    // are an unnecessary source of resize races while opening the sheet.
+    private var fixtureTheme="daylight"
+    private var fixtureLarge=false
+    @get:Rule(order=0) val initial=object:org.junit.rules.TestWatcher(){override fun starting(d:org.junit.runner.Description){
+        fixtureLarge=d.methodName.contains("night",ignoreCase=true)||d.methodName=="contactsTypographyAndAddAction"
+        fixtureTheme=if(fixtureLarge)"midnight"else"daylight"
+        runBlocking {ctx.ldStore.edit {p->p[K.onboarded]=true;p[K.theme]=fixtureTheme;p[K.fontScale]=if(fixtureLarge)1.3f else 1f;p[K.motion]=false;p[K.showFavourites]=false;p[K.showTodayStats]=true;p[K.groupByDay]=true}}
     }}
     @get:Rule(order=1) val rule = createAndroidComposeRule<MainActivity>()
     private val ctx get() = ApplicationProvider.getApplicationContext<LdApp>()
@@ -36,16 +42,9 @@ class RecentsLayoutTest {
         rule.waitForIdle()
     }
     private fun await(check:()->Boolean){rule.waitUntil(10000){settle();check()}}
-    @Before fun seed() = runBlocking {
-        ctx.ldStore.edit { p ->
-            p[K.onboarded]=true;p[K.theme]="daylight";p[K.showFavourites]=false
-            p[K.showTodayStats]=true;p[K.groupByDay]=true;p[K.motion]=false
-        }
-        Unit
-    }
     private fun ready(theme:String, large:Boolean) {
         settle()
-        runBlocking {ctx.ldStore.edit {it[K.theme]=theme;it[K.fontScale]=if(large)1.3f else 1f}}
+        assertEquals(fixtureTheme,theme);assertEquals(fixtureLarge,large)
         await {LdApp.settings.value.let{it.theme==theme&&it.fontScale==(if(large)1.3f else 1f)&&!it.motion}}
         Shadows.shadowOf(ctx).grantPermissions(Manifest.permission.READ_CALL_LOG)
         rule.runOnUiThread {
@@ -82,7 +81,13 @@ class RecentsLayoutTest {
         rule.onNodeWithTag("dialer_fab",useUnmergedTree=true).performClick();settle()
         rule.runOnUiThread {rule.activity.state.dial="9876543210"};repeat(4){settle()}
         // Wait for the rendered sheet, not a fixed number of frames after the click.
-        await {rule.onNodeWithTag("dial_toolbar",true).isDisplayed()}
+        assertEquals("keypad FAB opens dialer state","dialer",rule.activity.state.tab)
+        try{await {rule.onNodeWithTag("dial_toolbar",true).isDisplayed()}}catch(t:Throwable){
+            println("DIALER_FIXTURE tab="+rule.activity.state.tab+" settings="+LdApp.settings.value)
+            println(rule.onAllNodes(isRoot(),useUnmergedTree=true).printToString())
+            saveShot(rule,shot+"-failed")
+            throw t
+        }
         rule.onNodeWithTag("dial_toolbar",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("voice_mic",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("dial_menu",useUnmergedTree=true).assertIsDisplayed()
