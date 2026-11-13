@@ -13,6 +13,7 @@ object SettingsFinder{
   Entry("call-dates","Call date calculator","Calendar-day shifts and date gaps, no calendar changes","calls","calldates",aliases="date days weekday monday friday calendar delivery gap add subtract"),
   Entry("call-converter","Call unit converter","Offline length, mass, volume, area and temperature","calls","callconverter",aliases="units convert converter kg gram litre liter feet inch meter area temperature celsius fahrenheit"),
   Entry("checklist-organizer","Checklist organizer","Batch marks and topic order with explicit Save","calls","checklistorganizer",aliases="checklist organize reorder order batch topics pending discussed"),
+  Entry("canvas-composition","Canvas composition tools","Selected stroke styles, draw order and offset duplicates","calls","callcanvas",aliases="canvas ink color width pen front back layers duplicate composition"),
   Entry("canvas-layout","Canvas multi-stroke layout","Align, distribute and move selected saved ink","calls","callcanvas",aliases="canvas multi select align distribute layout nudge arrange group"),
   Entry("canvas-transform","Canvas resize, rotate & mirror","Optional selected-stroke transform tools, explicit Save","calls","callcanvas",aliases="resize scale rotate rotation mirror flip transform drawing sketch"),
   Entry("call-canvas","Call canvas","Per-number finger sketch with explicit local Save","calls","callcanvas",aliases="draw drawing sketch handwriting diagram map canvas"),

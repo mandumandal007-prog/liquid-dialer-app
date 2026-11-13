@@ -76,8 +76,8 @@ import kotlinx.coroutines.withContext
   GhostButton("Keep preview",Modifier.testTag("layout_keep")){confirm=""}
  }}
 }
-@Composable private fun CanvasLayoutPreview(rows:List<CallCanvas.Stroke>,selected:Set<Int>){
- Canvas(Modifier.fillMaxWidth().aspectRatio(1.1f).padding(vertical=8.dp).background(Color(0xfffffbef)).testTag("layout_paper").semantics{contentDescription="Read-only canvas preview: ${rows.size} strokes; selected ${selected.sorted().joinToString{(it+1).toString()}}. Use stroke buttons below for selection."}){
+@Composable internal fun CanvasLayoutPreview(rows:List<CallCanvas.Stroke>,selected:Set<Int>,tag:String="layout_paper"){
+ Canvas(Modifier.fillMaxWidth().aspectRatio(1.1f).padding(vertical=8.dp).background(Color(0xfffffbef)).testTag(tag).semantics{contentDescription="Read-only canvas preview: ${rows.size} strokes; selected ${selected.sorted().joinToString{(it+1).toString()}}. Use stroke buttons below for selection."}){
   val colors=listOf(Color(0xff263449),Color(0xff245be0),Color(0xffd83d51),Color(0xff168054))
   fun xy(p:CallCanvas.Point)=Offset(p.x/10000f*size.width,p.y/10000f*size.height)
   rows.forEach{s->val thick=size.width*(when(s.width){1->0.005f;2->0.009f;else->0.016f});if(s.points.size==1)drawCircle(colors[s.ink],thick/2,xy(s.points.first()))else{val path=Path().apply{moveTo(xy(s.points.first()).x,xy(s.points.first()).y);s.points.drop(1).forEach{lineTo(xy(it).x,xy(it).y)}};drawPath(path,colors[s.ink],style=Stroke(thick,cap=StrokeCap.Round,join=androidx.compose.ui.graphics.StrokeJoin.Round))}}

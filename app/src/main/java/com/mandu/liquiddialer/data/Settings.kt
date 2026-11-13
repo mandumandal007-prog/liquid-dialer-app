@@ -92,6 +92,7 @@ data class LdSettings(
     val callConverter: Boolean = false,
     val checklistOrganizer: Boolean = false,
     val canvasLayout: Boolean = false,
+    val canvasComposition: Boolean = false,
     val canvasTransform: Boolean = false,
     val callCanvas: Boolean = false,
     val ivrHelper: Boolean = false,
@@ -245,6 +246,7 @@ object K {
     val callConverter = booleanPreferencesKey("call_converter")
     val checklistOrganizer = booleanPreferencesKey("checklist_organizer")
     val canvasLayout = booleanPreferencesKey("canvas_layout")
+    val canvasComposition = booleanPreferencesKey("canvas_composition")
     val canvasTransform = booleanPreferencesKey("canvas_transform")
     val callCanvas = booleanPreferencesKey("call_canvas")
     val ivrHelper = booleanPreferencesKey("ivr_helper")
@@ -388,6 +390,7 @@ fun Preferences.toSettings(): LdSettings {
         callConverter = this[K.callConverter] ?: false,
         checklistOrganizer = this[K.checklistOrganizer] ?: false,
         canvasLayout = this[K.canvasLayout] ?: false,
+        canvasComposition = this[K.canvasComposition] ?: false,
         canvasTransform = this[K.canvasTransform] ?: false,
         callCanvas = this[K.callCanvas] ?: false,
         ivrHelper = this[K.ivrHelper] ?: false,

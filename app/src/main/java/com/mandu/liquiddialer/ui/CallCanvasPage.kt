@@ -37,6 +37,8 @@ import kotlin.math.roundToInt
   LdText("Baat suno. Ungli se idea banao.",23f,FontWeight.Bold,maxLines=4)
   LdText("Pen, line, arrow, box aur oval se diagram banao. Select se ink ko move, copy ya remove karo. Har full number ka apna saved canvas. Save dabao. App ya Notes sheet band hone par unsaved ink jaa sakti hai.",14f,color=p.muted,maxLines=7)
   SwitchRow("Show canvas in call Notes","Default OFF. Entry hide karne se saved drawings delete nahi hote.",s.callCanvas,last=true){scope.launch{try{LdApp.instance.repo.set(K.callCanvas,it)}catch(_:Exception){error="Setting save nahi hui"}}}
+  SwitchRow("Canvas composition tools","Default OFF. Style, reorder or duplicate saved strokes.",s.canvasComposition,last=true){scope.launch{try{LdApp.instance.repo.set(K.canvasComposition,it)}catch(_:Exception){error="Setting save nahi hui"}}}
+  LdText("Composition uses a separate preview, last 40 edits Undo/Redo and explicit Save. Save or reload the drawing before entry. Duplicates stay on this canvas; no clipboard.",12f,color=p.muted,maxLines=8)
   SwitchRow("Canvas multi-stroke layout","Default OFF. Save/reload the drawing first; layout edits have their own preview and explicit Save.",s.canvasLayout,last=true){scope.launch{try{LdApp.instance.repo.set(K.canvasLayout,it)}catch(_:Exception){error="Setting save nahi hui"}}}
   LdText("Select saved strokes, align edges/centers, distribute centers or nudge together. Geometry and pen width stay unchanged; edge-crossing edits are refused. No permanent grouping.",12f,color=p.muted,maxLines=8)
   SwitchRow("Canvas resize, rotate & mirror","Default OFF. Select ink to show tools. Each edit has Undo; Save stays explicit.",s.canvasTransform,last=true){scope.launch{try{LdApp.instance.repo.set(K.canvasTransform,it)}catch(_:Exception){error="Setting save nahi hui"}}}
@@ -51,6 +53,7 @@ import kotlin.math.roundToInt
 @Composable fun CallCanvasWorkspace(number:String,onBack:()->Unit,inSheet:Boolean=false){
  val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope();val settings by LdApp.settings.collectAsState()
  var layoutOpen by remember(number){mutableStateOf(false)}
+ var compositionOpen by remember(number){mutableStateOf(false)}
  var paperAspect by remember{mutableDoubleStateOf(0.0)}
  var snapshot by remember(number){mutableStateOf<CallCanvas.Snapshot?>(null)};var history by remember(number){mutableStateOf(CallCanvas.History(emptyList()))};var revision by remember(number){mutableIntStateOf(0)}
  var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")};var status by remember(number){mutableStateOf("")};var ink by remember(number){mutableIntStateOf(0)};var width by remember(number){mutableIntStateOf(2)}
@@ -70,6 +73,7 @@ import kotlin.math.roundToInt
  fun load(){busy=true;scope.launch{try{val next=withContext(Dispatchers.IO){CallCanvas.read(ctx,number)};selected=null;snapshot=next;history=CallCanvas.History(next.strokes);revision++;error="";status="Saved canvas loaded"}catch(_:Exception){snapshot=null;error="Canvas load nahi hua. Saved file preserve hai; drawing/save band hain."}finally{busy=false}}}
  fun back(){if(busy||drawing)return;if(dirty)confirm="back"else onBack()}
  LaunchedEffect(number){load()}
+ if(compositionOpen&&settings.canvasComposition){CanvasCompositionWorkspace(number,{compositionOpen=false;load()},inSheet);return}
  if(layoutOpen&&settings.canvasLayout){CanvasLayoutWorkspace(number,{layoutOpen=false;load()},inSheet);return}
  BackHandler{back()}
  val content:@Composable ColumnScope.()->Unit={
@@ -97,6 +101,10 @@ import kotlin.math.roundToInt
       if(status.isNotEmpty())LdText(status,12f,color=p.muted,maxLines=5,modifier=Modifier.testTag("canvas_transform_status"))
      }
     }
+   }
+   if(settings.canvasComposition){
+    PrimaryButton("Compose saved strokes",enabled=!dirty&&!busy&&!drawing,modifier=Modifier.testTag("canvas_composition_open")){compositionOpen=true}
+    LdText("Save or reload first. Composition has its own preview, Undo/Redo and Save.",12f,color=p.muted,maxLines=4)
    }
    if(settings.canvasLayout){
     PrimaryButton("Multi-stroke layout",enabled=!dirty&&!busy&&!drawing,modifier=Modifier.testTag("canvas_layout_open")){layoutOpen=true}
