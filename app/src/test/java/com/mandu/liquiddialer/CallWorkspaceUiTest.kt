@@ -1,6 +1,5 @@
 package com.mandu.liquiddialer
 
-import androidx.activity.compose.setContent
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
@@ -19,13 +18,27 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
+@OptIn(ExperimentalTestApi::class)
 class CallWorkspaceUiTest {
-    @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+    // Seed before activity launch, then mount a separate scene below. Reusing the
+    // activity's live app composition is not the page under test. Drain the
+    // injected effect scheduler explicitly so IO completions reach page state.
+    @get:Rule(order=0) val initial=object:org.junit.rules.ExternalResource(){override fun before(){
+        runBlocking {ctx.ldStore.edit {it[K.onboarded]=true;it[K.motion]=false;it[K.confirmCall]=true}}
+    }}
+    private val dispatcher=kotlinx.coroutines.test.StandardTestDispatcher()
+    @get:Rule(order=1) val rule=createAndroidComposeRule<MainActivity>(effectContext=dispatcher)
     private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
     private lateinit var id:String
     private lateinit var first:CallLists.Entry
     private lateinit var second:CallLists.Entry
-    private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
+    private fun settle(){
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        rule.runOnUiThread {androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()}
+        dispatcher.scheduler.runCurrent()
+        rule.mainClock.advanceTimeBy(800)
+        dispatcher.scheduler.runCurrent();rule.waitForIdle()
+    }
     private fun reveal(tag:String, unmerged:Boolean=false):SemanticsNodeInteraction {
         repeat(20) {
             val node=rule.onNodeWithTag(tag,useUnmergedTree=unmerged)
@@ -47,7 +60,7 @@ class CallWorkspaceUiTest {
         rule.mainClock.autoAdvance=false;settle()
         runBlocking {ctx.ldStore.edit {it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
         await {LdApp.settings.value.theme==theme && LdApp.settings.value.fontScale==font && LdApp.settings.value.confirmCall}
-        rule.runOnUiThread {rule.activity.setContent {LdThemeHost {CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
+        rule.runOnUiThread {rule.activity.mountTestPage {LdThemeHost {CallListsPage(rule.activity.state,rule.activity,{})}}};settle()
         await {rule.onAllNodesWithTag("list_open_$id").fetchSemanticsNodes().isNotEmpty()}
         click("list_open_$id")
     }
