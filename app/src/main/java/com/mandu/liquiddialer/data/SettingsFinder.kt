@@ -9,6 +9,7 @@ object SettingsFinder{
   Entry("call-touch-guard","Call touch guard","Manual guard against accidental on-screen call-control taps","calls","calltouchguard",aliases="touch accidental pocket mute speaker guard"),
   Entry("launcher-contacts","Icon long-press shortcuts","New contact and selected phone numbers on home icon","calls","launchershortcuts",aliases="launcher tap hold home app icon shortcut contacts numbers"),
   Entry("call-note-reader","Call notes reader","Search and read complete saved notes during a call","calls","callnotereader",aliases="notes saved full read search call reader"),
+  Entry("call-dates","Call date calculator","Calendar-day shifts and date gaps, no calendar changes","calls","calldates",aliases="date days weekday monday friday calendar delivery gap add subtract"),
   Entry("call-converter","Call unit converter","Offline length, mass, volume, area and temperature","calls","callconverter",aliases="units convert converter kg gram litre liter feet inch meter area temperature celsius fahrenheit"),
   Entry("checklist-organizer","Checklist organizer","Batch marks and topic order with explicit Save","calls","checklistorganizer",aliases="checklist organize reorder order batch topics pending discussed"),
   Entry("canvas-transform","Canvas resize, rotate & mirror","Optional selected-stroke transform tools, explicit Save","calls","callcanvas",aliases="resize scale rotate rotation mirror flip transform drawing sketch"),
