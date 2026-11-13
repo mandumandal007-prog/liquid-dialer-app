@@ -23,9 +23,19 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class RecentsLayoutTest {
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    // Layout fixture: establish settings before the activity owns its real app scene.
+    @get:Rule(order=0) val initial=object:org.junit.rules.ExternalResource(){override fun before(){
+        runBlocking {ctx.ldStore.edit {p->p[K.onboarded]=true;p[K.theme]="daylight";p[K.fontScale]=1f;p[K.motion]=false;p[K.showFavourites]=false;p[K.showTodayStats]=true;p[K.groupByDay]=true}}
+    }}
+    @get:Rule(order=1) val rule = createAndroidComposeRule<MainActivity>()
     private val ctx get() = ApplicationProvider.getApplicationContext<LdApp>()
-    private fun settle() { rule.mainClock.autoAdvance=false; rule.mainClock.advanceTimeBy(1500);rule.waitForIdle() }
+    private fun settle() {
+        Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        rule.runOnUiThread {androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()}
+        rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(1500)
+        rule.waitForIdle()
+    }
+    private fun await(check:()->Boolean){rule.waitUntil(10000){settle();check()}}
     @Before fun seed() = runBlocking {
         ctx.ldStore.edit { p ->
             p[K.onboarded]=true;p[K.theme]="daylight";p[K.showFavourites]=false
@@ -36,6 +46,7 @@ class RecentsLayoutTest {
     private fun ready(theme:String, large:Boolean) {
         settle()
         runBlocking {ctx.ldStore.edit {it[K.theme]=theme;it[K.fontScale]=if(large)1.3f else 1f}}
+        await {LdApp.settings.value.let{it.theme==theme&&it.fontScale==(if(large)1.3f else 1f)&&!it.motion}}
         Shadows.shadowOf(ctx).grantPermissions(Manifest.permission.READ_CALL_LOG)
         rule.runOnUiThread {
             rule.activity.state.showOnboarding=false
@@ -48,7 +59,7 @@ class RecentsLayoutTest {
                 Recent(3,"+91 90000 00003","Priya Verma",CallLog.Calls.INCOMING_TYPE,now-180_000,120,null,null)
             )
         }
-        repeat(4){settle()}
+        await {rule.onAllNodesWithTag("recent_controls",true).fetchSemanticsNodes().isNotEmpty()}
     }
     private fun controls() {
         rule.onNodeWithTag("recent_controls",useUnmergedTree=true).assertIsDisplayed()
@@ -70,6 +81,8 @@ class RecentsLayoutTest {
         ready(theme,large)
         rule.onNodeWithTag("dialer_fab",useUnmergedTree=true).performClick();settle()
         rule.runOnUiThread {rule.activity.state.dial="9876543210"};repeat(4){settle()}
+        // Wait for the rendered sheet, not a fixed number of frames after the click.
+        await {rule.onNodeWithTag("dial_toolbar",true).isDisplayed()}
         rule.onNodeWithTag("dial_toolbar",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("voice_mic",useUnmergedTree=true).assertIsDisplayed()
         rule.onNodeWithTag("dial_menu",useUnmergedTree=true).assertIsDisplayed()
