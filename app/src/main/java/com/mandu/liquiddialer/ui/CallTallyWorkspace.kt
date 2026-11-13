@@ -17,13 +17,15 @@ import kotlinx.coroutines.launch
  PageFrame("Call quantity tally",onBack){
   LdText("Count items while you talk.",23f,FontWeight.Bold,maxLines=4)
   SwitchRow("Show quantity tally in call Notes","Default OFF. Manual counters, no audio recognition or stock connection.",s.callTally,last=true){scope.launch{try{LdApp.instance.repo.set(K.callTally,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+  SwitchRow("Reusable tally templates","Default OFF. Save labels and step only, never quantities or phone numbers.",s.tallyTemplates,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyTemplates,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   PrimaryButton("Open quantity tally",modifier=Modifier.testTag("tally_settings_open")){open=true}
   LdText("Up to 12 named whole-number counters. Add, subtract, set a quantity, rename and remove. Choose a shared step from 1 to 1000000. Each count stays between 0 and 1000000000. Total is only meaningful when all counters use the same unit.",14f,color=p.muted,maxLines=12)
-  LdText("Undo/Redo keeps the last 40 edits in this open board. Session only: Back/close discards the board after confirmation. Nothing is saved to notes, orders, stock, clipboard or cloud. App/process close can lose this scratch work. No price or payment calculation.",13f,color=p.muted,maxLines=12)
+  LdText("Undo/Redo keeps the last 40 edits in this open board. Counts are session only: Back/close discards the board after confirmation. Optional templates save labels and step, not counts. Nothing is sent to notes, orders, stock, clipboard or cloud. App/process close can lose this scratch work. No price or payment calculation.",13f,color=p.muted,maxLines=12)
   if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=4)
  }
 }
 @Composable fun CallTallyWorkspace(onBack:()->Unit,inSheet:Boolean=false){
+ val settings by LdApp.settings.collectAsState();var library by remember{mutableStateOf(false)}
  val p=LocalLd.current;val focus=androidx.compose.ui.platform.LocalFocusManager.current
  val board=remember{CallTally.Board()};var rev by remember{mutableIntStateOf(0)};val rows=remember(rev){board.rows}
  var selected by remember{mutableStateOf("")};var name by remember{mutableStateOf("")};var value by remember{mutableStateOf("0")};var step by remember{mutableStateOf("1")}
@@ -33,8 +35,10 @@ import kotlinx.coroutines.launch
  fun runEdit(action:()->List<CallTally.Item>){focus.clearFocus();runCatching{action()}.fold({if(board.change(it)){rev++;status="Session changed · Undo available"};error=""},{error=it.message?:"Input check karo"})}
  fun history(redo:Boolean){focus.clearFocus();if(redo)board.redo()else board.undo();rev++;clearForm();status=if(redo)"Edit redone"else"Edit undone"}
  fun back(){focus.clearFocus();if(rows.isNotEmpty()||name.isNotBlank()||board.canUndo||board.canRedo)confirm="back"else onBack()}
+ if(library&&settings.tallyTemplates){TallyTemplateLibrary(rows,step,{library=false},{t->runEdit{TallyTemplates.board(t)};step=t.step.toString();clearForm();status="Template loaded at zero · Undo restores previous counters (step stays selected)";library=false},inSheet);return}
  BackHandler{back()}
  val content:@Composable ColumnScope.()->Unit={
+  if(settings.tallyTemplates)PrimaryButton("Tally templates",modifier=Modifier.testTag("tally_templates_open")){focus.clearFocus();library=true}
   LdText("Manual session counters",17f,FontWeight.Bold,maxLines=3)
   LdText("Not stock or an order. Back/close clears this board. Whole quantities only; label each counter with its unit.",12f,color=p.muted,maxLines=6)
   GlassCard(Modifier.fillMaxWidth().padding(vertical=6.dp)){
@@ -70,7 +74,7 @@ import kotlinx.coroutines.launch
    GhostButton("Remove counter",Modifier.testTag("tally_remove_$i")){focus.clearFocus();confirm="remove:${item.id}"}
   }}
   PrimaryButton("Zero all quantities",enabled=rows.any{it.value!=0L},modifier=Modifier.testTag("tally_zero")){focus.clearFocus();confirm="zero"}
-  LdText("Session only. Undo/Redo: last 40 edits. No save, copy, share or call action.",12f,color=p.muted,maxLines=5)
+  LdText("Counts are session only. Undo/Redo: last 40 counter edits, not step changes. Optional templates save only labels and step. No copy, share or call action.",12f,color=p.muted,maxLines=5)
  }
  if(inSheet)Column{SheetTitle("Quantity tally");PrimaryButton("Notes par wapas",modifier=Modifier.testTag("tally_back")){back()};content()}else PageFrame("Quantity tally",{back()},content=content)
  if(confirm.isNotEmpty())Dialog(onDismissRequest={confirm=""}){GlassCard{
