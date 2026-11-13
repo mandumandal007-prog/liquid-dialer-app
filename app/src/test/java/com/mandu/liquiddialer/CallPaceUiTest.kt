@@ -25,7 +25,10 @@ class CallPaceUiTest{
  @Test fun openingIsReadOnly(){show();assertFalse(LdApp.settings.value.callPace);assertEquals(5,LdApp.settings.value.callPaceMinutes);assertNull(CallPace.status.value)}
  @Test fun intervalChangeDoesNotEnable(){show();text("10 min");await{LdApp.settings.value.callPaceMinutes==10};assertFalse(LdApp.settings.value.callPace);assertFalse(LdApp.settings.value.callPaceRepeat)}
  @Test fun repeatDoesNotEnableOrChangeAudio(){show();text("Repeat during same stretch");await{LdApp.settings.value.callPaceRepeat};assertFalse(LdApp.settings.value.callPace);assertNull(CallManager.recording.value)}
- @Test fun exampleTracksSelectedInterval(){show();text("3 min");await{LdApp.settings.value.callPaceMinutes==3};rule.onNodeWithTag("pace_example",true).assertTextContains("3 min active",substring=true)}
+ @Test fun exampleTracksSelectedInterval(){show();text("3 min");await{LdApp.settings.value.callPaceMinutes==3};
+ // The settings flow update precedes collectAsState/recomposition. Await the
+ // actual rendered example, not only the repository's value.
+ await{rule.onAllNodesWithTag("pace_example",true).fetchSemanticsNodes().any{n->n.config.getOrElse(androidx.compose.ui.semantics.SemanticsProperties.Text){emptyList()}.any{it.text.contains("3 min active")}}};rule.onNodeWithTag("pace_example",true).assertTextContains("3 min active",substring=true)}
  @Test fun daySettingsPixels(){show();saveShot(rule,"PACE408-day");rule.mainClock.autoAdvance=true;rule.onNodeWithTag("pace_example",true).performScrollTo();rule.waitForIdle();settle();saveShot(rule,"PACE408-explanation")}
  @Test fun nightLargePixels(){show(true);saveShot(rule,"PACE408-night-large")}
  @Test fun actualCountdownCallPixels(){show();val target=FakeCall.make("+919876543210","Support",Call.STATE_ACTIVE,System.currentTimeMillis()-90000);FakeCall.setChildren(target,emptyList());CallManager.calls.value=listOf(target);CallPace.status.value=CallPace.Status(target,android.os.SystemClock.uptimeMillis()+59000,1,false);rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallScreen({},{},{},{})}}};settle();rule.onNodeWithTag("end_call",true).assertIsDisplayed();rule.onNodeWithText("PACE 00:59",useUnmergedTree=true).assertExists();saveShot(rule,"PACE408-active-countdown")}
