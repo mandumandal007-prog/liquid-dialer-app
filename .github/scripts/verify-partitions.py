@@ -100,7 +100,7 @@ def verify(artifacts):
     all_sets = [set((p/'test-partition/all-classes.txt').read_text().splitlines()) for p in parts]
     assigned = [set((p/'test-partition/selected-classes.txt').read_text().splitlines()) for p in parts]
     expected = [set(json.loads((p/'test-partition/expected-tests.json').read_text())) for p in parts]
-    if not all_sets[0] or all_sets[0] != all_sets[1] or expected[0] != expected[1]:
+    if not all_sets[0] or not expected[0] or all_sets[0] != all_sets[1] or expected[0] != expected[1]:
         raise ValueError('Partition compiled manifests differ or are empty')
     if assigned[0] & assigned[1] or assigned[0] | assigned[1] != all_sets[0]:
         raise ValueError('Compiled class partitions overlap or omit classes')
