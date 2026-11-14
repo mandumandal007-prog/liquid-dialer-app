@@ -93,6 +93,8 @@ data class LdSettings(
     val tallyTemplates: Boolean = false,
     val tallyBatch: Boolean = false,
     val tallyTransfer: Boolean = false,
+    val tallyBoards: Boolean = false,
+    val tallyBoardLibrary: String = "",
     val estimateSplit: Boolean = false,
     val estimateScale: Boolean = false,
     val estimateLines: Boolean = false,
@@ -259,6 +261,8 @@ object K {
     val tallyTemplates = booleanPreferencesKey("tally_templates")
     val tallyBatch = booleanPreferencesKey("tally_batch")
     val tallyTransfer = booleanPreferencesKey("tally_transfer")
+    val tallyBoards = booleanPreferencesKey("tally_boards")
+    val tallyBoardLibrary = stringPreferencesKey("tally_board_library")
     val estimateSplit = booleanPreferencesKey("estimate_split")
     val estimateScale = booleanPreferencesKey("estimate_scale")
     val estimateLines = booleanPreferencesKey("estimate_lines")
@@ -415,6 +419,8 @@ fun Preferences.toSettings(): LdSettings {
         tallyTemplates = this[K.tallyTemplates] ?: false,
         tallyBatch = this[K.tallyBatch] ?: false,
         tallyTransfer = this[K.tallyTransfer] ?: false,
+        tallyBoards = this[K.tallyBoards] ?: false,
+        tallyBoardLibrary = this[K.tallyBoardLibrary] ?: "",
         estimateSplit = this[K.estimateSplit] ?: false,
         estimateScale = this[K.estimateScale] ?: false,
         estimateLines = this[K.estimateLines] ?: false,
