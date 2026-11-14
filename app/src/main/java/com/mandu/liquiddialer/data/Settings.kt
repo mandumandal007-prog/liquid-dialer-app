@@ -43,6 +43,7 @@ data class LdSettings(
     val speedDial: Map<Int, String> = emptyMap(),
     val recentsSeenAt: Long = 0L,
     val onboarded: Boolean = false,
+    val incomingCard: String = "",
     val incomingFull: Boolean = true,
     val swipeAnswer: Boolean = true,
     val profilePhoto: String = "",
@@ -205,6 +206,7 @@ object K {
     val speedDial = stringPreferencesKey("speedDial")
     val recentsSeenAt = longPreferencesKey("recentsSeenAt")
     val onboarded = booleanPreferencesKey("onboarded")
+    val incomingCard = stringPreferencesKey("incomingCard")
     val incomingFull = booleanPreferencesKey("incomingFull")
     val swipeAnswer = booleanPreferencesKey("swipeAnswer")
     val profilePhoto = stringPreferencesKey("profilePhoto")
@@ -358,6 +360,7 @@ fun Preferences.toSettings(): LdSettings {
         }?.toMap() ?: emptyMap(),
         recentsSeenAt = this[K.recentsSeenAt] ?: 0L,
         onboarded = this[K.onboarded] ?: false,
+        incomingCard = this[K.incomingCard] ?: "",
         incomingFull = this[K.incomingFull] ?: true,
         swipeAnswer = this[K.swipeAnswer] ?: true,
         profilePhoto = this[K.profilePhoto] ?: "",
