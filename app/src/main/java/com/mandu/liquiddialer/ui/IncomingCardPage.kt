@@ -17,7 +17,7 @@ import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.*
 import kotlinx.coroutines.launch
 
-@Composable internal fun IncomingCardActions(config:IncomingCard.Config,video:Boolean,onReject:()->Unit,onAnswer:()->Unit,onAudio:()->Unit,onMessage:()->Unit){
+@Composable internal fun IncomingCardActions(config:IncomingCard.Config,video:Boolean,onReject:()->Unit,onAnswer:()->Unit,onAudio:()->Unit,onMessage:()->Unit,rehearsal:Boolean=false){
  val p=LocalLd.current;var confirm by remember(config){mutableStateOf(false)};var epoch by remember{mutableIntStateOf(0)}
  val reject:@Composable ()->Unit={key(epoch,config){SwipeCallBtn(true,"Cut",config.swipe,config.travel,config.enabled){if(config.enabled&&config.confirmCut)confirm=true else onReject()}}}
  val answer:@Composable ()->Unit={Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(6.dp)){
@@ -33,14 +33,16 @@ import kotlinx.coroutines.launch
   if(config.enabled&&config.swap)reject()else answer()
  }
  if(confirm)Dialog(onDismissRequest={confirm=false;epoch++}){GlassCard{
-  LdText("Decline this incoming call?",18f,FontWeight.Bold,maxLines=5)
-  LdText("Call is still ringing. Confirm sends decline; Cancel keeps it ringing. Message replies have their own send action and do not use this confirmation.",13f,color=p.muted,maxLines=8)
-  PrimaryButton("Decline call",danger=true,modifier=Modifier.testTag("incoming_decline_confirm")){confirm=false;onReject()}
-  GhostButton("Keep ringing",Modifier.testTag("incoming_decline_cancel")){confirm=false;epoch++}
+  LdText(if(rehearsal)"Rehearse decline confirmation?"else"Decline this incoming call?",18f,FontWeight.Bold,maxLines=5)
+  LdText(if(rehearsal)"Simulation only. Confirm records a local demo action; Cancel continues the sample. No call or message is affected."else"Call is still ringing. Confirm sends decline; Cancel keeps it ringing. Message replies have their own send action and do not use this confirmation.",13f,color=p.muted,maxLines=8)
+  PrimaryButton(if(rehearsal)"Simulate decline"else"Decline call",danger=true,modifier=Modifier.testTag("incoming_decline_confirm")){confirm=false;onReject()}
+  GhostButton(if(rehearsal)"Keep sample"else"Keep ringing",Modifier.testTag("incoming_decline_cancel")){confirm=false;epoch++}
  }}
 }
 
 @Composable fun IncomingCardPage(onBack:()->Unit){
+ var studio by remember{mutableStateOf(false)}
+ if(studio){IncomingStudioPage({studio=false});return}
  val ctx=LocalContext.current;val settings by LdApp.settings.collectAsState();val c=IncomingCard.decode(settings.incomingCard);val p=LocalLd.current;val scope=rememberCoroutineScope();var error by remember{mutableStateOf("")};var reset by remember{mutableStateOf(false)}
  fun save(change:(IncomingCard.Config)->IncomingCard.Config){scope.launch{try{ctx.ldStore.edit{prefs->prefs[K.incomingCard]=IncomingCard.encode(change(IncomingCard.decode(prefs[K.incomingCard]?:"")))};error=""}catch(_:Exception){error="Setting save failed; try again"}}}
  @Composable fun toggle(title:String,desc:String,value:Boolean,tag:String,change:(IncomingCard.Config,Boolean)->IncomingCard.Config){
@@ -56,6 +58,7 @@ import kotlinx.coroutines.launch
   LdText(if(c.enabled)"Incoming-only overrides ON"else"Overrides OFF · choices below are saved but not applied",14f,FontWeight.Bold,maxLines=5,modifier=Modifier.testTag("incoming_settings_state"))
   LdText("Only the app's ringing screen changes. Active/outgoing call cards, long red hang-up pill, ringtone, call audio, notification/full-screen permissions and automatic call handling are unchanged. Answer/Cut and caller identity cannot be hidden.",13f,color=p.muted,maxLines=12)
   if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=5)
+  GhostButton("Try controls and saved profiles",Modifier.testTag("incoming_studio_open")){studio=true}
   SecTitle("Look while ringing")
   choice("Incoming card style",CALL_STYLES.filter{it.key in IncomingCard.styles}.map{it.key to it.label},c.style,"incoming_style"){x,v->x.copy(style=v)}
   choice("Background",listOf("inherit" to "Follow existing style/photo rules","blobs" to "Liquid blobs","solid" to "Plain gradient","photo" to "Caller photo (dark fallback if unavailable)"),c.background,"incoming_bg"){x,v->x.copy(background=v)}
