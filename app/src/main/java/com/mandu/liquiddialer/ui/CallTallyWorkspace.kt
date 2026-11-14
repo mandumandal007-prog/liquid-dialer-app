@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
   SwitchRow("Show quantity tally in call Notes","Default OFF. Manual counters, no audio recognition or stock connection.",s.callTally,last=true){scope.launch{try{LdApp.instance.repo.set(K.callTally,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   SwitchRow("Reusable tally templates","Default OFF. Save labels and step only, never quantities or phone numbers.",s.tallyTemplates,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyTemplates,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   SwitchRow("Tally batch quantities","Default OFF. Select counters, preview and confirm one atomic edit.",s.tallyBatch,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyBatch,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+  SwitchRow("Tally quantity transfer","Default OFF. Move one source into several destinations, with preview and one confirmed edit.",s.tallyTransfer,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyTransfer,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   PrimaryButton("Open quantity tally",modifier=Modifier.testTag("tally_settings_open")){open=true}
   LdText("Up to 12 named whole-number counters. Add, subtract, set a quantity, rename and remove. Choose a shared step from 1 to 1000000. Each count stays between 0 and 1000000000. Total is only meaningful when all counters use the same unit.",14f,color=p.muted,maxLines=12)
   LdText("Undo/Redo keeps the last 40 edits in this open board. Counts are session only: Back/close discards the board after confirmation. Optional templates save labels and step, not counts. Nothing is sent to notes, orders, stock, clipboard or cloud. App/process close can lose this scratch work. No price or payment calculation.",13f,color=p.muted,maxLines=12)
@@ -26,7 +27,7 @@ import kotlinx.coroutines.launch
  }
 }
 @Composable fun CallTallyWorkspace(onBack:()->Unit,inSheet:Boolean=false){
- val settings by LdApp.settings.collectAsState();var library by remember{mutableStateOf(false)};var batch by remember{mutableStateOf(false)}
+ val settings by LdApp.settings.collectAsState();var library by remember{mutableStateOf(false)};var batch by remember{mutableStateOf(false)};var transfer by remember{mutableStateOf(false)}
  val p=LocalLd.current;val focus=androidx.compose.ui.platform.LocalFocusManager.current
  val board=remember{CallTally.Board()};var rev by remember{mutableIntStateOf(0)};val rows=remember(rev){board.rows}
  var selected by remember{mutableStateOf("")};var name by remember{mutableStateOf("")};var value by remember{mutableStateOf("0")};var step by remember{mutableStateOf("1")}
@@ -38,10 +39,12 @@ import kotlinx.coroutines.launch
  fun back(){focus.clearFocus();if(rows.isNotEmpty()||name.isNotBlank()||board.canUndo||board.canRedo)confirm="back"else onBack()}
  if(library&&settings.tallyTemplates){TallyTemplateLibrary(rows,step,{library=false},{t->runEdit{TallyTemplates.board(t)};step=t.step.toString();clearForm();status="Template loaded at zero · Undo restores previous counters (step stays selected)";library=false},inSheet);return}
  if(batch&&settings.tallyBatch){TallyBatchWorkspace(rows,{batch=false},{preview->runEdit{TallyBatch.apply(board.rows,preview)};if(error.isEmpty()){clearForm();status="Batch applied · one Undo restores counters; step unchanged";batch=false}},inSheet);return}
+ if(transfer&&settings.tallyTransfer){TallyTransferWorkspace(rows,{transfer=false},{preview->runEdit{TallyTransfer.apply(board.rows,preview)};if(error.isEmpty()){clearForm();status="Transfer applied · one Undo restores counters; step unchanged";transfer=false}},inSheet);return}
  BackHandler{back()}
  val content:@Composable ColumnScope.()->Unit={
   if(settings.tallyTemplates)PrimaryButton("Tally templates",modifier=Modifier.testTag("tally_templates_open")){focus.clearFocus();library=true}
   if(settings.tallyBatch)PrimaryButton("Batch quantities",modifier=Modifier.testTag("tally_batch_open")){focus.clearFocus();batch=true}
+  if(settings.tallyTransfer)PrimaryButton("Transfer quantities",modifier=Modifier.testTag("tally_transfer_open")){focus.clearFocus();transfer=true}
   LdText("Manual session counters",17f,FontWeight.Bold,maxLines=3)
   LdText("Not stock or an order. Back/close clears this board. Whole quantities only; label each counter with its unit.",12f,color=p.muted,maxLines=6)
   GlassCard(Modifier.fillMaxWidth().padding(vertical=6.dp)){
