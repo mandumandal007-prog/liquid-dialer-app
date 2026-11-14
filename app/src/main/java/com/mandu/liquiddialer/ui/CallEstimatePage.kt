@@ -21,14 +21,15 @@ import kotlinx.coroutines.withContext
  val ctx=LocalContext.current;val p=LocalLd.current;val scope=rememberCoroutineScope()
  var saved by remember(number){mutableStateOf(CallEstimate.Draft())};var draft by remember(number){mutableStateOf(CallEstimate.Draft())}
  var loaded by remember(number){mutableStateOf(false)};var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf("")}
- var comparing by remember(number){mutableStateOf(false)}
+ var comparing by remember(number){mutableStateOf(false)};var splitting by remember(number){mutableStateOf(false)}
  var editor by remember(number){mutableStateOf<String?>(null)};var label by remember(number){mutableStateOf("")};var qty by remember(number){mutableStateOf("1")};var rate by remember(number){mutableStateOf("")}
  var discard by remember(number){mutableStateOf(false)};var discardReload by remember(number){mutableStateOf(false)};var clear by remember(number){mutableStateOf(false)};var remove by remember(number){mutableStateOf<String?>(null)}
  val dirty=draft!=saved||editor!=null
  fun back(){if(busy)return;if(dirty){discardReload=false;discard=true}else onBack()}
  fun load(){if(busy)return;busy=true;scope.launch{try{val d=withContext(Dispatchers.IO){CallEstimate.read(ctx,number)};saved=d;draft=d;loaded=true;error="";editor=null}catch(_:Exception){loaded=false;error="Saved estimate khul nahi raha. Purani file nahi badli."}finally{busy=false}}}
- LaunchedEffect(number){load()};BackHandler(enabled=!comparing){back()}
+ LaunchedEffect(number){load()};BackHandler(enabled=!comparing&&!splitting){back()}
  if(comparing){EstimateCompareWorkspace(number,draft,{comparing=false},{next->draft=next;comparing=false},inSheet);return}
+ if(splitting){EstimateSplitWorkspace(number,draft,{splitting=false},inSheet);return}
  val totals=runCatching{CallEstimate.totals(draft)}
  val content:@Composable ColumnScope.()->Unit={
   LdText(number,16f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("estimate_number"))
@@ -80,6 +81,7 @@ import kotlinx.coroutines.withContext
      LdText("Total: ${CallEstimate.money(t.total)}",20f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("estimate_total"))
     }}?:LdText(totals.exceptionOrNull()?.message?:"Amounts sahi bharo",13f,color=p.danger,maxLines=5,modifier=Modifier.testTag("estimate_invalid"))
     if(FeatureControls.enabled(features,"compare")) PrimaryButton("What-if compare",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_compare")){comparing=true}
+    if(features.estimateSplit)PrimaryButton("Split estimate",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_split")){splitting=true}
     LdText("Har item ka amount 2 decimals tak half-up round hota hai. Tax discount ke baad bachi rakam par, phir 2 decimals tak round. Apni tax rate khud check karo.",12f,color=p.muted,maxLines=6)
     Spacer(Modifier.height(8.dp))
     PrimaryButton(if(busy)"Save ho raha hai..."else "Draft save karo",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty()&&draft!=saved,modifier=Modifier.testTag("estimate_save")){
