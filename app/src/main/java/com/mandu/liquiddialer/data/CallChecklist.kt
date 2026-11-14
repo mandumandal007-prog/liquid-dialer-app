@@ -74,6 +74,11 @@ object CallChecklist {
   if(next!=current&&next.isNotEmpty()){all[k]=next.toList();write(ctx,all)}
   return next.toList()
  }
+ /** Recompute the selected duplicate cleanup under the same per-store lock. */
+ @Synchronized fun consolidateChecked(ctx:Context,number:String,view:ChecklistDuplicates.Preview):List<Item>{
+  val k=key(number);val all=readAll(ctx);val current=all[k].orEmpty();val next=ChecklistDuplicates.apply(current,view)
+  require(next.isNotEmpty());all[k]=next.toList();write(ctx,all);return next.toList()
+ }
  @Synchronized fun done(ctx:Context,number:String,id:String,value:Boolean)=change(ctx,number,id){it.copy(done=value)}
  @Synchronized fun remove(ctx:Context,number:String,id:String)=change(ctx,number,id){null}
  @Synchronized fun reset(ctx:Context,number:String):List<Item> {val k=key(number);val all=readAll(ctx);val next=all[k].orEmpty().map{it.copy(done=false)};if(next.isNotEmpty()){all[k]=next;write(ctx,all)};return next}
