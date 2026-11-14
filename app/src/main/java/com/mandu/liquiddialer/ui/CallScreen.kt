@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.mandu.liquiddialer.LdApp
+import com.mandu.liquiddialer.data.IncomingCard
 import com.mandu.liquiddialer.data.Repo
 import com.mandu.liquiddialer.data.CallReferences
 import com.mandu.liquiddialer.data.CallNoteReader
@@ -173,7 +174,10 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     val calls by CallManager.calls.collectAsState()
     val audio by CallManager.audio.collectAsState()
     val rec by CallManager.recording.collectAsState()
-    val s by LdApp.settings.collectAsState()
+    val stored by LdApp.settings.collectAsState()
+    val incomingCall = CallManager.primary()?.let{CallManager.state(it)==Call.STATE_RINGING}==true
+    val incomingConfig = remember(stored.incomingCard){IncomingCard.decode(stored.incomingCard)}
+    val s = IncomingCard.effective(stored,incomingCall,incomingConfig)
     val icons=remember(s.callIconConfig){com.mandu.liquiddialer.data.CallIconConfig.decode(s.callIconConfig)}
     val ctx = LocalContext.current
     val haze = remember { HazeState() }
@@ -192,6 +196,7 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
         val customPhoto = call?.let { com.mandu.liquiddialer.data.CallPhotos.get(ctx, CallManager.number(it)) }
         val cardStyle0 = callStyleFor(s.callCardStyle)
         val effBg0 = when {
+            incomingCall && incomingConfig.enabled && incomingConfig.background != "inherit" -> incomingConfig.background
             customPhoto != null -> "photo"
             cardStyle0.bgMode in listOf("force","light") -> "force"
             cardStyle0.bgMode == "flat" -> "solid"
@@ -201,7 +206,8 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
         val basePalette = LocalLd.current
         val photoSurface = effBg0 == "photo"
         if(!photoSurface)CallStyleDecoration(cardStyle0,Modifier.fillMaxSize())
-        val callPalette = if(photoSurface && cardStyle0.bgMode=="light") basePalette.copy(text=Color.White,muted=Color.White.copy(alpha=.82f),accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else cardStyle0.restyle(if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette)
+        val rawCallPalette = if(incomingCall && incomingConfig.enabled && incomingConfig.background in setOf("blobs","solid")) basePalette else if(photoSurface && cardStyle0.bgMode=="light") basePalette.copy(text=Color.White,muted=Color.White.copy(alpha=.82f),accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else cardStyle0.restyle(if (photoSurface) basePalette.copy(text=Color.White, muted=Color.White.copy(alpha=.82f), accent=mix(basePalette.accent,Color.White,.55f),isLight=false) else basePalette)
+        val callPalette = if(incomingCall && incomingConfig.enabled && photoSurface) rawCallPalette.copy(glass=Color(0x55203048),glass2=Color(0x88203048),stroke=Color(0x667F9FC4),accent=Color(0xFFB7D2FF),isLight=false) else rawCallPalette
         CompositionLocalProvider(LocalHaze provides haze, LocalCallGlass provides true, LocalCallPhoto provides photoSurface, LocalLd provides callPalette, LocalCallStyle provides cardStyle0, LocalCallIcons provides icons, LocalAiryCall provides s.airyCall) {
             if (call == null) {
                 CallEndedScreen(lastEnded)
@@ -305,7 +311,10 @@ private fun TopChips(call: Call, showMin: Boolean, onMinimize: () -> Unit, onVid
 private fun Hero(call: Call, status: String, statusColor: Color, timer: String?, ringing: Boolean, maxH: Dp = 100000.dp) {
     val ctx = LocalContext.current
     val p = LocalLd.current
-    val s by LdApp.settings.collectAsState()
+    val stored by LdApp.settings.collectAsState()
+    val config=remember(stored.incomingCard){IncomingCard.decode(stored.incomingCard)}
+    val s=IncomingCard.effective(stored,ringing,config)
+    val incoming=config.takeIf{ringing&&it.enabled}
     val heroScale = s.callCardScale
     val aShape = if (s.callAvatarShape == "squircle") RoundedCornerShape(28) else CircleShape
     val name = CallManager.nameFor(ctx, call)
@@ -318,10 +327,10 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
     // available height ke hisaab se avatar/timer chhota; content fit nahi to bhi timer kabhi clip na ho.
     val avBase = when { sh < 640 -> 76.dp; sh < 740 -> 88.dp; else -> 100.dp }
     val avFit = when { maxH < 300.dp -> 60.dp; maxH < 360.dp -> 76.dp; else -> avBase }
-    val av0 = (minOf(avBase, avFit) * heroScale).coerceAtMost((maxH * .36f).coerceAtLeast(48.dp))
-    val nameF = (if (sh < 700) 21f else 23f) * heroScale
+    val av0 = (minOf(avBase, avFit) * heroScale * ((incoming?.avatarSize?:100)/100f)).coerceAtMost((maxH * .36f).coerceAtLeast(48.dp))
+    val nameF = (if (sh < 700) 21f else 23f) * heroScale * ((incoming?.nameSize?:100)/100f)
     val timerF = if (maxH < 330.dp) 21f else 26f
-    val nameLines = if (maxH >= 360.dp) 2 else 1
+    val nameLines = if (maxH >= 360.dp || incoming!=null) 2 else 1
     val showNum = s.callShowNumber && number.isNotBlank() && name != Repo.pretty(number)
     // fit guarantee: tight height + bada fontScale pe hero content box se bahar nikalta tha aur scroll top se
     // shuru hone ke kaaran sabse neeche ka TIMER asli render me clip ho jata tha (bounds check nahi pakadta).
@@ -340,7 +349,7 @@ private fun Hero(call: Call, status: String, statusColor: Color, timer: String?,
         }) { Box(Modifier.testTag("hero_avatar").then(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS || LocalCallIcons.current?.polish==true)Modifier.border(1.5.dp,Brush.sweepGradient(listOf(p.accent,p.accent2,p.accent)),aShape) else Modifier.border(1.dp,p.stroke,aShape)).padding(if(LocalCallStyle.current.key in REFERENCE_CALL_KEYS)6.dp else 5.dp)) { Avatar(name, CallManager.photoFor(call), av, av.value * .29f, glow = false, seed = name, shape = aShape) } }
         Spacer(Modifier.height(2.dp * k))
         LdText(name, nameF * k, FontWeight.Bold, letter = -.5f, maxLines = nameLines, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp).testTag("call_name"))
-        if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .7f)
+        if (showNum) LdText(Repo.pretty(number), 13f * k, color = p.muted, letter = .7f,modifier=Modifier.testTag("incoming_number"))
         if (ringing && s.showContactType && number.isNotBlank()) {
             remember(number) { Repo.contactLabel(ctx, number) }?.let { LdText(it, 12f, FontWeight.SemiBold, p.accent) }
         }
@@ -663,7 +672,10 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
     val ctx = LocalContext.current
     val sims = remember { Repo.sims(ctx) }
     val sim = sims.firstOrNull { it.handle == call.details?.accountHandle }?.let { "SIM ${it.slot}" } ?: "SIM"
-    val s by LdApp.settings.collectAsState()
+    val stored by LdApp.settings.collectAsState()
+    val config=remember(stored.incomingCard){IncomingCard.decode(stored.incomingCard)}
+    val s=IncomingCard.effective(stored,true,config)
+    val own=config.enabled
     // offline spam pehchan: contacts lookup IO pe; verification status sirf API 30+ (0 = koi jankari nahi)
     val spam by produceState<SpamInfo?>(null, call) {
         val num = CallManager.number(call)
@@ -676,10 +688,10 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
             }
         }
     }
-    Column(Modifier.fillMaxSize().systemBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp)) {
+    Column(Modifier.fillMaxSize().systemBarsPadding().then(if(own)Modifier.verticalScroll(rememberScrollState())else Modifier).padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 26.dp).testTag(if(own)"incoming_custom"else"incoming_default")) {
         TopChips(call, false, onMinimize = {})
         // hero upar ki third me (jaise asli dialers) - beech ka dead space kam, actions ko saans
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = androidx.compose.ui.BiasAlignment(0f, -0.32f)) {
+        Box((if(own)Modifier.heightIn(min=if(LocalConfiguration.current.screenHeightDp<700)260.dp else 340.dp)else Modifier.weight(1f)).fillMaxWidth(), contentAlignment = androidx.compose.ui.BiasAlignment(0f, -0.32f)) {
             Hero(call, (if (incomingVideo) "Incoming video call · " else "Incoming call · ") + sim, if (spam?.series == 140) p.danger else p.accent, null, true)
         }
         run {
@@ -701,52 +713,38 @@ private fun IncomingContent(call: Call, swipe: Boolean, onMessage: () -> Unit, o
             // unknown number + valid link: WhatsApp chat kholne ka pill. Call ringing rehti hai; app badalne se pehle Answer/Cut yahin hai.
             val waUrl = spam?.let { sp -> if (!sp.known && s.waPill && sp.series == null) com.mandu.liquiddialer.data.WhatsAppLink.url(CallManager.number(call)) else null }
             if (waUrl != null) Box(Modifier.fillMaxWidth().padding(bottom = 8.dp), contentAlignment = Alignment.Center) {
-                Row(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp)
+                Row(Modifier.clip(RoundedCornerShape(999.dp)).then(if(own&&LocalCallPhoto.current)Modifier.background(Color(0xE6122038),RoundedCornerShape(999.dp)).border(1.dp,Color(0x997F9FC4),RoundedCornerShape(999.dp))else Modifier.glass(p, RoundedCornerShape(999.dp), 0.dp))
                     .clickable { try { ctx.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(waUrl)).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) { } }
                     .padding(horizontal = 14.dp, vertical = 7.dp).testTag("wa_pill"),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    LdIcon(LdIcons.Message, 13.dp, p.accent)
-                    LdText("WhatsApp kholo", 11.5f, FontWeight.Bold, p.accent)
+                    LdIcon(LdIcons.Message, 13.dp, if(own&&LocalCallPhoto.current)Color.White else p.accent)
+                    LdText("WhatsApp kholo", 11.5f, FontWeight.Bold, if(own&&LocalCallPhoto.current)Color.White else p.accent)
                 }
             }
         }
 
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-            SwipeCallBtn(danger = true, label = "Cut", swipe = swipe) { CallManager.reject(call) }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(52.dp).callGlass(p, CircleShape).clickable { onMessage() }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Message, 22.dp) }
-                LdText("Message", 11f, FontWeight.SemiBold, p.muted)
-                Spacer(Modifier.height(18.dp))
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                // incoming video answer: camera permission ke bina video answer nahi - deny par sirf audio + imaandari notice
-            val camAnswer = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val camAnswer = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if(CallManager.state(call)==Call.STATE_RINGING && CallManager.calls.value.any{it===call}) {
                 if (granted) CallManager.answer(call)
                 else { CallManager.answerAudioOnly(call); CallManager.videoNotice.value = "Camera permission nahi mili - sirf audio me liya" }
             }
-            SwipeCallBtn(danger = false, label = if (incomingVideo) "Video answer" else "Answer", swipe = swipe) {
-                if (incomingVideo && ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) camAnswer.launch(Manifest.permission.CAMERA)
-                else CallManager.answer(call)
-            }
-                // camera consent: video call ko sirf audio me lene ka saaf option (camera share nahi hoti)
-                if (incomingVideo) {
-                    Box(Modifier.clip(RoundedCornerShape(999.dp)).glass(p, RoundedCornerShape(999.dp), 0.dp).clickable { CallManager.answerAudioOnly(call) }.padding(horizontal = 12.dp, vertical = 6.dp).testTag("answer_audio")) {
-                        LdText("Sirf audio me lo", 10.5f, FontWeight.SemiBold, p.muted)
-                    }
-                }
-            }
         }
+        key(call) { IncomingCardActions(if(own)config else IncomingCard.Config(swipe=swipe),incomingVideo,
+            onReject={if(CallManager.state(call)==Call.STATE_RINGING && CallManager.calls.value.any{it===call})CallManager.reject(call)},
+            onAnswer={if(CallManager.state(call)==Call.STATE_RINGING && CallManager.calls.value.any{it===call}){if(incomingVideo&&ContextCompat.checkSelfPermission(ctx,Manifest.permission.CAMERA)!=PackageManager.PERMISSION_GRANTED)camAnswer.launch(Manifest.permission.CAMERA)else CallManager.answer(call)}},
+            onAudio={if(CallManager.state(call)==Call.STATE_RINGING && CallManager.calls.value.any{it===call})CallManager.answerAudioOnly(call)},onMessage=onMessage) }
         Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigger: () -> Unit) {
+internal fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, travel:Int=110, compact:Boolean=false, onTrigger: () -> Unit) {
     val p = LocalLd.current
     val scope = rememberCoroutineScope()
     val off = remember { Animatable(0f) }
     val density = LocalDensity.current
-    val threshold = with(density) { 110.dp.toPx() }
+    val threshold = with(density) { travel.dp.toPx() }
+    val trigger by rememberUpdatedState(onTrigger)
     var fired by remember { mutableStateOf(false) }
     val sw = LocalConfiguration.current.screenWidthDp
     val btn = (sw * .19f).coerceIn(62f, 76f).dp
@@ -770,13 +768,13 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
         }
         Box(Modifier
             .offset { IntOffset(0, off.value.roundToInt()) }
-            .size(btn * 1.6f)
+            .size(btn * (if(compact&&sw<360)1.35f else 1.6f)).testTag(if(danger)"incoming_cut"else"incoming_answer")
             .then(
                 if (swipe) Modifier.pointerInput(Unit) {
                     detectVerticalDragGestures(
                         onDragEnd = {
                             scope.launch {
-                                if (-off.value >= threshold && !fired) { fired = true; onTrigger() }
+                                if (-off.value >= threshold && !fired) { fired = true; trigger() }
                                 else off.animateTo(0f, spring(dampingRatio = .45f, stiffness = 380f))
                             }
                         },
@@ -785,7 +783,7 @@ private fun SwipeCallBtn(danger: Boolean, label: String, swipe: Boolean, onTrigg
                         change.consume()
                         scope.launch { off.snapTo((off.value + drag).coerceIn(-threshold * 1.4f, 0f)) }
                     }
-                } else Modifier.clickable(remember { MutableInteractionSource() }, null) { if (!fired) { fired = true; onTrigger() } }
+                } else Modifier.clickable(remember { MutableInteractionSource() }, null) { if (!fired) { fired = true; trigger() } }
             ), contentAlignment = Alignment.Center) {
             // glow + expanding pulse rings
             Canvas(Modifier.matchParentSize()) {
