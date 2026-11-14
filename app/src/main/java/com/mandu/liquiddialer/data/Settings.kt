@@ -91,6 +91,7 @@ data class LdSettings(
     val tallyBatch: Boolean = false,
     val tallyTransfer: Boolean = false,
     val estimateSplit: Boolean = false,
+    val estimateScale: Boolean = false,
     val callDates: Boolean = false,
     val callConverter: Boolean = false,
     val checklistOrganizer: Boolean = false,
@@ -249,6 +250,7 @@ object K {
     val tallyBatch = booleanPreferencesKey("tally_batch")
     val tallyTransfer = booleanPreferencesKey("tally_transfer")
     val estimateSplit = booleanPreferencesKey("estimate_split")
+    val estimateScale = booleanPreferencesKey("estimate_scale")
     val callDates = booleanPreferencesKey("call_dates")
     val callConverter = booleanPreferencesKey("call_converter")
     val checklistOrganizer = booleanPreferencesKey("checklist_organizer")
@@ -397,6 +399,7 @@ fun Preferences.toSettings(): LdSettings {
         tallyBatch = this[K.tallyBatch] ?: false,
         tallyTransfer = this[K.tallyTransfer] ?: false,
         estimateSplit = this[K.estimateSplit] ?: false,
+        estimateScale = this[K.estimateScale] ?: false,
         callDates = this[K.callDates] ?: false,
         callConverter = this[K.callConverter] ?: false,
         checklistOrganizer = this[K.checklistOrganizer] ?: false,
