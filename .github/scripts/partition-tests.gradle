@@ -1,0 +1,31 @@
+// Every compiled class belongs to exactly one top-level family and one partition.
+// No class-name allowlist: future test classes are included automatically.
+allprojects {
+ tasks.withType(Test).configureEach {
+  def part = providers.gradleProperty('testPartition').get().toInteger()
+  if (!(part in [0, 1])) throw new GradleException('testPartition must be 0 or 1')
+  outputs.upToDateWhen { false }
+  doFirst {
+   def all = testClassesDirs.files.collectMany { root ->
+    fileTree(root).matching { include '**/*.class' }.files.collect { f ->
+     root.toPath().relativize(f.toPath()).toString().replace('\\', '/')
+    }
+   }.unique().sort()
+   if (all.isEmpty()) throw new GradleException('No compiled test classes found')
+   def family = { String name -> name.replaceAll(/\$.*/, '').replaceAll(/\.class$/, '') }
+   def families = all.collect(family).unique().sort()
+   def assignment = families.withIndex().collectEntries { name, i -> [(name): i % 2] }
+   def selected = all.findAll { assignment[family(it)] == part }
+   if (selected.isEmpty()) throw new GradleException('Empty test partition')
+   // Preserve ordinary top-level test discovery; helper/anonymous inner classes are not test entry points.
+   // The independent compiled @Test method manifest still blocks omitted runnable tests.
+   setIncludes(selected.findAll { !it.contains('$') } as Set)
+   def out = new File(project.buildDir, 'test-partition')
+   out.mkdirs()
+   new File(out, 'all-classes.txt').text = all.join('\n') + '\n'
+   new File(out, 'selected-classes.txt').text = selected.join('\n') + '\n'
+   new File(out, 'assignment.tsv').text = all.collect { "${assignment[family(it)]}\t${it}" }.join('\n') + '\n'
+   logger.lifecycle("TEST_PARTITION ${part}: ${selected.size()} of ${all.size()} compiled classes; ${families.size()} top-level families")
+  }
+ }
+}
