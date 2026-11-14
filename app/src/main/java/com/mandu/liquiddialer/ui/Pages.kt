@@ -141,6 +141,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "messagedrafts" -> MessageDraftsPage(onBack)
         page == "callnotereader" -> CallNoteReaderPage(onBack)
         page == "calltally" -> CallTallyPage(onBack)
+        page == "checklistduplicates" -> ChecklistDuplicatesPage(onBack)
         page == "estimatelines" -> EstimateLinesPage(onBack)
         page == "estimatescale" -> EstimateScalePage(onBack)
         page == "estimatesplit" -> EstimateSplitPage(onBack)
@@ -388,6 +389,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         GlassCard{SRow("Icon long-press shortcuts","New contact and 3 chosen numbers",LdIcons.Phone,last=true){onOpen("launchershortcuts")}}
         GlassCard{SRow("Call notes reader","Read full saved notes during a call",LdIcons.Edit,last=true){onOpen("callnotereader")}}
         GlassCard{SRow("Call quantity tally","Session-only named counters",LdIcons.Edit,last=true){onOpen("calltally")}}
+        GlassCard{SRow("Checklist duplicate review","Review selected repeated topics",LdIcons.Edit,last=true){onOpen("checklistduplicates")}}
         GlassCard{SRow("Calculator multi-line items","Preview manual item lines before appending",LdIcons.Edit,last=true){onOpen("estimatelines")}}
         GlassCard{SRow("Calculator quantity scaling","Preview selected quantity ratio changes",LdIcons.Edit,last=true){onOpen("estimatescale")}}
         GlassCard{SRow("Calculator split estimate","Preview equal or weighted shares",LdIcons.Edit,last=true){onOpen("estimatesplit")}}

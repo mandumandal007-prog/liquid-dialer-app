@@ -97,6 +97,7 @@ data class LdSettings(
     val callConverter: Boolean = false,
     val checklistOrganizer: Boolean = false,
     val checklistLines: Boolean = false,
+    val checklistDuplicates: Boolean = false,
     val canvasLayout: Boolean = false,
     val canvasComposition: Boolean = false,
     val canvasTransform: Boolean = false,
@@ -257,6 +258,7 @@ object K {
     val callConverter = booleanPreferencesKey("call_converter")
     val checklistOrganizer = booleanPreferencesKey("checklist_organizer")
     val checklistLines = booleanPreferencesKey("checklist_lines")
+    val checklistDuplicates = booleanPreferencesKey("checklist_duplicates")
     val canvasLayout = booleanPreferencesKey("canvas_layout")
     val canvasComposition = booleanPreferencesKey("canvas_composition")
     val canvasTransform = booleanPreferencesKey("canvas_transform")
@@ -407,6 +409,7 @@ fun Preferences.toSettings(): LdSettings {
         callConverter = this[K.callConverter] ?: false,
         checklistOrganizer = this[K.checklistOrganizer] ?: false,
         checklistLines = this[K.checklistLines] ?: false,
+        checklistDuplicates = this[K.checklistDuplicates] ?: false,
         canvasLayout = this[K.canvasLayout] ?: false,
         canvasComposition = this[K.canvasComposition] ?: false,
         canvasTransform = this[K.canvasTransform] ?: false,
