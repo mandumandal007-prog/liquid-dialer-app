@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
  var editor by remember(number){mutableStateOf<String?>(null)};var draft by remember(number){mutableStateOf("")};var original by remember(number){mutableStateOf("")}
  var focus by remember(number){mutableStateOf(false)}
  var organizer by remember(number){mutableStateOf(false)}
+ var duplicates by remember(number){mutableStateOf(false)}
  var multiLine by remember(number){mutableStateOf(false)}
  var templates by remember(number){mutableStateOf(false)}
  var discard by remember(number){mutableStateOf(false)};var confirm by remember(number){mutableStateOf<String?>(null)}
@@ -38,7 +39,7 @@ import kotlinx.coroutines.withContext
  LaunchedEffect(number){busy=true;try{rows=withContext(Dispatchers.IO){CallChecklist.read(ctx,number)};loaded=true}catch(_:Exception){error="Checklist khul nahi rahi. Saved file nahi badli."}finally{busy=false}}
  fun closeEditor(){if(draft!=original)discard=true else editor=null}
  fun back(){if(editor!=null)closeEditor()else onBack()}
- BackHandler(enabled=!templates&&!focus&&!multiLine){back()}
+ BackHandler(enabled=!templates&&!focus&&!multiLine&&!duplicates){back()}
  val content: @Composable ColumnScope.()->Unit = {
  LdText(number,16f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("checklist_number"))
  LdText("Is number se baat ke topics. Pehle taiyar karo, call ke dauran tick karo. Tick sirf tumhara mark hai, call ya awaaz se automatic nahi badlega.",13f,color=p.muted,maxLines=8)
@@ -62,6 +63,7 @@ import kotlinx.coroutines.withContext
   if(FeatureControls.enabled(features,"templates")) PrimaryButton("Reusable templates",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_templates")){templates=true}
   Spacer(Modifier.height(8.dp))
   if(FeatureControls.enabled(features,"focus")) PrimaryButton("Ek-ek topic · Focus",enabled=!busy&&error.isEmpty()&&rows.isNotEmpty(),modifier=Modifier.testTag("checklist_focus")){focus=true}
+  if(features.checklistDuplicates)PrimaryButton("Review duplicate topics",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_duplicates_open")){duplicates=true}
   if(features.checklistLines)PrimaryButton("Add topic lines",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_lines_open")){multiLine=true}
   if(features.checklistOrganizer)PrimaryButton("Checklist organize karo",enabled=!busy&&error.isEmpty(),modifier=Modifier.testTag("checklist_organizer_open")){organizer=true}
   if(rows.isEmpty())LdText("Abhi koi topic nahi. Agli call ke liye sawaal, order ya follow-up likho.",13f,color=p.muted,maxLines=4)
@@ -83,6 +85,7 @@ import kotlinx.coroutines.withContext
  }
 
  }
+ if(duplicates){ChecklistDuplicatesWorkspace(number,{duplicates=false},{next->rows=next},inSheet);return}
  if(multiLine&&features.checklistLines){ChecklistLinesWorkspace(number,{multiLine=false},{next->rows=next},inSheet);return}
  if(organizer){ChecklistOrganizerWorkspace(number,{organizer=false},{next->rows=next},inSheet);return}
  if(focus){ChecklistFocusWorkspace(number,{focus=false},{next->rows=next},inSheet);return}
