@@ -11,6 +11,7 @@ object SettingsFinder{
   Entry("call-note-reader","Call notes reader","Search and read complete saved notes during a call","calls","callnotereader",aliases="notes saved full read search call reader"),
   Entry("tally-batch","Tally batch quantities","Preview and confirm atomic selected counter edits","calls","calltally",aliases="tally batch quantity selected add subtract multiply set counters"),
   Entry("tally-transfer","Tally quantity transfer","Allocate from one source into several destinations","calls","calltally",aliases="tally transfer quantity split move source destination counters"),
+  Entry("estimate-scale","Calculator quantity scaling","Preview ratio changes on selected item quantities","calls","estimatescale",aliases="calculator scale quantity ratio multiply divide selected items resize estimate"),
   Entry("estimate-split","Calculator split estimate","Preview equal or weighted named shares","calls","estimatesplit",aliases="calculator split estimate equal weights shares divide total remainder"),
   Entry("call-tally","Call quantity tally","Manual named counters, session-only Undo and Redo","calls","calltally",aliases="tally counter quantity count items pieces plus minus undo redo template reusable labels"),
   Entry("call-dates","Call date calculator","Calendar-day shifts and date gaps, no calendar changes","calls","calldates",aliases="date days weekday monday friday calendar delivery gap add subtract"),
