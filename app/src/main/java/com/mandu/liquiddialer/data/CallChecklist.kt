@@ -48,6 +48,16 @@ object CallChecklist {
   require(k in all||all.size<MAX_NUMBERS){"100 numbers ki limit hai; koi purani checklist mitao"}
   val next=old+missing.map{Item(UUID.randomUUID().toString(),it)};all[k]=next;write(ctx,all);return next
  }
+ /** Append against an exact per-number snapshot. Other numbers are re-read and preserved. */
+ @Synchronized fun appendChecked(ctx:Context,number:String,expected:List<Item>,values:List<String>):List<Item>{
+  val k=key(number);val all=readAll(ctx);val current=all[k].orEmpty()
+  require(current==expected){"Checklist changed. Reload and preview again; nothing was added."}
+  val topics=ChecklistTemplates.topics(values)
+  require(topics.all{v->current.none{ChecklistTemplates.normalized(it.text)==ChecklistTemplates.normalized(v)}}){"Topic already exists. Reload and preview again."}
+  require(current.size+topics.size<=MAX_ITEMS){"Not enough room. Whole batch refused."}
+  require(k in all||all.size<MAX_NUMBERS){"100 numbers limit reached."}
+  val next=current+topics.map{Item(UUID.randomUUID().toString(),it,false)};all[k]=next;write(ctx,all);return next
+ }
  private fun change(ctx:Context,number:String,id:String,f:(Item)->Item?):List<Item> {
   val k=key(number);val all=readAll(ctx);val old=all[k].orEmpty();require(old.any{it.id==id}){"Topic ab nahi mila; dobara load karo"};val next=old.mapNotNull{if(it.id==id)f(it)else it};if(next.isEmpty())all.remove(k)else all[k]=next;write(ctx,all);return next
  }
