@@ -19,9 +19,11 @@ import kotlinx.coroutines.withContext
  PageFrame("Checklist organizer",onBack){
   LdText("Topics ko call se pehle taiyar rakho.",23f,FontWeight.Bold,maxLines=4)
   SwitchRow("Show organizer inside call checklist","Default OFF. Hiding tools never deletes topics.",s.checklistOrganizer,last=true){scope.launch{try{LdApp.instance.repo.set(K.checklistOrganizer,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+  SwitchRow("Checklist multi-line topics","Default OFF. Preview several new topic lines, then select and save.",s.checklistLines,last=true){scope.launch{try{LdApp.instance.repo.set(K.checklistLines,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+  LdText("Multi-line entry is inside the checklist. One line per topic; blank lines skipped, duplicate topics shown but never added. Select additions before confirmed Save. New topics start Pending; existing ticks stay.",13f,color=p.muted,maxLines=8)
   LdText("Checklist kholo, phir Organize. Search / All / Pending / Discussed, visible selection se batch marks. Full unfiltered list mein Upar/Neeche. Badlav pehle local preview hain: Undo ya explicit Save. Save se pehle original snapshot check hota hai.",14f,color=p.muted,maxLines=12)
   if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=4)
-  LdText("Koi topic add/delete/text edit, call, message ya cloud nahi. Existing checklist local file hai, encrypted vault nahi. Unsaved preview screen/app close par kho sakta hai.",13f,color=p.muted,maxLines=9)
+  LdText("Organizer does not add/delete/edit text; multi-line entry only appends selected new topics. call, message ya cloud nahi. Existing checklist local file hai, encrypted vault nahi. Unsaved preview screen/app close par kho sakta hai.",13f,color=p.muted,maxLines=9)
  }
 }
 
