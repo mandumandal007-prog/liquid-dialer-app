@@ -85,6 +85,7 @@ data class LdSettings(
     val callPace: Boolean = false,
     val callPaceMinutes: Int = 5,
     val callPaceRepeat: Boolean = false,
+    val deskStopwatch: Boolean = false,
     val checkpointTasks: Boolean = false,
     val liveNotesRefresh: Boolean = false,
     val checkpointLabels: Boolean = false,
@@ -259,6 +260,7 @@ object K {
     val callPace = booleanPreferencesKey("call_pace")
     val callPaceMinutes = intPreferencesKey("call_pace_minutes")
     val callPaceRepeat = booleanPreferencesKey("call_pace_repeat")
+    val deskStopwatch = booleanPreferencesKey("desk_stopwatch")
     val checkpointTasks = booleanPreferencesKey("checkpoint_tasks")
     val liveNotesRefresh = booleanPreferencesKey("live_notes_refresh")
     val checkpointLabels = booleanPreferencesKey("checkpoint_labels")
@@ -423,6 +425,7 @@ fun Preferences.toSettings(): LdSettings {
         callPace = this[K.callPace] ?: false,
         callPaceMinutes = (this[K.callPaceMinutes] ?: 5).takeIf{it in listOf(1,3,5,10,15)} ?: 5,
         callPaceRepeat = this[K.callPaceRepeat] ?: false,
+        deskStopwatch = this[K.deskStopwatch] ?: false,
         checkpointTasks = this[K.checkpointTasks] ?: false,
         liveNotesRefresh = this[K.liveNotesRefresh] ?: false,
         checkpointLabels = this[K.checkpointLabels] ?: false,
