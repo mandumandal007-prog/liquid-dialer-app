@@ -13,6 +13,7 @@ import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.PhoneNumberUtils
 import android.telephony.TelephonyManager
+import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -47,6 +48,13 @@ data class SimInfo(val handle: PhoneAccountHandle, val label: String, val slot: 
 data class Note(val id: Long, val number: String, val name: String, val text: String, val time: Long)
 
 object Repo {
+    private val noteChanges = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val notesRevision: kotlinx.coroutines.flow.StateFlow<Long> = noteChanges.asStateFlow()
+    @Synchronized fun notesForChecked(ctx:Context,number:String):List<Note> {
+        val key=ContactControls.k(number)
+        if(key.isEmpty())return emptyList()
+        return notesChecked(ctx).filter{ContactControls.k(it.number)==key}
+    }
 
     fun normalize(n: String): String = n.filter { it.isDigit() || it == '+' }
 
@@ -475,6 +483,7 @@ object Repo {
         try {
             val bytes=a.toString().toByteArray(Charsets.UTF_8);require(bytes.size<=4*1024*1024){"Notes storage ki limit aa gayi"};stream.write(bytes)
             file.finishWrite(stream)
+            noteChanges.value = noteChanges.value + 1L
         } catch(t: Throwable) {
             file.failWrite(stream)
             throw t
