@@ -1,0 +1,40 @@
+package com.mandu.liquiddialer
+import android.telecom.Call
+import androidx.compose.ui.test.*
+import androidx.datastore.preferences.core.edit
+import com.mandu.liquiddialer.data.*
+import com.mandu.liquiddialer.telecom.*
+import com.mandu.liquiddialer.ui.*
+import kotlinx.coroutines.runBlocking
+import org.junit.*
+import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.*
+abstract class CheckpointFixture:LiveCallDeskFixture(){
+ protected fun ready(on:Boolean=true,night:Boolean=false){show(night=night);runBlocking{ctx.repo.set(K.callCheckpoints,on)};await{LdApp.settings.value.callCheckpoints==on};target=deskShadowCall();CallManager.calls.value=listOf(target);settle();open();if(on)click("checkpoints_toggle")}
+ protected fun input(text:String){rule.onNodeWithTag("checkpoint_label",true).onChildren().filter(hasSetTextAction())[0].performTextInput(text);settle()}
+ protected fun mark(){click("checkpoint_mark")}
+ protected fun move(tag:String){repeat(24){val r=rule.onNodeWithTag(tag,true).getUnclippedBoundsInRoot();val viewport=rule.onNodeWithTag("call_desk_tools",true).getUnclippedBoundsInRoot();if(r.top>=viewport.top&&r.bottom<=viewport.bottom){settle();rule.onNodeWithTag(tag,true).assertIsDisplayed();return};rule.onNodeWithTag("call_desk_tools",true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy){it(0f,if(r.top<viewport.top)-150f else 150f)};settle()};error("Could not fully display $tag")}
+
+ @After fun reset(){runBlocking{ctx.repo.set(K.callCheckpoints,false)}}
+}
+@RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
+class CallCheckpointsUiTest:CheckpointFixture(){
+ @Test fun offNoEntry(){ready(false);rule.onAllNodesWithTag("checkpoints_toggle",true).assertCountEquals(0);rule.onNodeWithTag("call_note_draft",true).assertExists()}
+ @Test fun markOnlySessionPreviewCancelNoSave(){ready();input("Ask delivery date");mark();rule.onNodeWithTag("checkpoint_row_0",true).assertExists();assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty());move("checkpoint_preview");click("checkpoint_preview");rule.onNodeWithTag("checkpoint_preview_number",true).assertTextEquals("+919876543210");rule.onNodeWithTag("checkpoint_preview_text",true).assertTextContains("Ask delivery date",substring=true);click("checkpoint_save_cancel");assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+ @Test fun exactSaveLocksNoDuplicateThenNewBoard(){ready();input("Reference 42");mark();move("checkpoint_preview");click("checkpoint_preview");val expected=rule.onNodeWithTag("checkpoint_preview_text",true).fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString(""){it.text};click("checkpoint_save_confirm");assertEquals(expected,Repo.notesFor(ctx,"+919876543210").single().text);rule.onAllNodesWithTag("checkpoint_mark",true).assertCountEquals(0);rule.onNodeWithTag("checkpoint_saved",true).assertExists();move("checkpoint_new");click("checkpoint_new");click("checkpoint_new_confirm");rule.onAllNodesWithTag("checkpoint_row_0",true).assertCountEquals(0);assertEquals(1,Repo.notesFor(ctx,"+919876543210").size);rule.onNodeWithTag("checkpoint_mark",true).assertExists()}
+ @Test fun removeExactAndNewCancel(){ready();input("First");mark();input("Second");move("checkpoint_mark");mark();move("checkpoint_remove_0");click("checkpoint_remove_0");rule.onNodeWithTag("checkpoint_row_0",true).onChildren().filter(hasText("Second")).assertCountEquals(1);rule.onAllNodesWithTag("checkpoint_row_1",true).assertCountEquals(0);move("checkpoint_new");click("checkpoint_new");click("checkpoint_new_cancel");rule.onNodeWithTag("checkpoint_row_0",true).assertExists();assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+ @Test fun hideKeepsMarksAndDraft(){ready();input("Unsaved label");click("checkpoints_toggle");click("checkpoints_toggle");rule.onNodeWithTag("checkpoint_label",true).onChildren().filter(hasSetTextAction())[0].assertTextEquals("Unsaved label");mark();click("checkpoints_toggle");click("checkpoints_toggle");rule.onNodeWithTag("checkpoint_row_0",true).assertExists();assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+ @Test fun tooLongDisabledThenValid(){ready();input("x".repeat(81));rule.onNodeWithTag("checkpoint_mark",true).assertIsNotEnabled();rule.onNodeWithTag("checkpoint_label",true).onChildren().filter(hasSetTextAction())[0].performTextClearance();input("Good");rule.onNodeWithTag("checkpoint_mark",true).assertIsEnabled()}
+ @Test fun offClearsWithoutSaveAndReenableEmpty(){ready();input("Discard me");mark();runBlocking{ctx.repo.set(K.callCheckpoints,false)};await{rule.onAllNodesWithTag("checkpoints_toggle",true).fetchSemanticsNodes().isEmpty()};runBlocking{ctx.repo.set(K.callCheckpoints,true)};await{rule.onAllNodesWithTag("checkpoints_toggle",true).fetchSemanticsNodes().size==1};click("checkpoints_toggle");rule.onAllNodesWithTag("checkpoint_row_0",true).assertCountEquals(0);assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+ @Test fun closeConfirmDiscards(){ready();input("Discard");mark();click("call_desk_close");click("call_desk_close_cancel");rule.onNodeWithTag("checkpoint_row_0",true).assertExists();click("call_desk_close");click("call_desk_close_confirm");open();click("checkpoints_toggle");rule.onAllNodesWithTag("checkpoint_row_0",true).assertCountEquals(0);assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+ @Test fun callReplacementDiscards(){ready();input("Old call");mark();target=deskShadowCall();CallManager.calls.value=listOf(target);settle();rule.onAllNodesWithTag("call_desk",true).assertCountEquals(0);assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+ @Test fun preservesOrdinaryNoteDraft(){ready();click("checkpoints_toggle");move("call_note_draft");rule.onNodeWithTag("call_note_draft",true).onChildren().filter(hasSetTextAction())[0].performTextInput("Other draft");move("checkpoints_toggle");click("checkpoints_toggle");input("Mark");mark();click("checkpoints_toggle");move("call_note_draft");rule.onNodeWithTag("call_note_draft",true).onChildren().filter(hasSetTextAction())[0].assertTextEquals("Other draft");assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+ @Test fun dayBoardPixels(){ready();input("Reference ID: 7834");mark();rule.onNodeWithTag("end_call",true).assertIsDisplayed();rule.onNodeWithTag("call_desk_mute",true).assertIsDisplayed();rule.onNodeWithTag("call_desk_speaker",true).assertIsDisplayed();saveShot(rule,"MARK456-board-day");move("checkpoint_preview");click("checkpoint_preview");saveDialogShot("MARK456-preview-day",0xFFF2F7FFL)}
+}
+@RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w320dp-h640dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
+class CallCheckpointsPixelsUiTest:CheckpointFixture(){
+ @Test fun narrowLargeBoardAndPreview(){ready(night=true);input("ऑर्डर 7834: delivery ki baat");mark();rule.onNodeWithTag("end_call",true).assertIsDisplayed();saveShot(rule,"MARK456-narrow-night-large");move("checkpoint_preview");rule.onNodeWithTag("end_call",true).assertIsDisplayed();saveShot(rule,"MARK456-narrow-scrolled-night-large");click("checkpoint_preview");await{rule.onAllNodesWithTag("checkpoint_save_confirm",true).fetchSemanticsNodes().isNotEmpty()};saveDialogShot("MARK456-preview-night-large",0xFF10182BL);rule.onNodeWithTag("checkpoint_save_confirm",true).assertIsDisplayed();click("checkpoint_save_cancel");move("checkpoint_new");click("checkpoint_new");await{rule.onAllNodesWithTag("checkpoint_new_confirm",true).fetchSemanticsNodes().isNotEmpty()};saveDialogShot("MARK456-clear-night-large",0xFF10182BL)}
+ @Test fun settingsOffThenOnNoDeskAutoEnable(){seed(false,night=true);runBlocking{ctx.repo.set(K.callCheckpoints,false)};await{!LdApp.settings.value.callCheckpoints};mount{CallCheckpointsPage{}};saveShot(rule,"MARK456-settings-night-large");rule.onAllNodesWithText("Call checkpoints",useUnmergedTree=true)[1].performClick();await{LdApp.settings.value.callCheckpoints};assertFalse(LdApp.settings.value.liveCallDesk)}
+}
