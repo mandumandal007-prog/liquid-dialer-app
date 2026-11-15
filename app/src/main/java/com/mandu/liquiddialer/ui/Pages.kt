@@ -135,6 +135,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "checkpointlabels" -> CheckpointLabelsPage(onBack)
         page == "callcheckpoints" -> CallCheckpointsPage(onBack)
         page == "deskkeypad" -> DeskKeypadPage(onBack)
         page == "livecalldesk" -> LiveCallDeskPage(onBack)
@@ -392,6 +393,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         }
         if(group=="calls") {
+        GlassCard{SRow("Checkpoint label editor","Mark now, name the moment later",LdIcons.Edit,last=true){onOpen("checkpointlabels")}}
         GlassCard{SRow("Call checkpoints","Manual marks, preview and explicit note summary",LdIcons.Clock,last=true){onOpen("callcheckpoints")}}
         GlassCard{SRow("Live desk keypad","Manual tones without closing desk tools",LdIcons.Dialpad,last=true){onOpen("deskkeypad")}}
         GlassCard{SRow("Live call desk","Call tools and live controls together",LdIcons.Edit,last=true){onOpen("livecalldesk")}}
