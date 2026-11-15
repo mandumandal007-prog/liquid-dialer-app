@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("desk-stopwatch","Desk interval stopwatch","Manually time call tasks, pause and mark labeled laps","calls","deskstopwatch",aliases="desk interval stopwatch lap timer duration start pause resume task timing"),
   Entry("checkpoint-tasks","Checkpoint to checklist","Choose call moments as unfinished topics for this number","calls","checkpointtasks",aliases="checkpoint tasks agenda follow up handoff checklist select labels"),
   Entry("live-notes-refresh","Live saved notes refresh","Show local note changes without closing the call desk","calls","livenotesrefresh",aliases="live saved notes refresh reload sync checkpoint summary update list"),
   Entry("checkpoint-labels","Checkpoint label editor","Mark the moment now, correct its label later","calls","checkpointlabels",aliases="checkpoint edit label rename correct moment timestamp quick mark"),
