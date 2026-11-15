@@ -862,11 +862,15 @@ fun NotesSheet(number:String,name:String,onDone:()->Unit) = NotesSheet(number,na
 fun NotesSheet(number: String, name: String, deskMode:Boolean, onDone: () -> Unit) {
     val ctx = LocalContext.current
     val p = LocalLd.current
-    var text by remember { mutableStateOf("") }
-    var error by remember {mutableStateOf("")}
-    var list by remember { mutableStateOf(try{Repo.notesChecked(ctx).filter{ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}catch(_:Exception){error="Notes khul nahi rahe. Saved file nahi badli.";emptyList()}) }
+    var text by remember(number) { mutableStateOf("") }
+    var error by remember(number) {mutableStateOf("")}
+    var list by remember(number) { mutableStateOf(try{Repo.notesForChecked(ctx,number)}catch(_:Exception){error="Notes khul nahi rahe. Saved file nahi badli.";emptyList()}) }
+    var refreshStatus by remember(number){mutableStateOf("")}
+    fun reloadNotes(){try{list=Repo.notesForChecked(ctx,number);error="";refreshStatus="Saved notes reloaded. Draft unchanged."}catch(_:Exception){list=emptyList();error="Saved notes load nahi hue. Purani list hide ki; file aur draft nahi badle.";refreshStatus=""}}
     val df = remember { SimpleDateFormat("d MMM, h:mm a", Locale.getDefault()) }
     val referenceSettings by LdApp.settings.collectAsState()
+    val notesRevision by Repo.notesRevision.collectAsState()
+    LaunchedEffect(number,referenceSettings.liveNotesRefresh,notesRevision){if(referenceSettings.liveNotesRefresh)reloadNotes()}
     var reader by remember(number){mutableStateOf(false)}
     if(reader&&referenceSettings.callNoteReader){CallNotesReader(number,{reader=false});return}
     var tally by remember(number){mutableStateOf(false)}
@@ -916,12 +920,17 @@ fun NotesSheet(number: String, name: String, deskMode:Boolean, onDone: () -> Uni
         try{Repo.addNote(ctx, number, name, text); text = ""; list = Repo.notesFor(ctx, number);error=""}
         catch(_:Exception){error="Note save nahi hua. Saved file nahi badli. Notes page mein dobara load karo."}
     }
+    if(referenceSettings.liveNotesRefresh){
+        Spacer(Modifier.height(8.dp))
+        GhostButton("Reload saved notes",Modifier.testTag("call_notes_reload")){reloadNotes()}
+        if(refreshStatus.isNotEmpty())LdText(refreshStatus,12f,color=p.muted,maxLines=4,modifier=Modifier.testTag("call_notes_refresh_status"))
+    }
     if (list.isNotEmpty()) {
         Spacer(Modifier.height(10.dp))
         LdText("SAVED NOTES · ${list.size}", 10f, FontWeight.Bold, p.muted, letter = 1f,modifier=Modifier.padding(bottom=8.dp))
         LazyColumn(Modifier.heightIn(max = 260.dp)) {
             items(list, key = { it.id }) { n ->
-                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).glass(p, RoundedCornerShape(16.dp), 2.dp).padding(12.dp)) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp).glass(p, RoundedCornerShape(16.dp), 2.dp).padding(12.dp).testTag("call_saved_note_${n.id}")) {
                     LdText(df.format(Date(n.time)), 11f, FontWeight.SemiBold, p.muted)
                     LdText(n.text, 14f, maxLines = 10)
                 }
