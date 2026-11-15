@@ -14,6 +14,11 @@ object CallCheckpoints {
    require(marks.isEmpty()||seconds>=marks.last().seconds){"Clock moved back; no mark added"}
    return copy(marks=marks+Mark(seconds,text.ifEmpty{"Checkpoint"}))
   }
+  fun rename(index:Int,label:String):Board {
+   require(!saved&&index in marks.indices)
+   val text=label.trim();require(text.length<=80&&text.none{it.isISOControl()})
+   return copy(marks=marks.mapIndexed{i,m->if(i==index)m.copy(label=text.ifEmpty{"Checkpoint"})else m})
+  }
   fun remove(index:Int):Board {require(!saved&&index in marks.indices);return copy(marks=marks.filterIndexed{i,_->i!=index})}
   fun summary():String {
    require(marks.isNotEmpty()&&marks.size<=MAX)
@@ -22,6 +27,11 @@ object CallCheckpoints {
    return "Manual call checkpoints (elapsed from connection, not a recording):\n"+marks.joinToString("\n"){"${time(it.seconds)} | ${it.label}"}
   }
  }
+ fun rename(session:LiveCallDesk.Session,expected:Board,current:Board,index:Int,label:String):Board?=runCatching{
+  val s=LdApp.settings.value
+  require(s.checkpointLabels&&s.callCheckpoints&&session.current(s)&&expected==current)
+  current.rename(index,label)
+ }.getOrNull()
  fun time(seconds:Long):String{require(seconds in 0..604800);return "%d:%02d:%02d".format(java.util.Locale.ROOT,seconds/3600,(seconds%3600)/60,seconds%60)}
  fun elapsed(session:LiveCallDesk.Session,now:Long):Long?=runCatching{
   require(session.current(LdApp.settings.value)&&LdApp.settings.value.callCheckpoints)
