@@ -26,6 +26,7 @@ object SettingsFinder{
   Entry("tally-boards","Saved tally boards","Explicitly save counts and preview session replacement","calls","tallyboards",aliases="quantity count tally saved board snapshot restore library"),
   Entry("estimate-bundles","Calculator item bundles","Save selected items and preview reusable bundles","calls","estimatebundles",aliases="calculator reusable bundle template item quantity rate library"),
   Entry("estimate-lines","Calculator multi-line items","Preview several manual item lines before appending","calls","estimatelines",aliases="calculator multiline batch bulk items name quantity rate pipe append estimate"),
+  Entry("estimate-rates","Calculator rate adjustment","Preview percentage changes to selected manual rates","calls","estimaterates",aliases="calculator rate price percentage increase decrease selected items adjustment"),
   Entry("estimate-scale","Calculator quantity scaling","Preview ratio changes on selected item quantities","calls","estimatescale",aliases="calculator scale quantity ratio multiply divide selected items resize estimate"),
   Entry("estimate-split","Calculator split estimate","Preview equal or weighted named shares","calls","estimatesplit",aliases="calculator split estimate equal weights shares divide total remainder"),
   Entry("call-tally","Call quantity tally","Manual named counters, session-only Undo and Redo","calls","calltally",aliases="tally counter quantity count items pieces plus minus undo redo template reusable labels"),
