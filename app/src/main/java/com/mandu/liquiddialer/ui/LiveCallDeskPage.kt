@@ -64,7 +64,7 @@ internal fun bottomLVisible(s:LdSettings,id:String)=parseLayout(s.layoutBottom,B
   if(keypadEnabled)GhostButton(if(keypad)"Hide keypad"else"Desk keypad",Modifier.fillMaxWidth().padding(bottom=6.dp).testTag("desk_keypad_toggle")){keypad=!keypad}
   Column(Modifier.weight(1f).fillMaxWidth().glass(p,RoundedCornerShape(22.dp)).verticalScroll(rememberScrollState()).padding(14.dp).testTag("call_desk_tools")){
    if(keypad&&keypadEnabled)DeskKeypad(onTone)
-   checkpointSession?.let{CallCheckpointsWorkspace(it)}
+   checkpointSession?.let{DeskStopwatchWorkspace(it);CallCheckpointsWorkspace(it)}
    NotesSheet(number,name,deskMode=true){}
   }
   Row(Modifier.fillMaxWidth().padding(top=10.dp,bottom=6.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
