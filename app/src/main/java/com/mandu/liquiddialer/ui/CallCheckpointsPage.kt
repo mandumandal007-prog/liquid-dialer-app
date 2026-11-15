@@ -38,6 +38,8 @@ import kotlinx.coroutines.launch
  val s by LdApp.settings.collectAsState();val p=LocalLd.current;val ctx=LocalContext.current;val focus=androidx.compose.ui.platform.LocalFocusManager.current
  var board by remember(session){mutableStateOf(CallCheckpoints.Board())};var label by remember(session){mutableStateOf("")};var open by remember(session){mutableStateOf(false)}
  var preview by remember(session){mutableStateOf<CallCheckpoints.Board?>(null)};var clear by remember(session){mutableStateOf(false)};var error by remember(session){mutableStateOf("")}
+ var editing by remember(session){mutableStateOf<Pair<CallCheckpoints.Board,Int>?>(null)};var edited by remember(session){mutableStateOf("")};var editError by remember(session){mutableStateOf(false)}
+ LaunchedEffect(s.checkpointLabels,s.callCheckpoints){if(!s.checkpointLabels||!s.callCheckpoints){editing=null;edited="";editError=false}}
  var commit by remember(session){mutableStateOf(CallCheckpoints.Commit())}
  LaunchedEffect(s.callCheckpoints){if(!s.callCheckpoints){board=CallCheckpoints.Board();label="";preview=null;open=false;clear=false;commit=CallCheckpoints.Commit()}}
  if(!s.callCheckpoints)return
@@ -47,18 +49,35 @@ import kotlinx.coroutines.launch
   LdText("Elapsed-time labels, not audio. Nothing saved until preview + confirm.",12f,color=p.muted,maxLines=4)
   if(!board.saved){
    LdField(label,{label=it},"Short label (optional, 80 max)",modifier=Modifier.testTag("checkpoint_label"))
-   PrimaryButton("Mark now",enabled=board.marks.size<12&&label.trim().length<=80&&label.none{it.isISOControl()},modifier=Modifier.testTag("checkpoint_mark")){
+   PrimaryButton("Mark now",enabled=editing==null&&board.marks.size<12&&label.trim().length<=80&&label.none{it.isISOControl()},modifier=Modifier.testTag("checkpoint_mark")){
     try{val seconds=CallCheckpoints.elapsed(session,System.currentTimeMillis())?:error("Call/time unavailable");board=board.add(seconds,label);label="";error="";focus.clearFocus()}catch(_:Exception){error="Mark nahi joda. Call/time ya label check karo."}
    }
   }
   board.marks.forEachIndexed{i,m->GlassCard(Modifier.testTag("checkpoint_row_$i")){
    LdText(CallCheckpoints.time(m.seconds),16f,FontWeight.Bold,color=p.accent)
    LdText(m.label,14f,maxLines=Int.MAX_VALUE)
-   if(!board.saved)GhostButton("Remove ${i+1}",Modifier.testTag("checkpoint_remove_$i")){board=board.remove(i);error=""}
+   if(!board.saved&&s.checkpointLabels&&editing==null)GhostButton("Edit label ${i+1}",Modifier.testTag("checkpoint_edit_$i")){editing=board to i;edited=m.label;editError=false;focus.clearFocus()}
+   if(editing?.second==i){
+    val expected=editing!!.first
+    Column(Modifier.fillMaxWidth().padding(top=8.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+     LdText("Edit checkpoint label",17f,FontWeight.Bold,maxLines=3)
+     LdText(session.number,13f,maxLines=4,modifier=Modifier.testTag("checkpoint_edit_number"))
+     LdText("Mark ${i+1} · ${CallCheckpoints.time(expected.marks[i].seconds)}",14f,FontWeight.Bold,color=p.accent,modifier=Modifier.testTag("checkpoint_edit_time"))
+     LdText("Time and order stay. Apply changes only this session label. Blank = Checkpoint. Keep original discards this edit.",12f,color=p.muted,maxLines=8)
+     LdField(edited,{edited=it},"Label, 80 max",modifier=Modifier.testTag("checkpoint_edit_label"))
+     LdText("${edited.trim().length}/80",12f,color=if(edited.trim().length>80)p.danger else p.muted)
+     if(editError)LdText("Not applied. Call, setting or board changed. Cancel and reopen.",13f,color=p.danger,maxLines=5,modifier=Modifier.testTag("checkpoint_edit_error"))
+     PrimaryButton("Apply label",enabled=edited.trim().length<=80&&edited.none{it.isISOControl()},modifier=Modifier.testTag("checkpoint_edit_apply")){val changed=CallCheckpoints.rename(session,expected,board,i,edited);if(changed==null)editError=true else{board=changed;editing=null;edited="";error="";focus.clearFocus()}}
+     GhostButton("Keep original",Modifier.testTag("checkpoint_edit_cancel")){editing=null;edited="";focus.clearFocus()}
+    }
+   }
+   if(!board.saved&&editing==null&&s.checkpointLabels)Spacer(Modifier.height(8.dp))
+   if(!board.saved&&editing==null)GhostButton("Remove ${i+1}",Modifier.testTag("checkpoint_remove_$i")){board=board.remove(i);error=""}
+
   }}
   if(board.saved)LdText("Summary saved as one note. Marks locked.",13f,FontWeight.SemiBold,p.accent,modifier=Modifier.testTag("checkpoint_saved"))
-  if(board.marks.isNotEmpty()&&!board.saved)PrimaryButton("Preview note summary",modifier=Modifier.testTag("checkpoint_preview")){preview=board;error=""}
-  if(board.marks.isNotEmpty())GhostButton("New empty board",Modifier.testTag("checkpoint_new")){clear=true}
+  if(board.marks.isNotEmpty()&&!board.saved)PrimaryButton("Preview note summary",enabled=editing==null,modifier=Modifier.testTag("checkpoint_preview")){preview=board;error=""}
+  if(board.marks.isNotEmpty()&&editing==null)GhostButton("New empty board",Modifier.testTag("checkpoint_new")){clear=true}
   if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=5,modifier=Modifier.testTag("checkpoint_error"))
  }
  preview?.let{expected->AlertDialog(onDismissRequest={preview=null},title={LdText("Save checkpoint note?",19f,FontWeight.Bold,maxLines=3)},text={Column(Modifier.verticalScroll(rememberScrollState())){
