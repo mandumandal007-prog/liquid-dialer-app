@@ -184,7 +184,8 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
     val call = remember(ver, calls) { CallManager.primary() }
     var sheet by remember { mutableStateOf<String?>(null) }
     var ivrTarget by remember { mutableStateOf<Call?>(null) }
-    var confirmEnd by remember { mutableStateOf(false) }
+    var confirmEnd by remember { mutableStateOf<Call?>(null) }
+    LaunchedEffect(call) { confirmEnd = null }
     // keep the last call's identity so the end screen still shows who it was and how long it ran
     var lastEnded by remember { mutableStateOf<Triple<String, String, String>?>(null) }
     call?.let { c ->
@@ -215,13 +216,18 @@ fun CallScreen(onFinish: () -> Unit, onRecord: () -> Unit, onAddCall: () -> Unit
                 val st = CallManager.state(call)
                 if (st == Call.STATE_RINGING) IncomingContent(call, s.swipeAnswer, onMessage = { sheet = "reply" }, onNotes = { sheet = "notes" })
                 else OngoingContent(call, audio, rec, onRecord, onAddCall, onMinimize, openSheet = { if(it=="ivr")ivrTarget=call;sheet = it },
-                    onEndRequest = { if (s.confirmBeforeEnd) confirmEnd = true else CallManager.end(call) })
+                    onEndRequest = { target -> if (s.confirmBeforeEnd) confirmEnd = target else CallManager.end(target) })
                 if (st == Call.STATE_SELECT_PHONE_ACCOUNT && sheet == null) sheet = "sim"
             }
             val c = call
             val vNotice by CallManager.videoNotice.collectAsState()
             vNotice?.let { n -> VoiceNoticeCard(n, Alignment.TopCenter, 64.dp) { CallManager.videoNotice.value = null } }
-            if (confirmEnd && c != null) EndConfirmCard(align = Alignment.BottomCenter, onOk = { confirmEnd = false; CallManager.end(c) }, onCancel = { confirmEnd = false })
+            confirmEnd?.takeIf { it === c }?.let { target ->
+                EndConfirmCard(align = Alignment.BottomCenter, onOk = {
+                    confirmEnd = null
+                    if (CallManager.primary() === target && CallManager.calls.value.any { it === target } && CallManager.state(target) !in setOf(Call.STATE_DISCONNECTING,Call.STATE_DISCONNECTED)) CallManager.end(target)
+                }, onCancel = { confirmEnd = null })
+            }
             if (sheet != null && c != null) {
                 Sheet(onDismiss = { sheet = null }) {
                     when (sheet) {
@@ -427,7 +433,8 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val p = LocalLd.current
     val ctx = LocalContext.current
     val now = nowTicker()
-    val st = CallManager.state(call)
+    val callVersion by CallManager.version.collectAsState()
+    val st = remember(call,callVersion) { CallManager.state(call) }
     val vs = (try { call.details?.videoState } catch (_: Throwable) { null }) ?: VideoProfile.STATE_AUDIO_ONLY
     // black stage ka matlab "frames aa rahe hain" hota - isliye sirf ACTIVE + saamne se video RX par hi dikhao.
     // dialing/pending par normal audio UI + imaandari status; warna kala screen broken lagti hai.
@@ -472,6 +479,19 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val others = CallManager.others()
     val s by LdApp.settings.collectAsState()
 
+    val deskEligible = upgradeReq==null && com.mandu.liquiddialer.data.LiveCallDesk.eligible(s,call)
+    var desk by remember(call) { mutableStateOf<com.mandu.liquiddialer.data.LiveCallDesk.Session?>(null) }
+    LaunchedEffect(deskEligible) { if(!deskEligible) desk=null }
+    val deskSession=desk
+    if(deskSession!=null && deskSession.current(s)) {
+        LiveCallDeskView(CallManager.nameFor(ctx,call),deskSession.number,timer.orEmpty(),muted,speaker,bt,
+            showMute=gridLVisible(s,"mute"),showSpeaker=bottomLVisible(s,"speaker"),
+            onClose={desk=null},
+            onMute={deskSession.dispatch(LdApp.settings.value){if(gridLVisible(LdApp.settings.value,"mute"))CallManager.toggleMute()}},
+            onSpeaker={deskSession.dispatch(LdApp.settings.value){if(bottomLVisible(LdApp.settings.value,"speaker")){if(CallManager.hasBluetooth()&&!speaker)openSheet("audio")else CallManager.toggleSpeaker()}}},
+            onEnd={deskSession.dispatch(LdApp.settings.value){onEndRequest(call)}})
+        return
+    }
     val guardEligible = com.mandu.liquiddialer.data.CallTouchGuard.eligibleCall(s.callTouchGuard,call)
     var guard by remember(call,guardEligible) { mutableStateOf(com.mandu.liquiddialer.data.CallTouchGuard.State()) }
     val guardOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -649,6 +669,9 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
             }
         }
         if (!keypad) {
+            if(deskEligible) GhostButton("Live call desk",Modifier.fillMaxWidth().testTag("call_desk_open")){
+                desk=com.mandu.liquiddialer.data.LiveCallDesk.open(LdApp.settings.value,call)
+            }
             if(guardEligible) GhostButton("Touch guard",Modifier.fillMaxWidth().testTag("touch_guard_enable")){
                 if(com.mandu.liquiddialer.data.CallTouchGuard.eligibleCall(LdApp.settings.value.callTouchGuard,call)) guard=guard.lock()
             }
@@ -831,7 +854,10 @@ fun QuickReplySheet(replies: List<String>, onSend: (String) -> Unit) {
 }
 
 @Composable
-fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
+fun NotesSheet(number:String,name:String,onDone:()->Unit) = NotesSheet(number,name,false,onDone)
+
+@Composable
+fun NotesSheet(number: String, name: String, deskMode:Boolean, onDone: () -> Unit) {
     val ctx = LocalContext.current
     val p = LocalLd.current
     var text by remember { mutableStateOf("") }
@@ -864,7 +890,7 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
         CallChecklistWorkspace(number,{checklist=false},inSheet=true)
         return
     }
-    Row(Modifier.fillMaxWidth().padding(bottom=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+    if(!deskMode) Row(Modifier.fillMaxWidth().padding(bottom=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
         Box(Modifier.size(44.dp).buttonGlass(p,RoundedCornerShape(14.dp)),contentAlignment=Alignment.Center){LdIcon(LdIcons.Edit,22.dp,p.accent)}
         Column(Modifier.weight(1f)){
             LdText("CALL NOTES",10f,FontWeight.Bold,p.muted,letter=1f)
@@ -882,9 +908,9 @@ fun NotesSheet(number: String, name: String, onDone: () -> Unit) {
     if(referenceSettings.callNoteReader&&CallNoteReader.eligible(number))GhostButton("Saved notes padho / khojo",Modifier.testTag("call_notes_reader_open")){reader=true}
     Spacer(Modifier.height(6.dp))
     LdText("Naya note",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(bottom=8.dp))
-    LdField(text, { text = it }, "Call ke dauran note likho…", minLines = 3)
+    LdField(text, { text = it }, "Call ke dauran note likho…", modifier=Modifier.testTag("call_note_draft"), minLines = 3)
     if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=4)
-    PrimaryButton("Save note", enabled = text.isNotBlank() && text.trim().length<=50000) {
+    PrimaryButton("Save note", modifier=Modifier.testTag("call_note_save"), enabled = text.isNotBlank() && text.trim().length<=50000) {
         try{Repo.addNote(ctx, number, name, text); text = ""; list = Repo.notesFor(ctx, number);error=""}
         catch(_:Exception){error="Note save nahi hua. Saved file nahi badli. Notes page mein dobara load karo."}
     }
