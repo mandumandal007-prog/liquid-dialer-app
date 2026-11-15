@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("desk-sections","Desk section layout","Order desk sections and hide optional desk entries","calls","desksections",aliases="live desk section order layout notes stopwatch checkpoints show hide reorder"),
   Entry("lap-compare","Stopwatch lap comparison","Select measured laps to compare durations without changing timing","calls","lapcompare",aliases="stopwatch lap comparison subtotal average shortest longest rank intervals"),
   Entry("desk-stopwatch","Desk interval stopwatch","Manually time call tasks, pause and mark labeled laps","calls","deskstopwatch",aliases="desk interval stopwatch lap timer duration start pause resume task timing"),
   Entry("checkpoint-tasks","Checkpoint to checklist","Choose call moments as unfinished topics for this number","calls","checkpointtasks",aliases="checkpoint tasks agenda follow up handoff checklist select labels"),
