@@ -47,6 +47,8 @@ internal fun bottomLVisible(s:LdSettings,id:String)=parseLayout(s.layoutBottom,B
 @Composable fun LiveCallDeskView(name:String,number:String,timer:String,muted:Boolean,speaker:Boolean,bluetooth:Boolean,
  showMute:Boolean,showSpeaker:Boolean,checkpointSession:LiveCallDesk.Session?=null,keypadEnabled:Boolean=false,onTone:(Char)->Boolean={false},onClose:()->Unit,onMute:()->Unit,onSpeaker:()->Unit,onEnd:()->Unit){
  val p=LocalLd.current;var close by remember{mutableStateOf(false)}
+ // Freeze only section placement for this desk. Live feature/safety switches still apply.
+ val sectionLayout=remember(checkpointSession){DeskSections.snapshot(LdApp.settings.value)}
  var keypad by remember{mutableStateOf(false)}
  LaunchedEffect(keypadEnabled){if(!keypadEnabled)keypad=false}
  BackHandler{close=true}
@@ -64,8 +66,15 @@ internal fun bottomLVisible(s:LdSettings,id:String)=parseLayout(s.layoutBottom,B
   if(keypadEnabled)GhostButton(if(keypad)"Hide keypad"else"Desk keypad",Modifier.fillMaxWidth().padding(bottom=6.dp).testTag("desk_keypad_toggle")){keypad=!keypad}
   Column(Modifier.weight(1f).fillMaxWidth().glass(p,RoundedCornerShape(22.dp)).verticalScroll(rememberScrollState()).padding(14.dp).testTag("call_desk_tools")){
    if(keypad&&keypadEnabled)DeskKeypad(onTone)
-   checkpointSession?.let{DeskStopwatchWorkspace(it);CallCheckpointsWorkspace(it)}
-   NotesSheet(number,name,deskMode=true){}
+   sectionLayout.filter{it.visible}.forEach{section->key(section.id){
+    Column(Modifier.fillMaxWidth().testTag("desk_section_${section.id}")){
+     when(section.id){
+      "watch"->checkpointSession?.let{DeskStopwatchWorkspace(it)}
+      "marks"->checkpointSession?.let{CallCheckpointsWorkspace(it)}
+      "notes"->NotesSheet(number,name,deskMode=true){}
+     }
+    }
+   }}
   }
   Row(Modifier.fillMaxWidth().padding(top=10.dp,bottom=6.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
    if(showMute)Box(Modifier.testTag("call_desk_mute")){CallBtn(LdIcons.Mic,if(muted)"Unmute"else"Mute",muted,size=52.dp,onClick=onMute)}
