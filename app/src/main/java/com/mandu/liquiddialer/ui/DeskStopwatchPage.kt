@@ -58,6 +58,7 @@ import kotlinx.coroutines.launch
    LdText(l.label,14f,FontWeight.Bold,maxLines=Int.MAX_VALUE)
    LdText("Lap ${DeskStopwatch.time(l.totalMs-(board.laps.getOrNull(i-1)?.totalMs?:0))} · total ${DeskStopwatch.time(l.totalMs)}",13f,color=p.muted,maxLines=5)
   }}
+  if(s.lapCompare&&board.runningSince==null&&board.laps.isNotEmpty())LapCompareWorkspace(session,board)
   if(!board.saved)PrimaryButton("Preview stopwatch note",enabled=board.runningSince==null&&board.accumulatedMs>0,modifier=Modifier.testTag("desk_watch_preview")){preview=board;error=""}
   GhostButton("Reset stopwatch",Modifier.testTag("desk_watch_reset")){reset=true}
   if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=6,modifier=Modifier.testTag("desk_watch_error"))
