@@ -24,7 +24,24 @@ class LookProfilesUiTest{
  private fun click(tag:String){rule.mainClock.autoAdvance=true;rule.onNodeWithTag(tag,true).performScrollTo();rule.mainClock.autoAdvance=false;rule.onNodeWithTag(tag,true).performClick();settle()}
  @After fun clean(){runBlocking{ctx.ldStore.edit{it[K.lookProfiles]="";it[K.refinedHeaders]=false;it[K.quietRows]=false;it[K.fontScale]=1f;it[K.hiddenFeatures]=emptySet()}}}
  @Test fun previewIsReadOnlyAndApplyUndoPreserveBehavior(){show();val before=Look.capture(LdApp.settings.value);clickText("Royal Night");rule.onNodeWithTag("look_preview",true).assertExists();assertEquals(before,Look.capture(LdApp.settings.value));click("look_apply");await{LdApp.settings.value.theme=="midnight"};assertEquals(setOf("notes"),LdApp.settings.value.hiddenFeatures);assertFalse(LdApp.settings.value.autoRecord);click("look_undo");await{Look.capture(LdApp.settings.value)==before}}
- @Test fun saveRenameAndDeleteAreLibraryOnly(){show();val before=Look.capture(LdApp.settings.value);click("look_save_current");rule.onNode(hasSetTextAction()).performTextInput("My work look");click("look_save_name");await{runCatching{LookProfiles.decode(LdApp.settings.value.lookProfiles).size==1}.getOrDefault(false)};val id=LookProfiles.decode(LdApp.settings.value.lookProfiles).single().id;click("look_rename_$id");rule.onNode(hasSetTextAction()).performTextReplacement("New name");click("look_save_name");await{LookProfiles.decode(LdApp.settings.value.lookProfiles).single().name=="New name"};click("look_delete_$id");click("look_delete_confirm");await{LookProfiles.decode(LdApp.settings.value.lookProfiles).isEmpty()};assertEquals(before,Look.capture(LdApp.settings.value))}
+ @Test fun saveRenameAndDeleteAreLibraryOnly(){
+  show();val before=Look.capture(LdApp.settings.value)
+  click("look_save_current");await{rule.onAllNodesWithTag("look_save_name",true).fetchSemanticsNodes().size==1}
+  rule.onNode(hasSetTextAction()).performTextInput("My work look");settle()
+  click("look_save_name")
+  await{runCatching{LookProfiles.decode(LdApp.settings.value.lookProfiles).size==1}.getOrDefault(false)&&rule.onAllNodesWithTag("look_save_name",true).fetchSemanticsNodes().isEmpty()}
+  val row=LookProfiles.decode(LdApp.settings.value.lookProfiles).single();assertEquals("My work look",row.name)
+  val id=row.id;await{rule.onAllNodesWithTag("look_rename_$id",true).fetchSemanticsNodes().size==1}
+  click("look_rename_$id");await{rule.onAllNodesWithTag("look_save_name",true).fetchSemanticsNodes().size==1}
+  rule.onNode(hasSetTextAction()).performTextReplacement("New name");settle()
+  click("look_save_name")
+  await{LookProfiles.decode(LdApp.settings.value.lookProfiles).single().name=="New name"&&rule.onAllNodesWithTag("look_save_name",true).fetchSemanticsNodes().isEmpty()}
+  click("look_delete_$id");await{rule.onAllNodesWithTag("look_delete_confirm",true).fetchSemanticsNodes().size==1}
+  click("look_delete_confirm")
+  await{LookProfiles.decode(LdApp.settings.value.lookProfiles).isEmpty()&&rule.onAllNodesWithTag("look_delete_confirm",true).fetchSemanticsNodes().isEmpty()}
+  assertEquals(before,Look.capture(LdApp.settings.value))
+ }
+
  @Test fun staleAppearanceBlocksApply(){show();clickText("Royal Night");runBlocking{ctx.ldStore.edit{it[K.blur]=17}};await{LdApp.settings.value.blur==17};click("look_apply");await{rule.onAllNodesWithTag("look_preview_error",true).fetchSemanticsNodes().isNotEmpty()};rule.onNodeWithTag("look_preview_error",true).assertExists();assertEquals(17,LdApp.settings.value.blur);assertEquals("daylight",LdApp.settings.value.theme)}
  @Test fun corruptLibraryIsPreservedAndCannotSave(){show(raw="broken");rule.onNodeWithTag("look_library_error",true).assertExists();rule.onNodeWithTag("look_save_current",true).assertDoesNotExist();assertEquals("broken",LdApp.settings.value.lookProfiles)}
  @Test fun nestedPreviewFontDoesNotMultiplyParentSetting(){show(true);var actual=0f;rule.runOnUiThread{rule.activity.mountTestPage{LdThemeContent(LdSettings(fontScale=1.4f)){LdThemeContent(LdSettings(fontScale=1.2f)){actual=LocalDensity.current.fontScale;LdText("Preview",14f)}}}};settle();assertEquals(1.2f,actual,.001f)}
