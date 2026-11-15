@@ -135,6 +135,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "lapcompare" -> LapComparePage(onBack)
         page == "deskstopwatch" -> DeskStopwatchPage(onBack)
         page == "checkpointtasks" -> CheckpointTasksPage(onBack)
         page == "livenotesrefresh" -> LiveNotesRefreshPage(onBack)
@@ -396,6 +397,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         }
         if(group=="calls") {
+        GlassCard{SRow("Stopwatch lap comparison","Compare selected measured laps, read only",LdIcons.Edit,last=true){onOpen("lapcompare")}}
         GlassCard{SRow("Desk interval stopwatch","Start, pause and label task laps during a call",LdIcons.Edit,last=true){onOpen("deskstopwatch")}}
         GlassCard{SRow("Checkpoint to checklist","Turn selected moments into unfinished topics",LdIcons.Edit,last=true){onOpen("checkpointtasks")}}
         GlassCard{SRow("Live saved notes refresh","See local saves without closing the desk",LdIcons.Edit,last=true){onOpen("livenotesrefresh")}}
