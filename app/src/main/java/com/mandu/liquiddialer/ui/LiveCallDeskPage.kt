@@ -45,8 +45,10 @@ internal fun bottomLVisible(s:LdSettings,id:String)=parseLayout(s.layoutBottom,B
 }
 
 @Composable fun LiveCallDeskView(name:String,number:String,timer:String,muted:Boolean,speaker:Boolean,bluetooth:Boolean,
- showMute:Boolean,showSpeaker:Boolean,onClose:()->Unit,onMute:()->Unit,onSpeaker:()->Unit,onEnd:()->Unit){
+ showMute:Boolean,showSpeaker:Boolean,keypadEnabled:Boolean=false,onTone:(Char)->Boolean={false},onClose:()->Unit,onMute:()->Unit,onSpeaker:()->Unit,onEnd:()->Unit){
  val p=LocalLd.current;var close by remember{mutableStateOf(false)}
+ var keypad by remember{mutableStateOf(false)}
+ LaunchedEffect(keypadEnabled){if(!keypadEnabled)keypad=false}
  BackHandler{close=true}
  Column(Modifier.fillMaxSize().systemBarsPadding().imePadding().padding(horizontal=16.dp,vertical=10.dp).testTag("call_desk")){
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
@@ -59,7 +61,9 @@ internal fun bottomLVisible(s:LdSettings,id:String)=parseLayout(s.layoutBottom,B
   }
   LdText(number,12f,color=p.muted,maxLines=2,modifier=Modifier.padding(top=4.dp).testTag("call_desk_number"))
   LdText("Save before leaving. Call changes clear unsaved work.",11f,color=p.muted,maxLines=3,modifier=Modifier.padding(vertical=6.dp))
+  if(keypadEnabled)GhostButton(if(keypad)"Hide keypad"else"Desk keypad",Modifier.fillMaxWidth().padding(bottom=6.dp).testTag("desk_keypad_toggle")){keypad=!keypad}
   Column(Modifier.weight(1f).fillMaxWidth().glass(p,RoundedCornerShape(22.dp)).verticalScroll(rememberScrollState()).padding(14.dp).testTag("call_desk_tools")){
+   if(keypad&&keypadEnabled)DeskKeypad(onTone)
    NotesSheet(number,name,deskMode=true){}
   }
   Row(Modifier.fillMaxWidth().padding(top=10.dp,bottom=6.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
