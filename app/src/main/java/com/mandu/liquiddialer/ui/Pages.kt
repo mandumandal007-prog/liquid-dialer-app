@@ -135,6 +135,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "checkpointtasks" -> CheckpointTasksPage(onBack)
         page == "livenotesrefresh" -> LiveNotesRefreshPage(onBack)
         page == "checkpointlabels" -> CheckpointLabelsPage(onBack)
         page == "callcheckpoints" -> CallCheckpointsPage(onBack)
@@ -394,6 +395,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         }
         if(group=="calls") {
+        GlassCard{SRow("Checkpoint to checklist","Turn selected moments into unfinished topics",LdIcons.Edit,last=true){onOpen("checkpointtasks")}}
         GlassCard{SRow("Live saved notes refresh","See local saves without closing the desk",LdIcons.Edit,last=true){onOpen("livenotesrefresh")}}
         GlassCard{SRow("Checkpoint label editor","Mark now, name the moment later",LdIcons.Edit,last=true){onOpen("checkpointlabels")}}
         GlassCard{SRow("Call checkpoints","Manual marks, preview and explicit note summary",LdIcons.Clock,last=true){onOpen("callcheckpoints")}}
