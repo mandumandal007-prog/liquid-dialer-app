@@ -75,6 +75,7 @@ import kotlinx.coroutines.launch
    if(!board.saved&&editing==null)GhostButton("Remove ${i+1}",Modifier.testTag("checkpoint_remove_$i")){board=board.remove(i);error=""}
 
   }}
+  if(s.checkpointTasks&&FeatureControls.enabled(s,"checklist")&&editing==null&&board.marks.isNotEmpty())CheckpointTasksWorkspace(session,board)
   if(board.saved)LdText("Summary saved as one note. Marks locked.",13f,FontWeight.SemiBold,p.accent,modifier=Modifier.testTag("checkpoint_saved"))
   if(board.marks.isNotEmpty()&&!board.saved)PrimaryButton("Preview note summary",enabled=editing==null,modifier=Modifier.testTag("checkpoint_preview")){preview=board;error=""}
   if(board.marks.isNotEmpty()&&editing==null)GhostButton("New empty board",Modifier.testTag("checkpoint_new")){clear=true}
