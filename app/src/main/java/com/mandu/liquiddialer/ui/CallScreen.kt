@@ -485,6 +485,7 @@ private fun OngoingContent(call: Call, audio: CallAudioState?, rec: CallManager.
     val deskSession=desk
     if(deskSession!=null && deskSession.current(s)) {
         LiveCallDeskView(CallManager.nameFor(ctx,call),deskSession.number,timer.orEmpty(),muted,speaker,bt,
+            keypadEnabled=s.deskKeypad&&gridLVisible(s,"keypad"),onTone={digit->com.mandu.liquiddialer.telecom.IvrTone.sendDesk(deskSession,digit)},
             showMute=gridLVisible(s,"mute"),showSpeaker=bottomLVisible(s,"speaker"),
             onClose={desk=null},
             onMute={deskSession.dispatch(LdApp.settings.value){if(gridLVisible(LdApp.settings.value,"mute"))CallManager.toggleMute()}},
