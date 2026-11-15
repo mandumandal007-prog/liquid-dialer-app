@@ -96,20 +96,17 @@ class SettingsGroupsTest {
             rule.onAllNodesWithText(g.title,useUnmergedTree=true).onLast().performClick()
             rule.mainClock.advanceTimeBy(400);rule.waitForIdle()
             val bottom=mapOf("display" to "Last, First","calls" to "System call settings","sounds" to "Sirf favourite pe flash","privacy" to "App lock","default" to "Permissions","volume" to "Volume & boost","identity" to "Contact ka label","blocking" to "Private / hidden numbers block","quiet" to "Quiet hours","recording" to "Storage","speed" to "Voicemail call karo","accessibility" to "Hearing aid (HAC)","notifications" to "Notification settings","backup" to "Poora app backup","about" to "Made for Mandu").getValue(g.id)
-            var reached=false
-            repeat(45) {
-                val ns=rule.onAllNodesWithText(bottom,useUnmergedTree=true).fetchSemanticsNodes()
-                if(ns.any { it.boundsInRoot.top>=110f && it.boundsInRoot.bottom<=1500f }) reached=true
-                if(!reached) {
-                    rule.onAllNodes(hasScrollAction(),useUnmergedTree=true).onLast().performTouchInput { swipe(center,center.copy(y=center.y-180f),350) }
-                    rule.mainClock.advanceTimeBy(250);rule.waitForIdle()
+            // Navigate to the exact child through the real scroll container, not a fixed
+            // gesture-distance budget which breaks when Calls gets another settings row.
+            val bottomNode=rule.onAllNodesWithText(bottom,useUnmergedTree=true).onLast()
+            rule.onAllNodes(hasScrollAction(),useUnmergedTree=true).onLast()
+                .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) { scroll ->
+                    scroll(0f,Float.MAX_VALUE)
                 }
-            }
-            if(!reached) {
-                saveShot(rule,"G-bottom-fail-"+g.id+"-"+suffix)
-                println("BOTTOMFAIL "+rule.onAllNodesWithText(bottom,useUnmergedTree=true).fetchSemanticsNodes().map { it.boundsInRoot })
-            }
-            assertTrue("bottom control reachable: "+g.id,reached)
+            rule.mainClock.advanceTimeBy(250);rule.waitForIdle()
+            bottomNode.assertIsDisplayed()
+            val bounds=bottomNode.fetchSemanticsNode().boundsInRoot
+            assertTrue("bottom control reachable: "+g.id,bounds.top>=110f && bounds.bottom<=1500f)
             repeat(2) {
                 rule.onAllNodes(hasScrollAction(),useUnmergedTree=true).onLast().performTouchInput { swipe(center,center.copy(y=center.y-180f),350) }
                 rule.mainClock.advanceTimeBy(250);rule.waitForIdle()
