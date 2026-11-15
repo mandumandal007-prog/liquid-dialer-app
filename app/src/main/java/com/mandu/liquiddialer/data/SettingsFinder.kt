@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("desk-keypad","Live desk keypad","Manual one-key tone requests while keeping call tools open","calls","deskkeypad",aliases="live desk keypad dtmf ivr press menu digits tone"),
   Entry("live-call-desk","Live call desk","Work in call tools with caller, timer and call controls kept visible","calls","livecalldesk",aliases="live call desk multitask notes tools work connected mute speaker end"),
   Entry("call-touch-guard","Call touch guard","Manual guard against accidental on-screen call-control taps","calls","calltouchguard",aliases="touch accidental pocket mute speaker guard"),
   Entry("launcher-contacts","Icon long-press shortcuts","New contact and selected phone numbers on home icon","calls","launchershortcuts",aliases="launcher tap hold home app icon shortcut contacts numbers"),
