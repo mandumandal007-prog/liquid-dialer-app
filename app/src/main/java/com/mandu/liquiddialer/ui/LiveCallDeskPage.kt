@@ -45,7 +45,7 @@ internal fun bottomLVisible(s:LdSettings,id:String)=parseLayout(s.layoutBottom,B
 }
 
 @Composable fun LiveCallDeskView(name:String,number:String,timer:String,muted:Boolean,speaker:Boolean,bluetooth:Boolean,
- showMute:Boolean,showSpeaker:Boolean,keypadEnabled:Boolean=false,onTone:(Char)->Boolean={false},onClose:()->Unit,onMute:()->Unit,onSpeaker:()->Unit,onEnd:()->Unit){
+ showMute:Boolean,showSpeaker:Boolean,checkpointSession:LiveCallDesk.Session?=null,keypadEnabled:Boolean=false,onTone:(Char)->Boolean={false},onClose:()->Unit,onMute:()->Unit,onSpeaker:()->Unit,onEnd:()->Unit){
  val p=LocalLd.current;var close by remember{mutableStateOf(false)}
  var keypad by remember{mutableStateOf(false)}
  LaunchedEffect(keypadEnabled){if(!keypadEnabled)keypad=false}
@@ -64,6 +64,7 @@ internal fun bottomLVisible(s:LdSettings,id:String)=parseLayout(s.layoutBottom,B
   if(keypadEnabled)GhostButton(if(keypad)"Hide keypad"else"Desk keypad",Modifier.fillMaxWidth().padding(bottom=6.dp).testTag("desk_keypad_toggle")){keypad=!keypad}
   Column(Modifier.weight(1f).fillMaxWidth().glass(p,RoundedCornerShape(22.dp)).verticalScroll(rememberScrollState()).padding(14.dp).testTag("call_desk_tools")){
    if(keypad&&keypadEnabled)DeskKeypad(onTone)
+   checkpointSession?.let{CallCheckpointsWorkspace(it)}
    NotesSheet(number,name,deskMode=true){}
   }
   Row(Modifier.fillMaxWidth().padding(top=10.dp,bottom=6.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
