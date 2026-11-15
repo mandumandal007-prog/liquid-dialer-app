@@ -156,6 +156,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "tallyboards" -> TallyBoardsPage(onBack)
         page == "estimatebundles" -> EstimateBundlesPage(onBack)
         page == "estimatelines" -> EstimateLinesPage(onBack)
+        page == "estimaterates" -> EstimateRatesPage(onBack)
         page == "estimatescale" -> EstimateScalePage(onBack)
         page == "estimatesplit" -> EstimateSplitPage(onBack)
         page == "calldates" -> CallDatesPage(onBack)
@@ -417,6 +418,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         GlassCard{SRow("Saved tally boards","Save quantities and preview session replacement",LdIcons.Edit,last=true){onOpen("tallyboards")}}
         GlassCard{SRow("Calculator item bundles","Save and reuse selected calculator rows",LdIcons.Edit,last=true){onOpen("estimatebundles")}}
         GlassCard{SRow("Calculator multi-line items","Preview manual item lines before appending",LdIcons.Edit,last=true){onOpen("estimatelines")}}
+        GlassCard{SRow("Calculator rate adjustment","Preview selected rate changes",LdIcons.Edit,last=true){onOpen("estimaterates")}}
         GlassCard{SRow("Calculator quantity scaling","Preview selected quantity ratio changes",LdIcons.Edit,last=true){onOpen("estimatescale")}}
         GlassCard{SRow("Calculator split estimate","Preview equal or weighted shares",LdIcons.Edit,last=true){onOpen("estimatesplit")}}
         GlassCard{SRow("Call date calculator","Offline date arithmetic",LdIcons.Edit,last=true){onOpen("calldates")}}

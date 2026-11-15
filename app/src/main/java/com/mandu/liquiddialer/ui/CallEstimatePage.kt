@@ -24,15 +24,18 @@ import kotlinx.coroutines.withContext
  var bundles by remember(number){mutableStateOf(false)}
  var itemLines by remember(number){mutableStateOf(false)}
  var scaling by remember(number){mutableStateOf(false)}
+ var adjustingRates by remember(number){mutableStateOf(false)}
+ LaunchedEffect(features.estimateRates){if(!features.estimateRates)adjustingRates=false}
  var comparing by remember(number){mutableStateOf(false)};var splitting by remember(number){mutableStateOf(false)}
  var editor by remember(number){mutableStateOf<String?>(null)};var label by remember(number){mutableStateOf("")};var qty by remember(number){mutableStateOf("1")};var rate by remember(number){mutableStateOf("")}
  var discard by remember(number){mutableStateOf(false)};var discardReload by remember(number){mutableStateOf(false)};var clear by remember(number){mutableStateOf(false)};var remove by remember(number){mutableStateOf<String?>(null)}
  val dirty=draft!=saved||editor!=null
  fun back(){if(busy)return;if(dirty){discardReload=false;discard=true}else onBack()}
  fun load(){if(busy)return;busy=true;scope.launch{try{val d=withContext(Dispatchers.IO){CallEstimate.read(ctx,number)};saved=d;draft=d;loaded=true;error="";editor=null}catch(_:Exception){loaded=false;error="Saved estimate khul nahi raha. Purani file nahi badli."}finally{busy=false}}}
- LaunchedEffect(number){load()};BackHandler(enabled=!comparing&&!splitting&&!scaling&&!itemLines&&!bundles){back()}
+ LaunchedEffect(number){load()};BackHandler(enabled=!adjustingRates&&!comparing&&!splitting&&!scaling&&!itemLines&&!bundles){back()}
  if(bundles){EstimateBundlesWorkspace(number,draft,{bundles=false},{next->draft=next;bundles=false},inSheet);return}
  if(itemLines){EstimateLinesWorkspace(number,draft,{itemLines=false},{next->draft=next;itemLines=false},inSheet);return}
+ if(adjustingRates&&features.estimateRates){EstimateRatesWorkspace(number,draft,{adjustingRates=false},{next->if(com.mandu.liquiddialer.LdApp.settings.value.estimateRates){draft=next;adjustingRates=false}},inSheet);return}
  if(scaling){EstimateScaleWorkspace(number,draft,{scaling=false},{next->draft=next;scaling=false},inSheet);return}
  if(comparing){EstimateCompareWorkspace(number,draft,{comparing=false},{next->draft=next;comparing=false},inSheet);return}
  if(splitting){EstimateSplitWorkspace(number,draft,{splitting=false},inSheet);return}
@@ -89,6 +92,7 @@ import kotlinx.coroutines.withContext
     if(FeatureControls.enabled(features,"compare")) PrimaryButton("What-if compare",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_compare")){comparing=true}
     if(features.estimateBundles)PrimaryButton("Reusable item bundles",enabled=!busy&&totals.isSuccess,modifier=Modifier.testTag("estimate_bundles")){bundles=true}
     if(features.estimateLines)PrimaryButton("Add item lines",enabled=!busy&&totals.isSuccess&&draft.lines.size<CallEstimate.MAX_LINES,modifier=Modifier.testTag("estimate_lines")){itemLines=true}
+    if(features.estimateRates)PrimaryButton("Adjust selected rates",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_rates")){adjustingRates=true}
     if(features.estimateScale)PrimaryButton("Scale quantities",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_scale")){scaling=true}
     if(features.estimateSplit)PrimaryButton("Split estimate",enabled=!busy&&totals.isSuccess&&draft.lines.isNotEmpty(),modifier=Modifier.testTag("estimate_split")){splitting=true}
     LdText("Har item ka amount 2 decimals tak half-up round hota hai. Tax discount ke baad bachi rakam par, phir 2 decimals tak round. Apni tax rate khud check karo.",12f,color=p.muted,maxLines=6)
