@@ -94,6 +94,8 @@ data class LdSettings(
     val installmentPreview: Boolean = false,
     val weekdayShift: Boolean = false,
     val briefingReview: Boolean = false,
+    val deskShelf: Boolean = false,
+    val deskFinderCompact: Boolean = false,
     val deskFinder: Boolean = false,
     val deskSections: Boolean = false,
     val deskSectionLayout: String = "watch:1,marks:1,notes:1",
@@ -283,6 +285,8 @@ object K {
     val installmentPreview = booleanPreferencesKey("installment_preview")
     val weekdayShift = booleanPreferencesKey("weekday_shift")
     val briefingReview = booleanPreferencesKey("briefing_review")
+    val deskShelf = booleanPreferencesKey("desk_shelf")
+    val deskFinderCompact = booleanPreferencesKey("desk_finder_compact")
     val deskFinder = booleanPreferencesKey("desk_finder")
     val deskSections = booleanPreferencesKey("desk_sections")
     val deskSectionLayout = stringPreferencesKey("desk_section_layout")
@@ -462,6 +466,8 @@ fun Preferences.toSettings(): LdSettings {
         installmentPreview = this[K.installmentPreview] ?: false,
         weekdayShift = this[K.weekdayShift] ?: false,
         briefingReview = this[K.briefingReview] ?: false,
+        deskShelf = this[K.deskShelf] ?: false,
+        deskFinderCompact = this[K.deskFinderCompact] ?: false,
         deskFinder = this[K.deskFinder] ?: false,
         deskSections = this[K.deskSections] ?: false,
         deskSectionLayout = this[K.deskSectionLayout] ?: "watch:1,marks:1,notes:1",
