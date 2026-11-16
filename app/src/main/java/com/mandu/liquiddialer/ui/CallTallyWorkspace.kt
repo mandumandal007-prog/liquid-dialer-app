@@ -1,6 +1,7 @@
 package com.mandu.liquiddialer.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -21,6 +22,11 @@ import kotlinx.coroutines.launch
   SwitchRow("Tally batch quantities","Default OFF. Select counters, preview and confirm one atomic edit.",s.tallyBatch,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyBatch,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   SwitchRow("Tally quantity transfer","Default OFF. Move one source into several destinations, with preview and one confirmed edit.",s.tallyTransfer,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyTransfer,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   SwitchRow("Saved tally boards","Default OFF. Explicit snapshots include quantities, unlike templates; manage in Saved tally boards Settings.",s.tallyBoards,last=true,subMaxLines=5){scope.launch{try{LdApp.instance.repo.set(K.tallyBoards,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+  Column(Modifier.testTag("tally_sort_settings")){
+   SwitchRow("Sort session counter view","Default OFF. Board order, Name A-Z, quantity high-low or low-high.",s.tallySort,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallySort,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+   SwitchRow("Paired tally view controls","Default OFF. Two-column filter and sort choices with full wrapped labels.",s.tallyPaired,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyPaired,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+  }
+  LdText("Sort changes only this screen's display order, not board order, counts, Undo, files or library/batch/transfer inputs. Equal values keep board order; Name uses case-insensitive text order, not language-specific dictionary order. Quantity edits may move a row. Search/filter, if enabled, combines with sorting. Sort OFF restores board order. Paired layout OFF restores full-width choices, keeps query/order/board/typed edit. View resets when this tally closes.",13f,color=p.muted,maxLines=20)
   Column(Modifier.testTag("tally_settings_options")){
   SwitchRow("Find session counters","Default OFF. Temporary name search and All / Nonzero / Zero view.",s.tallyFind,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyFind,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   SwitchRow("Fold counter actions layout","Default OFF. Edit/Remove behind Actions; quantity and +/- stay visible.",s.tallyFold,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
@@ -41,7 +47,10 @@ import kotlinx.coroutines.launch
  var query by remember{mutableStateOf("")};var filter by remember{mutableStateOf("All")};var expanded by remember{mutableStateOf(emptySet<String>())}
  LaunchedEffect(settings.tallyFind){if(!settings.tallyFind){query="";filter="All"}}
  LaunchedEffect(settings.tallyFold){expanded=emptySet()}
- val visible=if(settings.tallyFind)TallyFind.rows(rows,query,filter)else rows
+ var order by remember{mutableStateOf("Board order")}
+ LaunchedEffect(settings.tallySort){if(!settings.tallySort)order="Board order"}
+ val filtered=if(settings.tallyFind)TallyFind.rows(rows,query,filter)else rows
+ val visible=if(settings.tallySort)TallySort.rows(filtered,order)else filtered
  val chosen=rows.firstOrNull{it.id==selected};val n=runCatching{CallTally.step(step)}.getOrNull()
  fun clearForm(){selected="";name="";value="0";error=""}
  fun runEdit(action:()->List<CallTally.Item>){focus.clearFocus();runCatching{action()}.fold({if(board.change(it)){rev++;status="Session changed · Undo available"};error=""},{error=it.message?:"Input check karo"})}
@@ -84,14 +93,19 @@ import kotlinx.coroutines.launch
   if(settings.tallyFind){
    LdText("Find counters in this board",16f,FontWeight.Bold,maxLines=4)
    LdField(query,{query=it.take(100)},"Search counter names",modifier=Modifier.testTag("tally_find_query"))
-   TallyFind.modes.forEach{m->Spacer(Modifier.height(8.dp));GhostButton(if(filter==m)"$m ✓"else m,Modifier.testTag("tally_find_${m.lowercase()}")){focus.clearFocus();filter=m}}
+   TallyViewChoices(TallyFind.modes,filter,settings.tallyPaired,"tally_find_"){m->focus.clearFocus();filter=m}
    Spacer(Modifier.height(8.dp))
    GhostButton("Show all counters",Modifier.testTag("tally_find_clear")){focus.clearFocus();query="";filter="All"}
    LdText("${visible.size} shown / ${rows.size} counters · $filter",13f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("tally_find_count"))
    LdText("View only. Raw sum, Zero all, Undo/Redo and library/batch/transfer actions use the WHOLE board, including hidden counters.",12f,color=p.muted,maxLines=8)
    if(visible.isEmpty()&&rows.isNotEmpty())LdText("No matching counter. Clear view to show all; quantities are unchanged.",13f,color=p.muted,maxLines=6,modifier=Modifier.testTag("tally_find_empty"))
   }
-  rows.forEachIndexed{i,item->if(item in visible)GlassCard(Modifier.fillMaxWidth().padding(top=8.dp).testTag("tally_item_$i")){
+  if(settings.tallySort){
+   LdText("View order: $order",14f,FontWeight.Bold,maxLines=5,modifier=Modifier.testTag("tally_sort_order"))
+   TallyViewChoices(TallySort.modes,order,settings.tallyPaired,"tally_sort_"){m->focus.clearFocus();order=m}
+   LdText("View only. Equal values keep board order. Quantity edits may move a row. Library, batch and transfer still use original board order.",12f,color=p.muted,maxLines=7)
+  }
+  visible.forEach{item->val i=rows.indexOfFirst{it.id==item.id};GlassCard(Modifier.fillMaxWidth().padding(top=8.dp).testTag("tally_item_$i")){
    LdText(item.label,18f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("tally_label_$i"))
    LdText(item.value.toString(),30f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("tally_quantity_$i"))
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
@@ -114,5 +128,14 @@ import kotlinx.coroutines.launch
   LdText(when{confirm=="back"->"Leave and discard this session board?";confirm=="zero"->"Set every quantity to zero? Names stay. Undo available.";else->"Remove ${rows.firstOrNull{it.id==confirm.removePrefix("remove:") }?.label.orEmpty()}? Undo available."},17f,FontWeight.Bold,maxLines=8)
   PrimaryButton(if(confirm=="back")"Discard & leave"else"Confirm change",danger=true,modifier=Modifier.testTag("tally_confirm")){val action=confirm;confirm="";when{action=="back"->onBack();action=="zero"->{runEdit{CallTally.zero(rows)};clearForm()};else->{runEdit{CallTally.remove(rows,action.removePrefix("remove:"))};clearForm()}}}
   GhostButton("Keep board",Modifier.testTag("tally_keep")){confirm=""}
+ }}
+}
+
+@Composable private fun TallyViewChoices(choices:List<String>,selected:String,paired:Boolean,prefix:String,onSelect:(String)->Unit){
+ val p=LocalLd.current
+ if(!paired)choices.forEach{m->Spacer(Modifier.height(8.dp));GhostButton(if(selected==m)"$m ✓"else m,Modifier.testTag(prefix+m.lowercase().replace(" ","_"))){onSelect(m)}}
+ else choices.chunked(2).forEach{pair->Spacer(Modifier.height(8.dp));Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+  pair.forEach{m->androidx.compose.foundation.layout.Box(Modifier.weight(1f).buttonGlass(p,androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).then(Modifier.testTag(prefix+m.lowercase().replace(" ","_"))).clickable{onSelect(m)}.padding(horizontal=8.dp,vertical=13.dp),contentAlignment=androidx.compose.ui.Alignment.Center){LdText(if(selected==m)"$m ✓"else m,14f,FontWeight.SemiBold,p.accent,maxLines=Int.MAX_VALUE)}}
+  if(pair.size==1)Spacer(Modifier.weight(1f))
  }}
 }
