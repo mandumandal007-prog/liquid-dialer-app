@@ -85,6 +85,7 @@ data class LdSettings(
     val callPace: Boolean = false,
     val callPaceMinutes: Int = 5,
     val callPaceRepeat: Boolean = false,
+    val deskFinder: Boolean = false,
     val deskSections: Boolean = false,
     val deskSectionLayout: String = "watch:1,marks:1,notes:1",
     val lapCompare: Boolean = false,
@@ -264,6 +265,7 @@ object K {
     val callPace = booleanPreferencesKey("call_pace")
     val callPaceMinutes = intPreferencesKey("call_pace_minutes")
     val callPaceRepeat = booleanPreferencesKey("call_pace_repeat")
+    val deskFinder = booleanPreferencesKey("desk_finder")
     val deskSections = booleanPreferencesKey("desk_sections")
     val deskSectionLayout = stringPreferencesKey("desk_section_layout")
     val lapCompare = booleanPreferencesKey("lap_compare")
@@ -433,6 +435,7 @@ fun Preferences.toSettings(): LdSettings {
         callPace = this[K.callPace] ?: false,
         callPaceMinutes = (this[K.callPaceMinutes] ?: 5).takeIf{it in listOf(1,3,5,10,15)} ?: 5,
         callPaceRepeat = this[K.callPaceRepeat] ?: false,
+        deskFinder = this[K.deskFinder] ?: false,
         deskSections = this[K.deskSections] ?: false,
         deskSectionLayout = this[K.deskSectionLayout] ?: "watch:1,marks:1,notes:1",
         lapCompare = this[K.lapCompare] ?: false,
