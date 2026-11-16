@@ -871,6 +871,11 @@ fun NotesSheet(number: String, name: String, deskMode:Boolean, onDone: () -> Uni
     val referenceSettings by LdApp.settings.collectAsState()
     val notesRevision by Repo.notesRevision.collectAsState()
     LaunchedEffect(number,referenceSettings.liveNotesRefresh,notesRevision){if(referenceSettings.liveNotesRefresh)reloadNotes()}
+    var shelf by remember(number){mutableStateOf(emptyList<String>())}
+    val shelfAvailable=com.mandu.liquiddialer.data.DeskFinder.available(referenceSettings,number)
+    LaunchedEffect(referenceSettings.deskShelf,deskMode,shelfAvailable){
+        shelf=if(referenceSettings.deskShelf&&deskMode)com.mandu.liquiddialer.data.DeskShelf.visible(shelf,shelfAvailable)else emptyList()
+    }
     var reader by remember(number){mutableStateOf(false)}
     if(reader&&referenceSettings.callNoteReader){CallNotesReader(number,{reader=false});return}
     var tally by remember(number){mutableStateOf(false)}
@@ -904,7 +909,7 @@ fun NotesSheet(number: String, name: String, deskMode:Boolean, onDone: () -> Uni
             if(name.isNotBlank()&&name!=number)LdText(number,12f,color=p.muted,maxLines=3)
         }
     }
-    if(deskMode&&referenceSettings.deskFinder)DeskFinderWorkspace(number){id->
+    if(deskMode&&referenceSettings.deskFinder)DeskFinderWorkspace(number,shelf,{shelf=it}){id->
         // Recheck live visibility and number validity at the launcher boundary.
         if(com.mandu.liquiddialer.data.DeskFinder.available(LdApp.settings.value,number).any{it.id==id})when(id){
             "checklist"->checklist=true;"estimate"->estimate=true;"timeline"->timeline=true;"brief"->briefing=true
