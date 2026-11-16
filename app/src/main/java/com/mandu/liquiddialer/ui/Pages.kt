@@ -165,6 +165,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "installmentpreview" -> InstallmentPreviewPage(onBack)
         page == "estimatesplit" -> EstimateSplitPage(onBack)
         page == "calldates" -> CallDatesPage(onBack)
+        page == "converterhistory" -> ConverterHistoryPage(onBack)
         page == "converteroptions" -> ConverterOptionsPage(onBack)
         page == "callconverter" -> CallConverterPage(onBack)
         page == "checklistorganizer" -> ChecklistOrganizerPage(onBack)
@@ -433,6 +434,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         GlassCard{SRow("Calculator installment preview","Manual dated parts, no payment or reminder",LdIcons.Edit,last=true){onOpen("installmentpreview")}}
         GlassCard{SRow("Calculator split estimate","Preview equal or weighted shares",LdIcons.Edit,last=true){onOpen("estimatesplit")}}
         GlassCard{SRow("Call date calculator","Offline date arithmetic",LdIcons.Edit,last=true){onOpen("calldates")}}
+        GlassCard{SRow("Converter history controls","Reuse original inputs and fold history panel",LdIcons.Edit,last=true){onOpen("converterhistory")}}
         GlassCard{SRow("Converter table & chooser layout","All-unit comparison and optional folded choosers",LdIcons.Edit,last=true){onOpen("converteroptions")}}
         GlassCard{SRow("Call unit converter","Offline measurement conversion",LdIcons.Edit,last=true){onOpen("callconverter")}}
         GlassCard{SRow("Checklist organizer","Batch marks and topic order",LdIcons.Edit,last=true){onOpen("checklistorganizer")}}

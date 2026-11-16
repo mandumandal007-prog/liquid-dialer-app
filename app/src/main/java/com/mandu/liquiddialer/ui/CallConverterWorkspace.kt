@@ -31,15 +31,19 @@ import kotlinx.coroutines.launch
  val p=LocalLd.current;var kind by remember{mutableStateOf(CallConverter.Kind.LENGTH)};var from by remember{mutableStateOf("m")};var to by remember{mutableStateOf("ft")};var input by remember{mutableStateOf("")}
  var result by remember{mutableStateOf<CallConverter.Result?>(null)};var error by remember{mutableStateOf("")};val history=remember{CallConverter.History()};var revision by remember{mutableIntStateOf(0)}
  val rows=remember(revision){history.rows}
+ var recall by remember{mutableStateOf<CallConverter.Result?>(null)};var historyOpen by remember{mutableStateOf(false)};var recalled by remember{mutableStateOf(false)}
+ LaunchedEffect(settings.converterRecall){if(!settings.converterRecall){recall=null;recalled=false}}
+ LaunchedEffect(settings.converterHistoryFold){historyOpen=false}
  var table by remember{mutableStateOf<ConverterTable.Table?>(null)};var tableError by remember{mutableStateOf("")};var fromOpen by remember{mutableStateOf(false)};var toOpen by remember{mutableStateOf(false)}
  LaunchedEffect(settings.converterTable){if(!settings.converterTable){table=null;tableError=""}}
  LaunchedEffect(settings.converterFold,kind){fromOpen=false;toOpen=false}
- fun changed(){result=null;error="";table=null;tableError=""}
+ fun changed(){result=null;error="";table=null;tableError="";recalled=false;recall=null}
  BackHandler{onBack()}
  val content:@Composable ColumnScope.()->Unit={
   LdText("Typed values only · offline",16f,FontWeight.Bold,maxLines=3)
   LdText("Mass is not volume: kg ko liter mein nahi badalta. Feet international hain. Negative values sirf temperature mein; absolute zero se neeche nahi.",12f,color=p.muted,maxLines=7)
   CallConverter.Kind.entries.chunked(3).forEach{group->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){group.forEach{k->GhostButton((if(kind==k)"✓ "else"")+k.label,Modifier.weight(1f).testTag("converter_kind_${k.name.lowercase()}")){focus.clearFocus();kind=k;val us=CallConverter.of(k);from=us[0].id;to=us[1].id;changed()}}}}
+  if(recalled)LdText("Original input and units restored. Check them above/below, then tap Convert. No new result yet.",13f,color=p.accent,maxLines=7,modifier=Modifier.testTag("converter_recalled"))
   LdField(input,{input=it;changed()},"Value (dot decimal)",modifier=Modifier.testTag("converter_input"))
   LdText("From: ${CallConverter.unit(from).label}",14f,FontWeight.Bold,maxLines=3,modifier=Modifier.testTag("converter_from_label"))
   if(settings.converterFold)GhostButton(if(fromOpen)"Hide From units"else"Choose From unit",Modifier.testTag("converter_from_toggle")){fromOpen=!fromOpen}
@@ -77,10 +81,20 @@ import kotlinx.coroutines.launch
   GhostButton("Clear input & result",Modifier.testTag("converter_clear")){focus.clearFocus();input="";changed()}
   LdText("Session history: ${rows.size} / 10",14f,FontWeight.Bold,modifier=Modifier.testTag("converter_history_count"))
   LdText("Sirf is open screen ki memory. Back/close se ye entries chali jayengi. No clipboard, share, file ya call action.",12f,color=p.muted,maxLines=6)
-  rows.forEachIndexed{i,r->GlassCard(Modifier.fillMaxWidth().padding(top=6.dp).testTag("converter_history_$i")){
+  if(settings.converterHistoryFold)GhostButton(if(historyOpen)"Hide session history"else"Show session history",Modifier.testTag("converter_history_toggle")){historyOpen=!historyOpen}
+  if(!settings.converterHistoryFold||historyOpen)rows.forEachIndexed{i,r->GlassCard(Modifier.fillMaxWidth().padding(top=6.dp).testTag("converter_history_$i")){
    LdText("${r.input} ${r.from.label} = ${r.value} ${r.to.label}",14f,maxLines=Int.MAX_VALUE)
+   if(settings.converterRecall)GhostButton("Reuse inputs",Modifier.testTag("converter_recall_$i")){focus.clearFocus();recall=r}
   }}
-  GhostButton("Clear session history",Modifier.testTag("converter_history_clear")){history.clear();revision++}
+  GhostButton("Clear session history",Modifier.testTag("converter_history_clear")){history.clear();revision++;recall=null}
  }
+ if(settings.converterRecall)recall?.let{r->androidx.compose.ui.window.Dialog(onDismissRequest={recall=null}){GlassCard{
+  LdText("Replace converter input and units?",19f,FontWeight.Bold,maxLines=6)
+  LdText("Original: ${r.input} ${r.from.label} → ${r.to.label}. This replaces your current typed value and both unit choices. Current result/table will clear. History stays; nothing calculates automatically. The old rounded result is NOT used as input.",13f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("converter_recall_summary"))
+  PrimaryButton("Use original input & units",modifier=Modifier.testTag("converter_recall_confirm")){
+   if(LdApp.settings.value.converterRecall&&r in history.rows)runCatching{ConverterRecall.input(r)}.fold({v->focus.clearFocus();kind=v.kind;from=v.from;to=v.to;input=v.value;changed();recalled=true},{recall=null;error=it.message?:"History entry invalid"})else recall=null
+  }
+  GhostButton("Keep current input",Modifier.testTag("converter_recall_cancel")){recall=null}
+ }}}
  if(inSheet)Column{SheetTitle("Unit converter");PrimaryButton("Notes par wapas",modifier=Modifier.testTag("converter_back")){onBack()};content()}else PageFrame("Unit converter",onBack,content=content)
 }
