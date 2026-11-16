@@ -111,6 +111,8 @@ data class LdSettings(
     val callReferences: Boolean = false,
     val messageDrafts: Boolean = false,
     val callNoteReader: Boolean = false,
+    val tallyFind: Boolean = false,
+    val tallyFold: Boolean = false,
     val callTally: Boolean = false,
     val tallyTemplates: Boolean = false,
     val tallyBatch: Boolean = false,
@@ -302,6 +304,8 @@ object K {
     val callReferences = booleanPreferencesKey("call_references")
     val messageDrafts = booleanPreferencesKey("message_drafts")
     val callNoteReader = booleanPreferencesKey("call_note_reader")
+    val tallyFind = booleanPreferencesKey("tally_find")
+    val tallyFold = booleanPreferencesKey("tally_fold")
     val callTally = booleanPreferencesKey("call_tally")
     val tallyTemplates = booleanPreferencesKey("tally_templates")
     val tallyBatch = booleanPreferencesKey("tally_batch")
@@ -483,6 +487,8 @@ fun Preferences.toSettings(): LdSettings {
         callReferences = this[K.callReferences] ?: false,
         messageDrafts = this[K.messageDrafts] ?: false,
         callNoteReader = this[K.callNoteReader] ?: false,
+        tallyFind = this[K.tallyFind] ?: false,
+        tallyFold = this[K.tallyFold] ?: false,
         callTally = this[K.callTally] ?: false,
         tallyTemplates = this[K.tallyTemplates] ?: false,
         tallyBatch = this[K.tallyBatch] ?: false,
