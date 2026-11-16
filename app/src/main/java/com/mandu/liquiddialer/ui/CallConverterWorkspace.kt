@@ -54,7 +54,7 @@ import kotlinx.coroutines.launch
   PrimaryButton("Swap units",modifier=Modifier.testTag("converter_swap")){focus.clearFocus();val old=from;from=to;to=old;changed()}
   LdText("Swap keeps your typed number. It swaps units only, not the value/result.",12f,color=p.muted,maxLines=4)
   PrimaryButton("Convert",enabled=input.isNotEmpty(),modifier=Modifier.testTag("converter_convert")){
-   focus.clearFocus()
+   focus.clearFocus();recalled=false
    runCatching{CallConverter.convert(input,from,to)}.fold({result=it;history.add(it);revision++;error=""},{result=null;error=it.message?:"Value sahi bharo"})
   }
   if(settings.converterTable){
