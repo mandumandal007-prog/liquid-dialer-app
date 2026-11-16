@@ -6,6 +6,8 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("tally-sort","Sort session counter view","Stable name or quantity ordering, without editing the board","calls","calltally",aliases="tally sort order high low alphabetical counter view"),
+  Entry("tally-paired","Paired tally view controls","Two-column filter and sort choices with full labels","calls","calltally",aliases="tally paired compact view controls layout style columns"),
   Entry("tally-find","Find session counters","Name search and zero/nonzero view without changing quantities","calls","calltally",aliases="tally search find filter counters zero nonzero names"),
   Entry("tally-fold","Fold counter actions layout","Keep label quantity and plus/minus visible; edit/remove on demand","calls","calltally",aliases="tally compact fold counter actions layout style edit remove"),
   Entry("desk-shelf","Quick-tool shelf","Session-only pins for up to four enabled tools","calls","deskfinder",aliases="desk finder pin favorite quick shelf shortcuts"),
