@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("installment-preview","Calculator installment preview","Manual upfront amount and dated equal parts, arithmetic only","calls","installmentpreview",aliases="calculator installment instalment parts schedule dates upfront amount remainder preview"),
   Entry("weekday-shift","Selected-weekday date shift","Count chosen weekdays with manual date exclusions","calls","weekdayshift",aliases="date selected weekday shift holidays exclusions working days forward backward manual"),
   Entry("briefing-review","Briefing review queue","Read pending topics and Call List entries together; session progress only","calls","briefingreview",aliases="briefing agenda review queue pending topics lists reviewed progress"),
   Entry("desk-finder","Desk tool finder","Search enabled desk tool names, not saved data","calls","deskfinder",aliases="live desk tools finder search categories calculator checklist references launch"),
