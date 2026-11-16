@@ -92,6 +92,8 @@ data class LdSettings(
     val reviewPriority: Boolean = false,
     val reviewSlim: Boolean = false,
     val installmentPreview: Boolean = false,
+    val weekdayShortcuts: Boolean = false,
+    val weekdayExclusionsFold: Boolean = false,
     val weekdayShift: Boolean = false,
     val briefingReview: Boolean = false,
     val deskShelf: Boolean = false,
@@ -289,6 +291,8 @@ object K {
     val reviewPriority = booleanPreferencesKey("review_priority")
     val reviewSlim = booleanPreferencesKey("review_slim")
     val installmentPreview = booleanPreferencesKey("installment_preview")
+    val weekdayShortcuts = booleanPreferencesKey("weekday_shortcuts")
+    val weekdayExclusionsFold = booleanPreferencesKey("weekday_exclusions_fold")
     val weekdayShift = booleanPreferencesKey("weekday_shift")
     val briefingReview = booleanPreferencesKey("briefing_review")
     val deskShelf = booleanPreferencesKey("desk_shelf")
@@ -476,6 +480,8 @@ fun Preferences.toSettings(): LdSettings {
         reviewPriority = this[K.reviewPriority] ?: false,
         reviewSlim = this[K.reviewSlim] ?: false,
         installmentPreview = this[K.installmentPreview] ?: false,
+        weekdayShortcuts = this[K.weekdayShortcuts] ?: false,
+        weekdayExclusionsFold = this[K.weekdayExclusionsFold] ?: false,
         weekdayShift = this[K.weekdayShift] ?: false,
         briefingReview = this[K.briefingReview] ?: false,
         deskShelf = this[K.deskShelf] ?: false,
