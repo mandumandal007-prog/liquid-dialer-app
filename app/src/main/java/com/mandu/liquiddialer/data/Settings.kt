@@ -91,6 +91,8 @@ data class LdSettings(
     val converterFold: Boolean = false,
     val reviewPriority: Boolean = false,
     val reviewSlim: Boolean = false,
+    val installmentFind: Boolean = false,
+    val installmentPartsFold: Boolean = false,
     val installmentPreview: Boolean = false,
     val weekdayShortcuts: Boolean = false,
     val weekdayExclusionsFold: Boolean = false,
@@ -290,6 +292,8 @@ object K {
     val converterFold = booleanPreferencesKey("converter_fold")
     val reviewPriority = booleanPreferencesKey("review_priority")
     val reviewSlim = booleanPreferencesKey("review_slim")
+    val installmentFind = booleanPreferencesKey("installment_find")
+    val installmentPartsFold = booleanPreferencesKey("installment_parts_fold")
     val installmentPreview = booleanPreferencesKey("installment_preview")
     val weekdayShortcuts = booleanPreferencesKey("weekday_shortcuts")
     val weekdayExclusionsFold = booleanPreferencesKey("weekday_exclusions_fold")
@@ -479,6 +483,8 @@ fun Preferences.toSettings(): LdSettings {
         converterFold = this[K.converterFold] ?: false,
         reviewPriority = this[K.reviewPriority] ?: false,
         reviewSlim = this[K.reviewSlim] ?: false,
+        installmentFind = this[K.installmentFind] ?: false,
+        installmentPartsFold = this[K.installmentPartsFold] ?: false,
         installmentPreview = this[K.installmentPreview] ?: false,
         weekdayShortcuts = this[K.weekdayShortcuts] ?: false,
         weekdayExclusionsFold = this[K.weekdayExclusionsFold] ?: false,
