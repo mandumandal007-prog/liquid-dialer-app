@@ -135,6 +135,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
     val featureId=FeatureControls.pageId(page)
     if(featureId!=null&&!FeatureControls.enabled(featureSettings,featureId)){FeatureDisabledPage(onBack,onOpen);return}
     when {
+        page == "weekdayshift" -> WeekdayShiftPage(onBack)
         page == "briefingreview" -> BriefingReviewPage(onBack)
         page == "deskfinder" -> DeskFinderPage(onBack)
         page == "desksections" -> DeskSectionsPage(onBack)
@@ -401,6 +402,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         }
         if(group=="calls") {
+        GlassCard{SRow("Selected-weekday date shift","Manual weekday choices and excluded dates",LdIcons.Edit,last=true){onOpen("weekdayshift")}}
         GlassCard{SRow("Briefing review queue","Pending topics and Call List entries in one session view",LdIcons.Edit,last=true){onOpen("briefingreview")}}
         GlassCard{SRow("Desk tool finder","Search enabled desk tool names",LdIcons.Edit,last=true){onOpen("deskfinder")}}
         GlassCard{SRow("Desk section layout","Order notes and optional desk entries",LdIcons.Edit,last=true){onOpen("desksections")}}
