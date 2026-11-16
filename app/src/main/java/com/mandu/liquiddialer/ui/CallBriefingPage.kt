@@ -16,6 +16,7 @@ import java.util.Locale
 
 @Composable fun CallBriefingPage(number:String,onBack:()->Unit)=CallBriefingWorkspace(number,onBack)
 @Composable fun CallBriefingWorkspace(number:String,onBack:()->Unit,inSheet:Boolean=false){
+ val settings by com.mandu.liquiddialer.LdApp.settings.collectAsState()
  val ctx=LocalContext.current;val p=LocalLd.current
  var revision by remember(number){mutableStateOf(0)};var snapshot by remember(number){mutableStateOf<CallBriefing.Snapshot?>(null)}
  var busy by remember(number){mutableStateOf(false)};var error by remember(number){mutableStateOf(false)};var loadedAt by remember(number){mutableStateOf(0L)}
@@ -36,6 +37,7 @@ import java.util.Locale
     LdText("${if(s.notes.error)"?"else s.notes.value.orEmpty().size} notes · ${if(s.topics.error)"?"else s.topics.value.orEmpty().count{!it.done}} pending topics",14f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("brief_counts"))
     LdText("${if(s.lists.error)"?"else s.lists.value.orEmpty().size} Call List entries · estimate ${if(s.estimate.error)"load error"else if(s.estimate.value?.lines.isNullOrEmpty())"nahi"else "saved"}",12f,color=p.muted,maxLines=4)
    }
+   if(settings.briefingReview)key(number,revision){BriefingReviewWorkspace(s,busy)}
    LdField(query,{query=it},"Saved text mein khojo",modifier=Modifier.testTag("brief_search"))
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("notes" to "Notes","topics" to "Topics").forEach{(id,label)->PrimaryButton(if(tab==id)"✓ $label"else label,modifier=Modifier.weight(1f).testTag("brief_tab_$id")){tab=id}}}
    Spacer(Modifier.height(8.dp))
