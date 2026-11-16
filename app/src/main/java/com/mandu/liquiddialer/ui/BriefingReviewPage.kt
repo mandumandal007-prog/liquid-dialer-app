@@ -25,13 +25,17 @@ import java.util.Locale
  }
 }
 @Composable fun BriefingReviewWorkspace(s:CallBriefing.Snapshot,busy:Boolean){
- val p=LocalLd.current
+ val p=LocalLd.current;val settings by LdApp.settings.collectAsState()
  val queue=remember(s){BriefingReview.from(s)}
  var open by remember(s){mutableStateOf(false)};var query by remember(s){mutableStateOf("")};var source by remember(s){mutableStateOf("All")};var only by remember(s){mutableStateOf(false)};var reviewed by remember(s){mutableStateOf(setOf<String>())};var reset by remember(s){mutableStateOf(false)};var limit by remember(s){mutableStateOf(10)}
- LaunchedEffect(query,source,only){limit=10}
+ var priority by remember(s){mutableStateOf(setOf<String>())};var priorityOnly by remember(s){mutableStateOf(false)};var priorityError by remember(s){mutableStateOf("")};var expanded by remember(s){mutableStateOf(setOf<String>())}
+ LaunchedEffect(settings.reviewPriority){if(!settings.reviewPriority){priority=emptySet();priorityOnly=false;priorityError=""}}
+ LaunchedEffect(settings.reviewSlim){expanded=emptySet()}
+ LaunchedEffect(query,source,only,priorityOnly){limit=10}
  GhostButton(if(open)"Hide review queue"else"Review pending items",Modifier.testTag("review_toggle")){open=!open}
  if(!open)return
- val rows=BriefingReview.visible(queue,query,source,only,reviewed)
+ val filtered=BriefingReview.visible(queue,query,source,only,reviewed)
+ val rows=if(settings.reviewPriority)ReviewPriority.order(filtered,priority,priorityOnly)else filtered
  Column(Modifier.fillMaxWidth().padding(vertical=8.dp).testTag("review_queue"),verticalArrangement=Arrangement.spacedBy(8.dp)){
   LdText("SESSION REVIEW",12f,FontWeight.Bold,p.accent,maxLines=3)
   LdText("${BriefingReview.count(queue,reviewed)} / ${queue.rows.size} reviewed in this snapshot",14f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("review_progress"))
@@ -40,14 +44,25 @@ import java.util.Locale
   LdField(query,{query=it.take(100)},"Search pending text",modifier=Modifier.testTag("review_query"))
   BriefingReview.sources.forEach{v->GhostButton(if(v==source)"$v ✓"else v,Modifier.testTag("review_source_${v.replace(" ","").lowercase()}")){source=v}}
   GhostButton(if(only)"Unreviewed only · show all"else"All items · show unreviewed",Modifier.testTag("review_only")){only=!only}
-  GhostButton("Clear filters",Modifier.testTag("review_clear")){query="";source="All";only=false}
+  GhostButton("Clear filters",Modifier.testTag("review_clear")){query="";source="All";only=false;priorityOnly=false}
+  if(settings.reviewPriority){
+   LdText("${priority.size} /10 session priorities",14f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("priority_count"))
+   LdText("Your manual reading order only. Not saved urgency or Done. Refresh/close/OFF resets priorities.",12f,color=p.muted,maxLines=6)
+   GhostButton(if(priorityOnly)"Priorities only · show all"else"All items · show priorities",Modifier.testTag("priority_only")){priorityOnly=!priorityOnly}
+   if(priorityError.isNotEmpty())LdText(priorityError,13f,color=p.danger,maxLines=5,modifier=Modifier.testTag("priority_error"))
+  }
   if(reviewed.isNotEmpty())GhostButton("Reset session review",Modifier.testTag("review_reset")){reset=true}
   if(reset)GlassCard{LdText("Reset temporary review marks? Saved items stay unchanged.",13f,maxLines=5);GhostButton("Cancel reset",Modifier.testTag("review_reset_cancel")){reset=false};PrimaryButton("Confirm reset",modifier=Modifier.testTag("review_reset_confirm")){reviewed=emptySet();reset=false}}
   LdText("${rows.size} matching pending items",12f,color=p.muted,maxLines=4,modifier=Modifier.testTag("review_count"))
   if(rows.isEmpty())LdText(if(queue.errors.isNotEmpty())"No matching loaded items. One or more sources failed."else"No items in this filter. Clear filters or Refresh saved data.",13f,color=p.muted,maxLines=6,modifier=Modifier.testTag("review_empty"))
   rows.take(limit).forEach{r->GlassCard(Modifier.testTag("review_row_${r.id}")){
-   LdText(r.source,11f,color=p.muted,maxLines=3);LdText(r.title,16f,FontWeight.Bold,maxLines=Int.MAX_VALUE);LdText(r.detail,13f,color=p.muted,maxLines=Int.MAX_VALUE)
-   if(r.dueAt>0)LdText("Saved plan: "+SimpleDateFormat("d MMM yyyy, h:mm a",Locale.getDefault()).format(Date(r.dueAt))+" · no reminder",12f,color=p.muted,maxLines=6)
+   LdText(r.source,11f,color=p.muted,maxLines=3);LdText(r.title,if(settings.reviewSlim)14f else 16f,FontWeight.Bold,maxLines=Int.MAX_VALUE)
+   if(settings.reviewSlim)GhostButton(if(r.id in expanded)"Hide details"else"Show details",Modifier.testTag("review_expand_${r.id}")){expanded=if(r.id in expanded)expanded-r.id else expanded+r.id}
+   if(!settings.reviewSlim||r.id in expanded){Column(Modifier.testTag("review_detail_${r.id}")){
+    LdText(r.detail,13f,color=p.muted,maxLines=Int.MAX_VALUE)
+    if(r.dueAt>0)LdText("Saved plan: "+SimpleDateFormat("d MMM yyyy, h:mm a",Locale.getDefault()).format(Date(r.dueAt))+" · no reminder",12f,color=p.muted,maxLines=6)
+   }}
+   if(settings.reviewPriority)GhostButton(if(r.id in priority)"★ Priority · undo"else"☆ Prioritize",Modifier.testTag("priority_mark_${r.id}")){if(!busy&&LdApp.settings.value.reviewPriority)runCatching{ReviewPriority.toggle(queue.rows,priority,r.id)}.fold({priority=it;priorityError=""},{priorityError=it.message?:"Check selection"})}
    PrimaryButton(if(r.id in reviewed)"Reviewed · undo"else"Mark reviewed",enabled=!busy,modifier=Modifier.testTag("review_mark_${r.id}")){if(!busy&&LdApp.settings.value.briefingReview)reviewed=BriefingReview.toggle(queue,reviewed,r.id)}
   }}
   if(rows.size>limit)PrimaryButton("10 more pending items",modifier=Modifier.testTag("review_more")){limit+=10}
