@@ -904,6 +904,14 @@ fun NotesSheet(number: String, name: String, deskMode:Boolean, onDone: () -> Uni
             if(name.isNotBlank()&&name!=number)LdText(number,12f,color=p.muted,maxLines=3)
         }
     }
+    if(deskMode&&referenceSettings.deskFinder)DeskFinderWorkspace(number){id->
+        // Recheck live visibility and number validity at the launcher boundary.
+        if(com.mandu.liquiddialer.data.DeskFinder.available(LdApp.settings.value,number).any{it.id==id})when(id){
+            "checklist"->checklist=true;"estimate"->estimate=true;"timeline"->timeline=true;"brief"->briefing=true
+            "tally"->tally=true;"dates"->dates=true;"converter"->converter=true;"canvas"->canvas=true
+            "drafts"->messageDrafts=true;"references"->references=true;"reader"->reader=true
+        }
+    }else{
     if(runCatching{com.mandu.liquiddialer.data.CallLists.number(number)}.isSuccess)CallToolsRow("call",{checklist=true},{estimate=true},{timeline=true},{briefing=true})
     if(referenceSettings.callTally)GhostButton("Quantity tally",Modifier.testTag("call_tally_open")){tally=true}
     if(referenceSettings.callDates)GhostButton("Date calculator",Modifier.testTag("call_dates_open")){dates=true}
@@ -912,6 +920,7 @@ fun NotesSheet(number: String, name: String, deskMode:Boolean, onDone: () -> Uni
     if(referenceSettings.messageDrafts&&runCatching{MessageDrafts.target(number)}.isSuccess)GhostButton("Message drafts",Modifier.testTag("call_message_drafts")){messageDrafts=true}
     if(referenceSettings.callReferences&&runCatching{CallReferences.key(number)}.isSuccess)GhostButton("Reference cards",Modifier.testTag("call_references_open")){references=true}
     if(referenceSettings.callNoteReader&&CallNoteReader.eligible(number))GhostButton("Saved notes padho / khojo",Modifier.testTag("call_notes_reader_open")){reader=true}
+    }
     Spacer(Modifier.height(6.dp))
     LdText("Naya note",12f,FontWeight.SemiBold,p.muted,modifier=Modifier.padding(bottom=8.dp))
     LdField(text, { text = it }, "Call ke dauran note likho…", modifier=Modifier.testTag("call_note_draft"), minLines = 3)
