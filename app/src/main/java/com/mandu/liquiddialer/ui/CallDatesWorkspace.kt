@@ -24,12 +24,16 @@ import kotlinx.coroutines.launch
 }
 
 @Composable fun CallDatesWorkspace(onBack:()->Unit,inSheet:Boolean=false){
+ val s by LdApp.settings.collectAsState();var weekdayOpen by remember{mutableStateOf(false)}
+ LaunchedEffect(s.weekdayShift){if(!s.weekdayShift)weekdayOpen=false}
  val p=LocalLd.current;val focus=androidx.compose.ui.platform.LocalFocusManager.current
  var mode by remember{mutableStateOf(CallDates.Mode.SHIFT)};var first by remember{mutableStateOf("")};var last by remember{mutableStateOf("")};var days by remember{mutableStateOf("7")}
  var result by remember{mutableStateOf<CallDates.Result?>(null)};var error by remember{mutableStateOf("")};val history=remember{CallDates.History()};var revision by remember{mutableIntStateOf(0)};val rows=remember(revision){history.rows}
+ if(weekdayOpen&&s.weekdayShift){WeekdayShiftWorkspace({weekdayOpen=false},inSheet);return}
  fun changed(){result=null;error=""}
  BackHandler{onBack()}
  val content:@Composable ColumnScope.()->Unit={
+  if(s.weekdayShift)GhostButton("Selected-weekday shift",Modifier.testTag("dates_weekday_open")){weekdayOpen=true}
   LdText("Civil date arithmetic · offline",16f,FontWeight.Bold,maxLines=3)
   LdText("Manually enter YYYY-MM-DD. No automatic today. Dates1900-2199, calendar days not elapsed hours.",12f,color=p.muted,maxLines=5)
   Column(verticalArrangement=Arrangement.spacedBy(5.dp)){CallDates.Mode.entries.forEach{m->GhostButton((if(mode==m)"✓ "else"")+m.label,Modifier.fillMaxWidth().testTag("dates_mode_${m.name.lowercase()}")){focus.clearFocus();mode=m;changed()}}}
