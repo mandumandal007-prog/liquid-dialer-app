@@ -6,6 +6,8 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("converter-recall","Reuse conversion inputs","Confirm restoring original input and units from session history","calls","converterhistory",aliases="converter history recall reuse original input units restore"),
+  Entry("converter-history-fold","Fold conversion history layout","Session count visible, history rows open on demand","calls","converterhistory",aliases="converter history folded panel compact layout style expand collapse"),
   Entry("converter-table","Converter all-units table","One manual value in every supported same-category unit","calls","converteroptions",aliases="converter comparison all units table measurement mass length area volume temperature"),
   Entry("converter-fold","Fold unit chooser layout","Selected labels stay visible; From/To choices open on demand","calls","converteroptions",aliases="converter fold collapse expand chooser layout style units"),
   Entry("review-priority","Review session priorities","Manual priority-first or priority-only pending items; temporary","calls","reviewoptions",aliases="briefing review priority star important session order"),
