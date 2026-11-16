@@ -127,6 +127,8 @@ data class LdSettings(
     val estimateLines: Boolean = false,
     val estimateBundles: Boolean = false,
     val estimateBundleLibrary: String = "",
+    val datesRecall: Boolean = false,
+    val datesHistoryFold: Boolean = false,
     val callDates: Boolean = false,
     val callConverter: Boolean = false,
     val checklistOrganizer: Boolean = false,
@@ -322,6 +324,8 @@ object K {
     val estimateLines = booleanPreferencesKey("estimate_lines")
     val estimateBundles = booleanPreferencesKey("estimate_bundles")
     val estimateBundleLibrary = stringPreferencesKey("estimate_bundle_library")
+    val datesRecall = booleanPreferencesKey("dates_recall")
+    val datesHistoryFold = booleanPreferencesKey("dates_history_fold")
     val callDates = booleanPreferencesKey("call_dates")
     val callConverter = booleanPreferencesKey("call_converter")
     val checklistOrganizer = booleanPreferencesKey("checklist_organizer")
@@ -507,6 +511,8 @@ fun Preferences.toSettings(): LdSettings {
         estimateLines = this[K.estimateLines] ?: false,
         estimateBundles = this[K.estimateBundles] ?: false,
         estimateBundleLibrary = this[K.estimateBundleLibrary] ?: "",
+        datesRecall = this[K.datesRecall] ?: false,
+        datesHistoryFold = this[K.datesHistoryFold] ?: false,
         callDates = this[K.callDates] ?: false,
         callConverter = this[K.callConverter] ?: false,
         checklistOrganizer = this[K.checklistOrganizer] ?: false,
