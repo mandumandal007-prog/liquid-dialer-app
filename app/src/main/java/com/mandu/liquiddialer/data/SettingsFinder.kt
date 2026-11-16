@@ -6,6 +6,8 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("review-priority","Review session priorities","Manual priority-first or priority-only pending items; temporary","calls","reviewoptions",aliases="briefing review priority star important session order"),
+  Entry("review-slim","Slim review rows layout","Compact glass rows with explicit detail expansion","calls","reviewoptions",aliases="briefing review slim rows layout compact style expand details"),
   Entry("installment-preview","Calculator installment preview","Manual upfront amount and dated equal parts, arithmetic only","calls","installmentpreview",aliases="calculator installment instalment parts schedule dates upfront amount remainder preview"),
   Entry("weekday-shift","Selected-weekday date shift","Count chosen weekdays with manual date exclusions","calls","weekdayshift",aliases="date selected weekday shift holidays exclusions working days forward backward manual"),
   Entry("briefing-review","Briefing review queue","Read pending topics and Call List entries together; session progress only","calls","briefingreview",aliases="briefing agenda review queue pending topics lists reviewed progress"),
