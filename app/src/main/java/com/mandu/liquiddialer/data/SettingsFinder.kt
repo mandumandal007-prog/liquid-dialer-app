@@ -6,6 +6,8 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("weekday-shortcuts","Weekday selection shortcuts","Mon-Fri, all days or weekends; no calculation","calls","weekdayshift",aliases="weekday shift presets shortcuts selection"),
+  Entry("weekday-exclusions-fold","Fold manual exclusions layout","Keep manual dates on demand with validation summary","calls","weekdayshift",aliases="weekday excluded dates fold compact layout style"),
   Entry("dates-recall","Reuse date inputs","Confirm restoring original mode and dates from session history","calls","calldates",aliases="date calculator history recall reuse original inputs days"),
   Entry("dates-history-fold","Fold date history layout","Count and Clear visible; entries open on demand","calls","calldates",aliases="date calculator history fold compact layout style expand collapse"),
   Entry("tally-sort","Sort session counter view","Stable name or quantity ordering, without editing the board","calls","calltally",aliases="tally sort order high low alphabetical counter view"),
