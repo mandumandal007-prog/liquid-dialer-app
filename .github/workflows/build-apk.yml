@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        partition: [0, 1]
+        partition: [0, 1, 2]
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -91,7 +91,7 @@ jobs:
       - name: Android SDK (preinstalled on runner)
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Download both partition results
+      - name: Download all three partition results
         uses: actions/download-artifact@v4
         with:
           pattern: test-partition-*
