@@ -740,6 +740,9 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         Column(Modifier.weight(1f)) {
                             // maxLines=2: lamba naam truncate na ho, doosri line pe wrap (bade font-scale pe bhi poora naam)
                             LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text, maxLines = 2)
+                            if(s.recentsContactNumber&&!r.name.isNullOrBlank()&&r.number.isNotBlank()){
+                                LdText(Repo.pretty(r.number),if(s.recentsCompact)10.5f else 11.5f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.padding(top=2.dp).testTag("recent_contact_number_${r.id}"))
+                            }
                             Column(Modifier.padding(top = if (s.recentsCompact) 1.dp else 2.dp), verticalArrangement = Arrangement.spacedBy(if(s.recentsSplitMeta)4.dp else 0.dp)) {
                                 // icon hata diya: text label ("Outgoing"/"Missed") already batata hai, aur
                                 // jagah bachti hai taaki time + duration bina truncate dikhe
