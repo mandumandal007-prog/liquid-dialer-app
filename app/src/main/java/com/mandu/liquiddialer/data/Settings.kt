@@ -184,6 +184,7 @@ data class LdSettings(
     val numberDetailsActivity: Boolean = false,
     val numberDetailsGlass: Boolean = false,
     val recentsSplitMeta: Boolean = false,
+    val recentsStackedActions: Boolean = false,
     val recentsContactNumber: Boolean = false,
     val recentsActionLabels: Boolean = false,
     val recentsOverview: Boolean = false,
@@ -391,6 +392,7 @@ object K {
     val numberDetailsActivity = booleanPreferencesKey("number_details_activity")
     val numberDetailsGlass = booleanPreferencesKey("number_details_glass")
     val recentsSplitMeta = booleanPreferencesKey("recents_split_meta")
+    val recentsStackedActions = booleanPreferencesKey("recents_stacked_actions")
     val recentsContactNumber = booleanPreferencesKey("recents_contact_number")
     val recentsActionLabels = booleanPreferencesKey("recents_action_labels")
     val recentsOverview = booleanPreferencesKey("recents_overview")
@@ -594,6 +596,7 @@ fun Preferences.toSettings(): LdSettings {
         numberDetailsActivity = this[K.numberDetailsActivity] ?: false,
         numberDetailsGlass = this[K.numberDetailsGlass] ?: false,
         recentsSplitMeta = this[K.recentsSplitMeta] ?: false,
+        recentsStackedActions = this[K.recentsStackedActions] ?: false,
         recentsContactNumber = this[K.recentsContactNumber] ?: false,
         recentsActionLabels = this[K.recentsActionLabels] ?: false,
         recentsOverview = this[K.recentsOverview] ?: false,
