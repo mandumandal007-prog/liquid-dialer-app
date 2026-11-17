@@ -765,8 +765,19 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = if(s.recentsSplitMeta)Int.MAX_VALUE else 2,modifier=Modifier.testTag(if(s.recentsSplitMeta)"recent_split_meta_${r.id}"else"recent_original_meta_${r.id}"))
                             }
                         }
-                        VideoMini(44.dp, tint = rstyle.tint, subtle = true) { act.videoCall(r.number) }
-                        CallMini(44.dp, tint = rstyle.tint) { act.callUi(r.number) }
+                        if(s.recentsActionLabels){
+                            Column(Modifier.width(44.dp).testTag("recent_video_action_${r.id}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
+                                VideoMini(44.dp,tint=rstyle.tint,subtle=true){act.videoCall(r.number)}
+                                LdText("Video",10f,FontWeight.Medium,color=p.muted,maxLines=2,textAlign=TextAlign.Center,modifier=Modifier.testTag("recent_video_label_${r.id}"))
+                            }
+                            Column(Modifier.width(44.dp).testTag("recent_voice_action_${r.id}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
+                                CallMini(44.dp,tint=rstyle.tint){act.callUi(r.number)}
+                                LdText("Call",10f,FontWeight.Medium,color=p.muted,maxLines=2,textAlign=TextAlign.Center,modifier=Modifier.testTag("recent_voice_label_${r.id}"))
+                            }
+                        }else{
+                            VideoMini(44.dp, tint = rstyle.tint, subtle = true) { act.videoCall(r.number) }
+                            CallMini(44.dp, tint = rstyle.tint) { act.callUi(r.number) }
+                        }
                     }
                     }
                 }
