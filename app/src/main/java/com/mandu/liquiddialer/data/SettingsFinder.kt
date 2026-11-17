@@ -8,6 +8,7 @@ object SettingsFinder{
  val all=listOf(
   Entry("reference-view-fold","Fold reference view controls","Search and sort open on demand; visible filter/order summary","calls","callreferences",aliases="reference cards search sort fold controls layout compact"),
   Entry("reference-editor-sections","Sectioned reference editor layout","Separate title/value panels and unsaved-draft counts","calls","callreferences",aliases="reference cards edit draft title value count panels layout style"),
+  Entry("reference-draft-review","Review reference draft before save","Unsaved title/value review with a separate final Save","calls","callreferences",aliases="reference cards draft review preview confirm save layout"),
   Entry("reference-sections","Sectioned reference card layout","Saved-position header, value panel and labeled actions","calls","callreferences",aliases="reference cards sections numbered header value panel layout style"),
   Entry("reference-sort","Sort reference titles","Saved order or case-insensitive title text order","calls","callreferences",aliases="reference cards sort titles alphabet order"),
   Entry("reference-manage-fold","Fold card management layout","Edit and Delete open per card on demand","calls","callreferences",aliases="reference cards fold edit delete layout style management"),
