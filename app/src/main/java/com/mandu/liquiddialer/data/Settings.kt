@@ -181,6 +181,7 @@ data class LdSettings(
     val confirmBeforeEnd: Boolean = false,   // opt-in: end button pe confirm card
     val recentsShowDuration: Boolean = true, // recents me call ki duration
     val showSimInRecents: Boolean = true,    // recents me SIM label
+    val recentsOverview: Boolean = false,
     val recentsCompact: Boolean = false,     // recents ki choti rows
     val searchBottom: Boolean = false,       // search/menu/profile bar neeche (angutha pahunch) - opt-in
     val rowSwipe: Boolean = false,           // recents row swipe: right = call, left = SMS (opt-in)
@@ -382,6 +383,7 @@ object K {
     val confirmBeforeEnd = booleanPreferencesKey("confirmBeforeEnd")
     val recentsShowDuration = booleanPreferencesKey("recentsShowDuration")
     val showSimInRecents = booleanPreferencesKey("showSimInRecents")
+    val recentsOverview = booleanPreferencesKey("recents_overview")
     val recentsCompact = booleanPreferencesKey("recentsCompact")
     val rowSwipe = booleanPreferencesKey("rowSwipe")
     val searchBottom = booleanPreferencesKey("searchBottom")
@@ -579,6 +581,7 @@ fun Preferences.toSettings(): LdSettings {
         confirmBeforeEnd = this[K.confirmBeforeEnd] ?: false,
         recentsShowDuration = this[K.recentsShowDuration] ?: true,
         showSimInRecents = this[K.showSimInRecents] ?: true,
+        recentsOverview = this[K.recentsOverview] ?: false,
         recentsCompact = this[K.recentsCompact] ?: false,
         rowSwipe = this[K.rowSwipe] ?: false,
         searchBottom = this[K.searchBottom] ?: false,
