@@ -29,6 +29,7 @@ import java.util.UUID
   LdText("Customer/order reference, address ya office hours jaise ordinary facts. Number ke saath local cards; value kholne ya copy karne ke liye alag tap.",13f,color=p.muted,maxLines=7)
   SwitchRow("Show in call Notes","Default OFF. Entry hide karne se saved cards delete nahi hote.",s.callReferences,last=true){scope.launch{try{LdApp.instance.repo.set(K.callReferences,it)}catch(_:Exception){error="Setting save nahi hui"}}}
   Column(Modifier.testTag("reference_options_settings")){
+   SwitchRow("Fold reference view controls","Default OFF. Search/sort open on demand. Matched count, filter status and order stay visible; saved cards unchanged.",s.referenceViewFold,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.referenceViewFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Sectioned reference card layout","Default OFF. Saved-position header, value panel and labeled actions. Glass stays; no saved data changes.",s.referenceSections,last=true,subMaxLines=6){scope.launch{try{LdApp.instance.repo.set(K.referenceSections,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Sort reference titles","Default OFF. Saved order, Title A-Z or Z-A view; saved cards unchanged.",s.referenceSort,last=true,subMaxLines=5){scope.launch{try{LdApp.instance.repo.set(K.referenceSort,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Fold card management layout","Default OFF. Edit and Delete open per card on demand. Reveal/Copy stay separate.",s.referenceManageFold,last=true,subMaxLines=5){scope.launch{try{LdApp.instance.repo.set(K.referenceManageFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
@@ -48,11 +49,13 @@ import java.util.UUID
  var error by remember(number){mutableStateOf("")};var status by remember(number){mutableStateOf("")};var query by remember(number){mutableStateOf("")}
  var revealed by remember(number){mutableStateOf(setOf<String>())};var editing by remember(number){mutableStateOf<CallReferences.Card?>(null)};var adding by remember(number){mutableStateOf(false)}
  var title by remember(number){mutableStateOf("")};var value by remember(number){mutableStateOf("")};var removing by remember(number){mutableStateOf<CallReferences.Card?>(null)}
+ var viewControls by remember(number){mutableStateOf(false)}
  var order by remember(number){mutableStateOf(ReferenceCardView.Order.SAVED)};var management by remember(number){mutableStateOf(setOf<String>())}
  LaunchedEffect(settings.referenceSort){if(!settings.referenceSort)order=ReferenceCardView.Order.SAVED;revealed=emptySet();management=emptySet()}
  LaunchedEffect(settings.referenceManageFold){revealed=emptySet();management=emptySet()}
  LaunchedEffect(settings.referenceSections){revealed=emptySet();management=emptySet()}
- fun reload(){runCatching{CallReferences.read(ctx,number)}.fold({snap=it;loadFailed=false;error=""},{snap=null;loadFailed=true;error="Saved cards load nahi hue. Data preserve hai; overwrite/delete nahi hoga."});revealed=emptySet();management=emptySet();editing=null;adding=false;removing=null;status=""}
+ LaunchedEffect(settings.referenceViewFold){viewControls=false;revealed=emptySet();management=emptySet()}
+ fun reload(){runCatching{CallReferences.read(ctx,number)}.fold({snap=it;loadFailed=false;error=""},{snap=null;loadFailed=true;error="Saved cards load nahi hue. Data preserve hai; overwrite/delete nahi hoga."});revealed=emptySet();management=emptySet();editing=null;adding=false;removing=null;status="";viewControls=false}
  LaunchedEffect(number){reload()}
  val owner=LocalLifecycleOwner.current
  DisposableEffect(owner,number){val obs=LifecycleEventObserver{_,e->if(e==Lifecycle.Event.ON_PAUSE)revealed=emptySet()};owner.lifecycle.addObserver(obs);onDispose{owner.lifecycle.removeObserver(obs)}}
@@ -74,13 +77,24 @@ import java.util.UUID
     }
     GhostButton("Cancel draft",Modifier.testTag("ref_cancel")){adding=false;editing=null;title="";value="";error=""}
    }else{
-    LdField(query,{query=it.take(80);revealed=emptySet();management=emptySet()},"Search titles only",modifier=Modifier.testTag("ref_search"))
-    LdText("${snapshot.cards.size}/${CallReferences.MAX_CARDS} saved cards · values search nahi hote",12f,color=p.muted,maxLines=4)
-    if(settings.referenceSort){
-     LdText("Title view only. Saved cards/order unchanged; values stay separate.",12f,color=p.muted,maxLines=5)
-     ReferenceCardView.Order.entries.forEach{v->GhostButton((if(order==v)"✓ "else"")+v.label,Modifier.fillMaxWidth().testTag("reference_sort_${v.name.lowercase()}")){order=v;revealed=emptySet();management=emptySet();status=""}}
+    val effectiveOrder=if(settings.referenceSort)order else ReferenceCardView.Order.SAVED
+    val rows=ReferenceCardView.rows(snapshot.cards,query,effectiveOrder)
+    if(settings.referenceViewFold){
+     GlassCard(Modifier.padding(top=8.dp).testTag("reference_view_summary"),radius=18.dp,padding=12.dp){
+      LdText("${rows.size} of ${snapshot.cards.size} saved cards shown",13f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("reference_view_count"))
+      LdText(if(query.trim().isEmpty())"Title filter: none" else "Title filter active",12f,color=p.muted,maxLines=4,modifier=Modifier.testTag("reference_view_filter"))
+      LdText("View: ${effectiveOrder.label}",12f,color=p.muted,maxLines=4,modifier=Modifier.testTag("reference_view_order"))
+      GhostButton(if(viewControls)"Hide search / sort controls"else"Search / sort controls",Modifier.testTag("reference_view_toggle")){viewControls=!viewControls;revealed=emptySet();management=emptySet();status=""}
+     }
     }
-    val rows=ReferenceCardView.rows(snapshot.cards,query,if(settings.referenceSort)order else ReferenceCardView.Order.SAVED)
+    if(!settings.referenceViewFold||viewControls){
+     LdField(query,{query=it.take(80);revealed=emptySet();management=emptySet()},"Search titles only",modifier=Modifier.testTag("ref_search"))
+     LdText("${snapshot.cards.size}/${CallReferences.MAX_CARDS} saved cards · values search nahi hote",12f,color=p.muted,maxLines=4)
+     if(settings.referenceSort){
+      LdText("Title view only. Saved cards/order unchanged; values stay separate.",12f,color=p.muted,maxLines=5)
+      ReferenceCardView.Order.entries.forEach{v->GhostButton((if(order==v)"✓ "else"")+v.label,Modifier.fillMaxWidth().testTag("reference_sort_${v.name.lowercase()}")){order=v;revealed=emptySet();management=emptySet();status=""}}
+     }
+    }
     if(rows.isEmpty())LdText(if(snapshot.cards.isEmpty())"Abhi is number ka card nahi."else"Is title ka card nahi mila.",13f,color=p.muted,maxLines=4,modifier=Modifier.testTag("ref_empty"))
     rows.forEach{c->GlassCard(Modifier.padding(top=12.dp).testTag("ref_card_${c.id}")){
      if(settings.referenceSections){
