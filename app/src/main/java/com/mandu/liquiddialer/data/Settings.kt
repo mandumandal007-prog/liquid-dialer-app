@@ -115,6 +115,7 @@ data class LdSettings(
     val referenceSort: Boolean = false,
     val referenceManageFold: Boolean = false,
     val referenceSections: Boolean = false,
+    val referenceDraftReview: Boolean = false,
     val referenceEditorSections: Boolean = false,
     val referenceViewFold: Boolean = false,
     val callReferences: Boolean = false,
@@ -321,6 +322,7 @@ object K {
     val referenceSort = booleanPreferencesKey("reference_sort")
     val referenceManageFold = booleanPreferencesKey("reference_manage_fold")
     val referenceSections = booleanPreferencesKey("reference_sections")
+    val referenceDraftReview = booleanPreferencesKey("reference_draft_review")
     val referenceEditorSections = booleanPreferencesKey("reference_editor_sections")
     val referenceViewFold = booleanPreferencesKey("reference_view_fold")
     val callReferences = booleanPreferencesKey("call_references")
@@ -517,6 +519,7 @@ fun Preferences.toSettings(): LdSettings {
         referenceSort = this[K.referenceSort] ?: false,
         referenceManageFold = this[K.referenceManageFold] ?: false,
         referenceSections = this[K.referenceSections] ?: false,
+        referenceDraftReview = this[K.referenceDraftReview] ?: false,
         referenceEditorSections = this[K.referenceEditorSections] ?: false,
         referenceViewFold = this[K.referenceViewFold] ?: false,
         callReferences = this[K.callReferences] ?: false,
