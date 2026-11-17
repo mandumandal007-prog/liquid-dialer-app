@@ -113,18 +113,31 @@ private fun NumberSheetContent(number: String, contact: Contact?, st: AppState, 
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             LdText("Recent activity", 14f, FontWeight.Medium, p.muted)
-            Box(Modifier.clip(RoundedCornerShape(10.dp)).clickable { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }.padding(6.dp)) {
+            Box(Modifier.testTag("details_history_delete").clip(RoundedCornerShape(10.dp)).clickable { Repo.deleteRecentsFor(ctx, number); act.reload(); onClose() }.padding(6.dp)) {
                 LdText("Delete", 12f, FontWeight.SemiBold, p.danger)
             }
         }
         Spacer(Modifier.height(6.dp))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.accent.copy(alpha=if(p.isLight).07f else .12f)).padding(16.dp)) {
-            history.take(15).forEach { r ->
+            history.take(15).forEachIndexed { index,r ->
                 val missed = r.type == CallLog.Calls.MISSED_TYPE || r.type == CallLog.Calls.REJECTED_TYPE
-                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    LdIcon(typeIcon(r.type), 15.dp, if (missed) p.danger else p.muted)
-                    LdText(typeLabel(r.type), 13f, FontWeight.SemiBold, if (missed) p.danger else p.text, Modifier.weight(1f))
-                    LdText(df.format(Date(r.date)) + if (r.duration > 0) "  ·  " + fmtDur(r.duration) else "", 11.5f, color = p.muted)
+                if(s.numberDetailsActivity){
+                    Row(Modifier.fillMaxWidth().padding(vertical=10.dp).testTag("details_activity_row_$index"),verticalAlignment=Alignment.Top,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                        Box(Modifier.size(32.dp).clip(CircleShape).background((if(missed)p.danger else p.accent).copy(alpha=.10f)),contentAlignment=Alignment.Center){
+                            LdIcon(typeIcon(r.type),16.dp,if(missed)p.danger else p.accent)
+                        }
+                        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+                            LdText(typeLabel(r.type),14f,FontWeight.SemiBold,if(missed)p.danger else p.text,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("details_activity_type_$index"))
+                            LdText(df.format(Date(r.date)) + if(r.duration>0)"  ·  "+fmtDur(r.duration)else"",12f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("details_activity_meta_$index"))
+                        }
+                    }
+                    if(index<history.take(15).lastIndex)Box(Modifier.fillMaxWidth().height(1.dp).background(p.text.copy(alpha=if(p.isLight).10f else .14f)).testTag("details_activity_divider_$index"))
+                }else{
+                    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        LdIcon(typeIcon(r.type), 15.dp, if (missed) p.danger else p.muted)
+                        LdText(typeLabel(r.type), 13f, FontWeight.SemiBold, if (missed) p.danger else p.text, Modifier.weight(1f))
+                        LdText(df.format(Date(r.date)) + if (r.duration > 0) "  ·  " + fmtDur(r.duration) else "", 11.5f, color = p.muted)
+                    }
                 }
             }
         }
