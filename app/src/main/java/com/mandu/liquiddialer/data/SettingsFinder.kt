@@ -80,6 +80,7 @@ object SettingsFinder{
   Entry("display-9","Din ke headers","Recents me Aaj/Kal ke groups","display","settings:display","Din ke headers"),
   Entry("display-10","Call duration dikhao","Recents me kitni der baat hui","display","settings:display","Call duration dikhao"),
   Entry("display-11","SIM label dikhao","Multi-SIM pe recents me SIM 1/2","display","settings:display","SIM label dikhao"),
+  Entry("recents-overview","Recents overview layout","Glass panel, two-column filters and day separators","display","settings:display",aliases="home recent calls overview layout grid filter day headers"),
   Entry("display-12","Compact recents","Choti rows, ek screen pe zyada entries","display","settings:display","Compact recents"),
   Entry("display-13","Search bar neeche","Menu, search aur profile ki patti upar ki jagah neeche (bottom bar ke upar) aa jaati hai - ek haath se pahunch ke liye. Sirf Recents/Contacts screen; baaki layout wahi","display","settings:display","Search bar neeche"),
   Entry("display-14","Row swipe actions","Recents row ko dayein khinchne se Call, bayein khinchne se SMS (lamba khinchna padta hai). Call par 'Call se pehle poochho' setting lagu rehti hai","display","settings:display","Row swipe actions"),
