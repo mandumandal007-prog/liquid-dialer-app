@@ -80,6 +80,7 @@ object SettingsFinder{
   Entry("display-9","Din ke headers","Recents me Aaj/Kal ke groups","display","settings:display","Din ke headers"),
   Entry("display-10","Call duration dikhao","Recents me kitni der baat hui","display","settings:display","Call duration dikhao"),
   Entry("display-11","SIM label dikhao","Multi-SIM pe recents me SIM 1/2","display","settings:display","SIM label dikhao"),
+  Entry("number-details-activity","Number details activity layout","Separate call type and wrapping date/time/duration lines","display","settings:display",aliases="number contact details history recent activity layout date duration"),
   Entry("number-details-glass","Number details glass layout","Compact identity header and separate glass action panel","display","settings:display",aliases="number contact details card video call layout style glass"),
   Entry("recents-overview","Recents overview layout","Glass panel, two-column filters and day separators","display","settings:display",aliases="home recent calls overview layout grid filter day headers"),
   Entry("display-12","Compact recents","Choti rows, ek screen pe zyada entries","display","settings:display","Compact recents"),
