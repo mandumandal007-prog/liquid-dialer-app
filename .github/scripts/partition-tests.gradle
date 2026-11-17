@@ -3,7 +3,7 @@
 allprojects {
  tasks.withType(Test).configureEach {
   def part = providers.gradleProperty('testPartition').get().toInteger()
-  if (!(part in [0, 1])) throw new GradleException('testPartition must be 0 or 1')
+  if (!(part in [0, 1, 2])) throw new GradleException('testPartition must be 0, 1 or 2')
   outputs.upToDateWhen { false }
   doFirst {
    def all = testClassesDirs.files.collectMany { root ->
@@ -14,7 +14,7 @@ allprojects {
    if (all.isEmpty()) throw new GradleException('No compiled test classes found')
    def family = { String name -> name.replaceAll(/\$.*/, '').replaceAll(/\.class$/, '') }
    def families = all.collect(family).unique().sort()
-   def assignment = families.withIndex().collectEntries { name, i -> [(name): i % 2] }
+   def assignment = families.withIndex().collectEntries { name, i -> [(name): i % 3] }
    def selected = all.findAll { assignment[family(it)] == part }
    if (selected.isEmpty()) throw new GradleException('Empty test partition')
    // Preserve ordinary top-level test discovery; helper/anonymous inner classes are not test entry points.

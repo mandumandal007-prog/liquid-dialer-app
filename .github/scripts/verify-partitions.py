@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed unless both partition result sets cover the exact compiled @Test manifest."""
+"""Fail closed unless all three partition result sets cover the exact compiled @Test manifest."""
 import argparse
 import collections
 import json
@@ -96,13 +96,15 @@ def compile_manifest(roots):
 
 
 def verify(artifacts):
-    parts = [Path(artifacts) / f'test-partition-{i}' for i in range(2)]
+    parts = [Path(artifacts) / f'test-partition-{i}' for i in range(3)]
+    if {p.name for p in Path(artifacts).glob('test-partition-*') if p.is_dir()} != {p.name for p in parts}:
+        raise ValueError('Missing or unexpected partition directories')
     all_sets = [set((p/'test-partition/all-classes.txt').read_text().splitlines()) for p in parts]
     assigned = [set((p/'test-partition/selected-classes.txt').read_text().splitlines()) for p in parts]
     expected = [set(json.loads((p/'test-partition/expected-tests.json').read_text())) for p in parts]
-    if not all_sets[0] or not expected[0] or all_sets[0] != all_sets[1] or expected[0] != expected[1]:
+    if not all_sets[0] or not expected[0] or any(a != all_sets[0] for a in all_sets[1:]) or any(e != expected[0] for e in expected[1:]):
         raise ValueError('Partition compiled manifests differ or are empty')
-    if assigned[0] & assigned[1] or assigned[0] | assigned[1] != all_sets[0]:
+    if any(assigned[i] & assigned[j] for i in range(3) for j in range(i)) or set().union(*assigned) != all_sets[0]:
         raise ValueError('Compiled class partitions overlap or omit classes')
     found = []
     for i, part in enumerate(parts):
