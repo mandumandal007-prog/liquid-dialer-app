@@ -389,6 +389,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Din ke headers", "Recents me Aaj/Kal ke groups", s.groupByDay) { save(K.groupByDay, it) }
             SwitchRow("Call duration dikhao", "Recents me kitni der baat hui", s.recentsShowDuration) { save(K.recentsShowDuration, it) }
             SwitchRow("SIM label dikhao", "Multi-SIM pe recents me SIM 1/2", s.showSimInRecents) { save(K.showSimInRecents, it) }
+            SwitchRow("Number details activity layout", "Default OFF. Separate call type and wrapping date/time/duration lines in Recent activity. History and delete action stay the same.", s.numberDetailsActivity, subMaxLines=6) { save(K.numberDetailsActivity, it) }
             SwitchRow("Number details glass layout", "Default OFF. Compact identity header, separate glass action panel and number card. Video call is available in both layouts.", s.numberDetailsGlass, subMaxLines=6) { save(K.numberDetailsGlass, it) }
             SwitchRow("Recents overview layout", "Default OFF. Glass control panel, two-column call filters and day separators. Call actions stay the same.", s.recentsOverview, subMaxLines=6) { save(K.recentsOverview, it) }
             SwitchRow("Compact recents", "Choti rows, ek screen pe zyada entries", s.recentsCompact) { save(K.recentsCompact, it) }
