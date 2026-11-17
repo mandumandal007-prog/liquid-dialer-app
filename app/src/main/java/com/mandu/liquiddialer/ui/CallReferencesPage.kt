@@ -29,6 +29,7 @@ import java.util.UUID
   LdText("Customer/order reference, address ya office hours jaise ordinary facts. Number ke saath local cards; value kholne ya copy karne ke liye alag tap.",13f,color=p.muted,maxLines=7)
   SwitchRow("Show in call Notes","Default OFF. Entry hide karne se saved cards delete nahi hote.",s.callReferences,last=true){scope.launch{try{LdApp.instance.repo.set(K.callReferences,it)}catch(_:Exception){error="Setting save nahi hui"}}}
   Column(Modifier.testTag("reference_options_settings")){
+   SwitchRow("Review reference draft before save","Default OFF. Review ordinary title/value in a separate layout, then Save reviewed card. OFF returns to edit without saving.",s.referenceDraftReview,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.referenceDraftReview,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Sectioned reference editor layout","Default OFF. Separate draft title/value panels with length counts. Save/Cancel stay explicit; layout changes do not save.",s.referenceEditorSections,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.referenceEditorSections,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Fold reference view controls","Default OFF. Search/sort open on demand. Matched count, filter status and order stay visible; saved cards unchanged.",s.referenceViewFold,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.referenceViewFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Sectioned reference card layout","Default OFF. Saved-position header, value panel and labeled actions. Glass stays; no saved data changes.",s.referenceSections,last=true,subMaxLines=6){scope.launch{try{LdApp.instance.repo.set(K.referenceSections,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
@@ -50,17 +51,19 @@ import java.util.UUID
  var error by remember(number){mutableStateOf("")};var status by remember(number){mutableStateOf("")};var query by remember(number){mutableStateOf("")}
  var revealed by remember(number){mutableStateOf(setOf<String>())};var editing by remember(number){mutableStateOf<CallReferences.Card?>(null)};var adding by remember(number){mutableStateOf(false)}
  var title by remember(number){mutableStateOf("")};var value by remember(number){mutableStateOf("")};var removing by remember(number){mutableStateOf<CallReferences.Card?>(null)}
+ var reviewing by remember(number){mutableStateOf(false)}
  var viewControls by remember(number){mutableStateOf(false)}
  var order by remember(number){mutableStateOf(ReferenceCardView.Order.SAVED)};var management by remember(number){mutableStateOf(setOf<String>())}
+ LaunchedEffect(settings.referenceDraftReview){reviewing=false}
  LaunchedEffect(settings.referenceSort){if(!settings.referenceSort)order=ReferenceCardView.Order.SAVED;revealed=emptySet();management=emptySet()}
  LaunchedEffect(settings.referenceManageFold){revealed=emptySet();management=emptySet()}
  LaunchedEffect(settings.referenceSections){revealed=emptySet();management=emptySet()}
  LaunchedEffect(settings.referenceViewFold){viewControls=false;revealed=emptySet();management=emptySet()}
- fun reload(){runCatching{CallReferences.read(ctx,number)}.fold({snap=it;loadFailed=false;error=""},{snap=null;loadFailed=true;error="Saved cards load nahi hue. Data preserve hai; overwrite/delete nahi hoga."});revealed=emptySet();management=emptySet();editing=null;adding=false;removing=null;status="";viewControls=false}
+ fun reload(){runCatching{CallReferences.read(ctx,number)}.fold({snap=it;loadFailed=false;error=""},{snap=null;loadFailed=true;error="Saved cards load nahi hue. Data preserve hai; overwrite/delete nahi hoga."});revealed=emptySet();management=emptySet();editing=null;adding=false;removing=null;status="";viewControls=false;reviewing=false}
  LaunchedEffect(number){reload()}
  val owner=LocalLifecycleOwner.current
  DisposableEffect(owner,number){val obs=LifecycleEventObserver{_,e->if(e==Lifecycle.Event.ON_PAUSE)revealed=emptySet()};owner.lifecycle.addObserver(obs);onDispose{owner.lifecycle.removeObserver(obs)}}
- fun save(cards:List<CallReferences.Card>,done:String){val old=snap?:return;runCatching{CallReferences.save(ctx,number,old.raw,cards)}.fold({snap=it;adding=false;editing=null;removing=null;revealed=emptySet();error="";status=done},{error="Save nahi hua. Title/value ki limit check karo; data doosri jagah badla ho to Reload karo. Draft yahin hai."})}
+ fun save(cards:List<CallReferences.Card>,done:String){val old=snap?:return;runCatching{CallReferences.save(ctx,number,old.raw,cards)}.fold({snap=it;adding=false;editing=null;removing=null;reviewing=false;revealed=emptySet();error="";status=done},{error="Save nahi hua. Title/value ki limit check karo; data doosri jagah badla ho to Reload karo. Draft yahin hai."})}
  val content:@Composable ColumnScope.()->Unit={
   if(inSheet){SheetTitle("Reference cards");GhostButton("Back to Notes",Modifier.testTag("ref_back"),onClick=onBack)}
   LdText(number,16f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("ref_identity"))
@@ -70,10 +73,26 @@ import java.util.UUID
    if(adding||editing!=null){
     SecTitle(if(adding)"New card draft"else"Edit card draft")
     LdText("Draft save tak saved cards nahi badlenge. PIN/OTP/password yahan na likho.",12f,color=p.muted,maxLines=5)
+    if(reviewing&&settings.referenceDraftReview){
+     GlassCard(Modifier.padding(top=10.dp).testTag("reference_review_panel"),radius=20.dp,padding=14.dp){
+      LdText("REVIEW · NOT SAVED",12f,FontWeight.Bold,color=p.accent,maxLines=4,modifier=Modifier.testTag("reference_review_notice"))
+      LdText("Ordinary facts are visible here. Only Save reviewed card writes. Back to edit keeps the draft; Cancel discards it.",12f,color=p.muted,maxLines=8)
+      Spacer(Modifier.height(12.dp))
+      LdText("TITLE TO SAVE",11f,FontWeight.Bold,color=p.muted,maxLines=3)
+      LdText(title.trim(),18f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("reference_review_title"))
+      Spacer(Modifier.height(12.dp))
+      LdText("VALUE TO SAVE",11f,FontWeight.Bold,color=p.muted,maxLines=3)
+      LdText(value.trim(),15f,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("reference_review_value"))
+     }
+     PrimaryButton("Save reviewed card",modifier=Modifier.testTag("reference_review_save")){
+      runCatching{CallReferences.Card(editing?.id?:UUID.randomUUID().toString(),title.trim(),value.trim()).also{it.validate()}}.fold({card->save(if(adding)snapshot.cards+card else snapshot.cards.map{if(it.id==card.id)card else it},"Card saved · value hidden")},{error="Title 1-40 aur value 1-500 letters rakho. Control characters nahi."})
+     }
+     GhostButton("Back to edit",Modifier.testTag("reference_review_back")){reviewing=false;error=""}
+    }else{
     if(settings.referenceEditorSections){
      Column(Modifier.fillMaxWidth().background(p.accent.copy(alpha=.09f),RoundedCornerShape(16.dp)).padding(12.dp).testTag("reference_draft_status")){
       LdText("UNSAVED DRAFT",11f,FontWeight.Bold,color=p.accent,maxLines=3)
-      LdText("Only Save card writes this draft. Cancel discards it.",12f,color=p.muted,maxLines=5)
+      LdText(if(settings.referenceDraftReview)"Review draft does not save. Save reviewed card writes; Cancel discards."else"Only Save card writes this draft. Cancel discards it.",12f,color=p.muted,maxLines=5)
      }
      GlassCard(Modifier.padding(top=10.dp).testTag("reference_draft_title_panel"),radius=18.dp,padding=12.dp){
       LdText("CARD TITLE",11f,FontWeight.Bold,color=p.accent,maxLines=3)
@@ -90,10 +109,11 @@ import java.util.UUID
     LdField(value,{value=it.take(500)},"Ordinary reference value (max 500)",minLines=3,modifier=Modifier.testTag("ref_value_input"))
     LdText("${value.length}/500",11f,color=p.muted)
     }
-    PrimaryButton("Save card",modifier=Modifier.testTag("ref_save")){
-     runCatching{CallReferences.Card(editing?.id?:UUID.randomUUID().toString(),title.trim(),value.trim()).also{it.validate()}}.fold({card->save(if(adding)snapshot.cards+card else snapshot.cards.map{if(it.id==card.id)card else it},"Card saved · value hidden")},{error="Title 1-40 aur value 1-500 letters rakho. Control characters nahi."})
+    PrimaryButton(if(settings.referenceDraftReview)"Review draft"else"Save card",modifier=Modifier.testTag("ref_save")){
+     runCatching{CallReferences.Card(editing?.id?:UUID.randomUUID().toString(),title.trim(),value.trim()).also{it.validate()}}.fold({card->if(settings.referenceDraftReview){reviewing=true;error=""}else save(if(adding)snapshot.cards+card else snapshot.cards.map{if(it.id==card.id)card else it},"Card saved · value hidden")},{error="Title 1-40 aur value 1-500 letters rakho. Control characters nahi."})
     }
-    GhostButton("Cancel draft",Modifier.testTag("ref_cancel")){adding=false;editing=null;title="";value="";error=""}
+    }
+    GhostButton("Cancel draft",Modifier.testTag("ref_cancel")){adding=false;editing=null;reviewing=false;title="";value="";error=""}
    }else{
     val effectiveOrder=if(settings.referenceSort)order else ReferenceCardView.Order.SAVED
     val rows=ReferenceCardView.rows(snapshot.cards,query,effectiveOrder)
