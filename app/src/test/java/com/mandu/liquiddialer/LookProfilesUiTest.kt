@@ -8,6 +8,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.mandu.liquiddialer.data.*
 import com.mandu.liquiddialer.ui.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancel
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.runner.RunWith
@@ -22,8 +23,8 @@ class LookProfilesUiTest{
  private fun show(night:Boolean=false,raw:String=""){settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.blur]=22;it[K.lookProfiles]=raw;it[K.refinedHeaders]=true;it[K.quietRows]=true;it[K.theme]=if(night)"midnight"else"daylight";it[K.fontScale]=if(night)1.4f else 1f;it[K.autoRecord]=false;it[K.hiddenFeatures]=setOf("notes")}};await{LdApp.settings.value.blur==22&&LdApp.settings.value.lookProfiles==raw&&LdApp.settings.value.theme==(if(night)"midnight"else"daylight")};rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{LookProfilesPage({})}}};settle()}
  private fun clickText(t:String){rule.mainClock.autoAdvance=true;rule.onNodeWithText(t).performScrollTo();rule.mainClock.autoAdvance=false;rule.onNodeWithText(t).performClick();settle()}
  private fun click(tag:String){rule.mainClock.autoAdvance=true;rule.onNodeWithTag(tag,true).performScrollTo();rule.mainClock.autoAdvance=false;rule.onNodeWithTag(tag,true).performClick();settle()}
- @After fun clean(){runBlocking{ctx.ldStore.edit{it[K.lookProfiles]="";it[K.refinedHeaders]=false;it[K.quietRows]=false;it[K.fontScale]=1f;it[K.hiddenFeatures]=emptySet()}}}
- @Test fun previewIsReadOnlyAndApplyUndoPreserveBehavior(){show();val before=Look.capture(LdApp.settings.value);clickText("Royal Night");rule.onNodeWithTag("look_preview",true).assertExists();assertEquals(before,Look.capture(LdApp.settings.value));click("look_apply");await{LdApp.settings.value.theme=="midnight"};assertEquals(setOf("notes"),LdApp.settings.value.hiddenFeatures);assertFalse(LdApp.settings.value.autoRecord);click("look_undo");await{Look.capture(LdApp.settings.value)==before}}
+ @After fun clean(){runBlocking{ctx.ldStore.edit{it[K.lookProfiles]="";it[K.refinedHeaders]=false;it[K.quietRows]=false;it[K.fontScale]=1f;it[K.hiddenFeatures]=emptySet()};ctx.scope.cancel()}}
+ @Test fun previewIsReadOnlyAndApplyUndoPreserveBehavior(){show();val before=Look.capture(LdApp.settings.value);clickText("Royal Night");rule.onNodeWithTag("look_preview",true).assertExists();assertEquals(before,Look.capture(LdApp.settings.value));click("look_apply");await{LdApp.settings.value.theme=="midnight"&&rule.onAllNodesWithTag("look_undo",true).fetchSemanticsNodes().size==1&&rule.onAllNodesWithTag("look_apply",true).fetchSemanticsNodes().isEmpty()};assertEquals(setOf("notes"),LdApp.settings.value.hiddenFeatures);assertFalse(LdApp.settings.value.autoRecord);click("look_undo");await{Look.capture(LdApp.settings.value)==before&&rule.onAllNodesWithTag("look_undo",true).fetchSemanticsNodes().isEmpty()};rule.onNodeWithTag("look_undo",true).assertDoesNotExist()}
  @Test fun saveRenameAndDeleteAreLibraryOnly(){
   show();val before=Look.capture(LdApp.settings.value)
   click("look_save_current");await{rule.onAllNodesWithTag("look_save_name",true).fetchSemanticsNodes().size==1}
