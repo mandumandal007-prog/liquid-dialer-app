@@ -42,6 +42,7 @@ fun NumberSheet(number: String, contact: Contact?, st: AppState, act: MainActivi
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NumberSheetContent(number: String, contact: Contact?, st: AppState, act: MainActivity, onClose: () -> Unit, onEdit: (Long?) -> Unit, onNotes: () -> Unit, onLongNumber: (String) -> Unit = {}, onChecklist: (() -> Unit)? = null, onEstimate: (() -> Unit)? = null, onTimeline: (() -> Unit)? = null, onBriefing: (() -> Unit)? = null) {
     val s by com.mandu.liquiddialer.LdApp.settings.collectAsState()
@@ -60,28 +61,42 @@ private fun NumberSheetContent(number: String, contact: Contact?, st: AppState, 
     val notesRead = remember(number) {runCatching {Repo.notesChecked(ctx).filter {ContactControls.k(number).isNotEmpty() && ContactControls.k(it.number)==ContactControls.k(number)}}}
     val notes=notesRead.getOrDefault(emptyList())
 
-    Column(Modifier.fillMaxWidth().padding(top=12.dp,bottom=20.dp).testTag("details_identity_card"),horizontalAlignment=Alignment.CenterHorizontally) {
-        Avatar(name,contact?.photo,96.dp,34f,seed=name)
-        Spacer(Modifier.height(18.dp))
-        LdText(name,28f,FontWeight.Medium,maxLines=Int.MAX_VALUE,textAlign=androidx.compose.ui.text.style.TextAlign.Center,
-            modifier=Modifier.fillMaxWidth().then(if(contact==null&&number.isNotBlank())Modifier.combinedClickable(onClick={},onLongClick={onLongNumber(number)})else Modifier).testTag("details_name"))
-        if(contact!=null&&contact.label.isNotBlank())LdText(contact.label,13f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.padding(top=6.dp))
-        Spacer(Modifier.height(22.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            ActionBubble(LdIcons.Phone, "Call", true,modifier=Modifier.testTag("details_call")) { onClose(); act.call(number) }
-            ActionBubble(LdIcons.Message, "SMS",modifier=Modifier.testTag("details_sms")) { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
-            ActionBubble(LdIcons.Message, "WhatsApp",modifier=Modifier.testTag("details_whatsapp")) {
+    Column(Modifier.fillMaxWidth().padding(top=8.dp,bottom=16.dp).testTag("details_identity_card"),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        if(s.numberDetailsGlass){
+            Row(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(24.dp),0.dp).padding(16.dp).testTag("details_glass_header"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)){
+                Avatar(name,contact?.photo,64.dp,23f,seed=name)
+                Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
+                    LdText(name,23f,FontWeight.SemiBold,maxLines=Int.MAX_VALUE,
+                        modifier=Modifier.fillMaxWidth().then(if(contact==null&&number.isNotBlank())Modifier.combinedClickable(onClick={},onLongClick={onLongNumber(number)})else Modifier).testTag("details_name"))
+                    if(contact!=null&&contact.label.isNotBlank())LdText(contact.label,12f,color=p.muted,maxLines=Int.MAX_VALUE)
+                }
+            }
+        }else{
+            Column(Modifier.fillMaxWidth().padding(top=4.dp),horizontalAlignment=Alignment.CenterHorizontally){
+                Avatar(name,contact?.photo,96.dp,34f,seed=name)
+                Spacer(Modifier.height(18.dp))
+                LdText(name,28f,FontWeight.Medium,maxLines=Int.MAX_VALUE,textAlign=androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier=Modifier.fillMaxWidth().then(if(contact==null&&number.isNotBlank())Modifier.combinedClickable(onClick={},onLongClick={onLongNumber(number)})else Modifier).testTag("details_name"))
+                if(contact!=null&&contact.label.isNotBlank())LdText(contact.label,13f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.padding(top=6.dp))
+            }
+        }
+        val actionPanel=if(s.numberDetailsGlass)Modifier.glass(p,RoundedCornerShape(24.dp),0.dp).padding(12.dp)else Modifier.padding(top=10.dp,bottom=4.dp)
+        FlowRow(Modifier.fillMaxWidth().then(actionPanel).testTag("details_action_grid"),maxItemsInEachRow=3,horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            ActionBubble(LdIcons.Phone, "Call", true,modifier=Modifier.weight(1f).testTag("details_call")) { onClose(); act.call(number) }
+            ActionBubble(LdIcons.Video, "Video call",modifier=Modifier.weight(1f).testTag("details_video")) { onClose(); act.videoCall(number) }
+            ActionBubble(LdIcons.Message, "SMS",modifier=Modifier.weight(1f).testTag("details_sms")) { ctx.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number"))) }
+            ActionBubble(LdIcons.Message, "WhatsApp",modifier=Modifier.weight(1f).testTag("details_whatsapp")) {
                 val wa = com.mandu.liquiddialer.data.WhatsAppLink.url(number)
                 if (wa == null) Toast.makeText(ctx, "Is number ke liye WhatsApp link nahi ban sakta", Toast.LENGTH_SHORT).show()
                 else try { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(wa))) } catch (_: Exception) { Toast.makeText(ctx, "WhatsApp nahi khul paya", Toast.LENGTH_SHORT).show() }
             }
-            if (contact != null) ActionBubble(if (starred) LdIcons.StarFill else LdIcons.Star, if (starred) "Favourite" else "Fav karo", starred) {
+            if (contact != null) ActionBubble(if (starred) LdIcons.StarFill else LdIcons.Star, if (starred) "Favourite" else "Fav karo", starred,modifier=Modifier.weight(1f).testTag("details_favourite")) {
                 starred = !starred; Repo.setStarred(ctx, contact.id, starred); act.reload()
             }
         }
     }
     if(number.isNotBlank()){
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.accent.copy(alpha=if(p.isLight).07f else .12f))
+        Column(Modifier.fillMaxWidth().then(if(s.numberDetailsGlass)Modifier.glass(p,RoundedCornerShape(24.dp),0.dp)else Modifier.clip(RoundedCornerShape(24.dp)).background(p.accent.copy(alpha=if(p.isLight).07f else .12f)))
             .combinedClickable(onClick={},onLongClick={onLongNumber(number)}).padding(20.dp).testTag("details_number_options")){
             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)){
                 LdIcon(LdIcons.Phone,22.dp,p.accent)
@@ -298,11 +313,11 @@ private fun NumberSheetContent(number: String, contact: Contact?, st: AppState, 
 @Composable
 fun ActionBubble(icon: ImageVector, label: String, on: Boolean = false, modifier:Modifier=Modifier, onClick: () -> Unit) {
     val p = LocalLd.current
-    Column(modifier=modifier.then(if(LocalContactDetails.current)Modifier.clickable(onClick=onClick)else Modifier),horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier=modifier.then(if(LocalContactDetails.current)Modifier.heightIn(min=48.dp).clickable(onClick=onClick)else Modifier),horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if(LocalContactDetails.current)Box(Modifier.width(68.dp).height(48.dp).clip(RoundedCornerShape(24.dp))
             .background(p.accent.copy(alpha=if(on).22f else .10f)),contentAlignment=Alignment.Center){LdIcon(icon,23.dp,p.accent)}
         else IconBtn(icon, 52.dp, 22.dp, on = on, onClick = onClick)
-        LdText(label, 11f, if(LocalContactDetails.current)FontWeight.Medium else FontWeight.SemiBold, if(LocalContactDetails.current)p.text else p.muted,maxLines=2)
+        LdText(label, 11f, if(LocalContactDetails.current)FontWeight.Medium else FontWeight.SemiBold, if(LocalContactDetails.current)p.text else p.muted,maxLines=2,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 
