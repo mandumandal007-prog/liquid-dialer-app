@@ -736,6 +736,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                     RowSwipeActions(enabled = s.rowSwipe && r.number.isNotBlank(), onCall = { act.callUi(r.number) },
                         onSms = { try { act.startActivity(android.content.Intent(android.content.Intent.ACTION_SENDTO, android.net.Uri.parse("smsto:" + r.number))) } catch (_: Exception) { } }) {
                     RecentsRowShell(rstyle, onClick = { onOpen(r) }, onLongClick = { if (r.number.isNotBlank()) onLong(r.number) }, dense = s.recentsCompact, extraVerticalPadding = 4.dp, tight = true) {
+                        val identity:@Composable RowScope.()->Unit={
                         Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 38.dp, fontSize = if (s.recentsCompact) 12f else 13f, seed = name)
                         Column(Modifier.weight(1f)) {
                             // maxLines=2: lamba naam truncate na ho, doosri line pe wrap (bade font-scale pe bhi poora naam)
@@ -768,6 +769,8 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = if(s.recentsSplitMeta)Int.MAX_VALUE else 2,modifier=Modifier.testTag(if(s.recentsSplitMeta)"recent_split_meta_${r.id}"else"recent_original_meta_${r.id}"))
                             }
                         }
+                        }
+                        val actions:@Composable RowScope.()->Unit={
                         if(s.recentsActionLabels){
                             Column(Modifier.width(44.dp).testTag("recent_video_action_${r.id}"),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
                                 VideoMini(44.dp,tint=rstyle.tint,subtle=true){act.videoCall(r.number)}
@@ -780,6 +783,17 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         }else{
                             VideoMini(44.dp, tint = rstyle.tint, subtle = true) { act.videoCall(r.number) }
                             CallMini(44.dp, tint = rstyle.tint) { act.callUi(r.number) }
+                        }
+                        }
+                        if(s.recentsStackedActions){
+                            Column(Modifier.weight(1f).testTag("recent_stacked_card_${r.id}"),verticalArrangement=Arrangement.spacedBy(10.dp)){
+                                Row(Modifier.fillMaxWidth().testTag("recent_stacked_identity_${r.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp),content=identity)
+                                Box(Modifier.fillMaxWidth().height(1.dp).background(p.text.copy(alpha=if(p.isLight).09f else .12f)))
+                                Row(Modifier.fillMaxWidth().testTag("recent_stacked_actions_${r.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.End),content=actions)
+                            }
+                        }else{
+                            identity()
+                            actions()
                         }
                     }
                     }
