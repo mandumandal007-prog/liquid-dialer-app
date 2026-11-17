@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("reference-sections","Sectioned reference card layout","Saved-position header, value panel and labeled actions","calls","callreferences",aliases="reference cards sections numbered header value panel layout style"),
   Entry("reference-sort","Sort reference titles","Saved order or case-insensitive title text order","calls","callreferences",aliases="reference cards sort titles alphabet order"),
   Entry("reference-manage-fold","Fold card management layout","Edit and Delete open per card on demand","calls","callreferences",aliases="reference cards fold edit delete layout style management"),
   Entry("installment-find","Find preview part","Show one hypothetical part by number; totals unchanged","calls","installmentpreview",aliases="installment part finder number filter preview"),

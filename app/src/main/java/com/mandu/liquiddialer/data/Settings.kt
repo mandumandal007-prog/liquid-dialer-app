@@ -114,6 +114,7 @@ data class LdSettings(
     val callTouchGuard: Boolean = false,
     val referenceSort: Boolean = false,
     val referenceManageFold: Boolean = false,
+    val referenceSections: Boolean = false,
     val callReferences: Boolean = false,
     val messageDrafts: Boolean = false,
     val callNoteReader: Boolean = false,
@@ -317,6 +318,7 @@ object K {
     val callTouchGuard = booleanPreferencesKey("call_touch_guard")
     val referenceSort = booleanPreferencesKey("reference_sort")
     val referenceManageFold = booleanPreferencesKey("reference_manage_fold")
+    val referenceSections = booleanPreferencesKey("reference_sections")
     val callReferences = booleanPreferencesKey("call_references")
     val messageDrafts = booleanPreferencesKey("message_drafts")
     val callNoteReader = booleanPreferencesKey("call_note_reader")
@@ -510,6 +512,7 @@ fun Preferences.toSettings(): LdSettings {
         callTouchGuard = this[K.callTouchGuard] ?: false,
         referenceSort = this[K.referenceSort] ?: false,
         referenceManageFold = this[K.referenceManageFold] ?: false,
+        referenceSections = this[K.referenceSections] ?: false,
         callReferences = this[K.callReferences] ?: false,
         messageDrafts = this[K.messageDrafts] ?: false,
         callNoteReader = this[K.callNoteReader] ?: false,
