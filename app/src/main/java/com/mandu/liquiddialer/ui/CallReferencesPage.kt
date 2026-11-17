@@ -29,6 +29,7 @@ import java.util.UUID
   LdText("Customer/order reference, address ya office hours jaise ordinary facts. Number ke saath local cards; value kholne ya copy karne ke liye alag tap.",13f,color=p.muted,maxLines=7)
   SwitchRow("Show in call Notes","Default OFF. Entry hide karne se saved cards delete nahi hote.",s.callReferences,last=true){scope.launch{try{LdApp.instance.repo.set(K.callReferences,it)}catch(_:Exception){error="Setting save nahi hui"}}}
   Column(Modifier.testTag("reference_options_settings")){
+   SwitchRow("Sectioned reference editor layout","Default OFF. Separate draft title/value panels with length counts. Save/Cancel stay explicit; layout changes do not save.",s.referenceEditorSections,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.referenceEditorSections,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Fold reference view controls","Default OFF. Search/sort open on demand. Matched count, filter status and order stay visible; saved cards unchanged.",s.referenceViewFold,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.referenceViewFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Sectioned reference card layout","Default OFF. Saved-position header, value panel and labeled actions. Glass stays; no saved data changes.",s.referenceSections,last=true,subMaxLines=6){scope.launch{try{LdApp.instance.repo.set(K.referenceSections,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Sort reference titles","Default OFF. Saved order, Title A-Z or Z-A view; saved cards unchanged.",s.referenceSort,last=true,subMaxLines=5){scope.launch{try{LdApp.instance.repo.set(K.referenceSort,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
@@ -69,9 +70,26 @@ import java.util.UUID
    if(adding||editing!=null){
     SecTitle(if(adding)"New card draft"else"Edit card draft")
     LdText("Draft save tak saved cards nahi badlenge. PIN/OTP/password yahan na likho.",12f,color=p.muted,maxLines=5)
+    if(settings.referenceEditorSections){
+     Column(Modifier.fillMaxWidth().background(p.accent.copy(alpha=.09f),RoundedCornerShape(16.dp)).padding(12.dp).testTag("reference_draft_status")){
+      LdText("UNSAVED DRAFT",11f,FontWeight.Bold,color=p.accent,maxLines=3)
+      LdText("Only Save card writes this draft. Cancel discards it.",12f,color=p.muted,maxLines=5)
+     }
+     GlassCard(Modifier.padding(top=10.dp).testTag("reference_draft_title_panel"),radius=18.dp,padding=12.dp){
+      LdText("CARD TITLE",11f,FontWeight.Bold,color=p.accent,maxLines=3)
+      LdField(title,{title=it.take(40)},"Title (max 40)",modifier=Modifier.testTag("ref_title"))
+      LdText("${title.length}/40 title length",11f,color=p.muted,maxLines=3,modifier=Modifier.testTag("reference_draft_title_count"))
+     }
+     GlassCard(Modifier.padding(top=10.dp).testTag("reference_draft_value_panel"),radius=18.dp,padding=12.dp){
+      LdText("ORDINARY REFERENCE VALUE",11f,FontWeight.Bold,color=p.accent,maxLines=4)
+      LdField(value,{value=it.take(500)},"Ordinary reference value (max 500)",minLines=3,modifier=Modifier.testTag("ref_value_input"))
+      LdText("${value.length}/500 value length",11f,color=p.muted,maxLines=3,modifier=Modifier.testTag("reference_draft_value_count"))
+     }
+    }else{
     LdField(title,{title=it.take(40)},"Title (max 40)",modifier=Modifier.testTag("ref_title"))
     LdField(value,{value=it.take(500)},"Ordinary reference value (max 500)",minLines=3,modifier=Modifier.testTag("ref_value_input"))
     LdText("${value.length}/500",11f,color=p.muted)
+    }
     PrimaryButton("Save card",modifier=Modifier.testTag("ref_save")){
      runCatching{CallReferences.Card(editing?.id?:UUID.randomUUID().toString(),title.trim(),value.trim()).also{it.validate()}}.fold({card->save(if(adding)snapshot.cards+card else snapshot.cards.map{if(it.id==card.id)card else it},"Card saved · value hidden")},{error="Title 1-40 aur value 1-500 letters rakho. Control characters nahi."})
     }
