@@ -37,6 +37,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -650,7 +651,9 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             }
         }
         item(key = "recent-controls") {
-            Column(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=4.dp).testTag("recent_controls"),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            val panel = if(s.recentsOverview) Modifier.glass(p,RoundedCornerShape(20.dp),0.dp).padding(12.dp) else Modifier.padding(horizontal=4.dp,vertical=4.dp)
+            Box(Modifier.fillMaxWidth().testTag(if(s.recentsOverview)"recent_overview_panel"else"recent_original_panel")){
+            Column(Modifier.fillMaxWidth().then(panel).testTag("recent_controls"),verticalArrangement=Arrangement.spacedBy(if(s.recentsOverview)8.dp else 4.dp)) {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                     LdText("Recent calls",16f,FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2)
                     if(st.recents.isNotEmpty()) {
@@ -658,18 +661,22 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         if(FeatureControls.enabled(s,"recentsclear")) HomeHeaderTool(LdIcons.Trash,"Clear call history","recent_clear",p.muted,onClear)
                     }
                 }
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("recent_filters"),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                    chipLabels.forEachIndexed{i,label->
-                        val on=filter==i
-                        val spoken=T(label)
-                        Box(Modifier.heightIn(min=44.dp).clip(RoundedCornerShape(12.dp))
-                            .background(if(on)p.accent.copy(alpha=if(p.isLight).12f else .19f)else Color.Transparent)
-                            .border(1.dp,if(on)p.accent.copy(alpha=.28f)else p.text.copy(alpha=if(p.isLight).17f else .22f),RoundedCornerShape(12.dp))
-                            .semantics{contentDescription=spoken}.clickable{filter=i}.padding(horizontal=18.dp,vertical=10.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
-                            LdText(label,13f,if(on)FontWeight.SemiBold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=1,modifier=Modifier.testTag("recent_filter_label_$i"))
+                if(s.recentsOverview){
+                    Column(Modifier.fillMaxWidth().testTag("recent_filter_grid"),verticalArrangement=Arrangement.spacedBy(8.dp)){
+                        chipLabels.chunked(2).forEachIndexed{row,pair->
+                            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+                                pair.forEachIndexed{column,label->
+                                    RecentFilterChip(row*2+column,label,filter,Modifier.weight(1f),overview=true){filter=it}
+                                }
+                            }
                         }
                     }
+                }else{
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("recent_filters"),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                        chipLabels.forEachIndexed{i,label->RecentFilterChip(i,label,filter){filter=it}}
+                    }
                 }
+            }
             }
         }
 
@@ -714,7 +721,12 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
         else if (rows.isEmpty() && contactHits.isEmpty()) item { EmptyState(LdIcons.Clock, if (query.isBlank()) "Abhi koi call nahi" else "Kuch nahi mila", if (query.isBlank()) "Aapki calls yahan dikhengi" else "Doosra naam ya number try karo") }
         if (hasLog) items(rows, key = { when (it) { is RHead -> "h-" + it.label; is RRow -> "r-" + it.r.id } }) { it2 ->
             when (it2) {
-                is RHead -> LdText(it2.label, 12f, FontWeight.Bold, p.muted, Modifier.padding(start = 4.dp, top = 4.dp), letter = 1f)
+                is RHead -> if(s.recentsOverview){
+                    Row(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=6.dp).testTag("recent_day_separator"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                        LdText(it2.label,12f,FontWeight.Bold,p.accent,modifier=Modifier.weight(1f,false),letter=1f,maxLines=3)
+                        Box(Modifier.weight(1f).height(1.dp).background(p.text.copy(alpha=if(p.isLight).14f else .18f)))
+                    }
+                }else LdText(it2.label, 12f, FontWeight.Bold, p.muted, Modifier.padding(start = 4.dp, top = 4.dp), letter = 1f)
                 is RRow -> {
                     val r = it2.r; val count = it2.count
                     val name = r.name ?: if (r.number.isBlank()) "Private number" else Repo.pretty(r.number)
@@ -756,6 +768,19 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
             }
         }
     }
+}
+
+@Composable
+private fun RecentFilterChip(i:Int,label:String,filter:Int,chipModifier:Modifier=Modifier,overview:Boolean=false,onSelect:(Int)->Unit){
+    val p=LocalLd.current
+                        val on=filter==i
+                        val spoken=T(label)
+                        Box(chipModifier.heightIn(min=if(overview)48.dp else 44.dp).clip(RoundedCornerShape(12.dp))
+                            .background(if(on)p.accent.copy(alpha=if(p.isLight).12f else .19f)else Color.Transparent)
+                            .border(1.dp,if(on)p.accent.copy(alpha=.28f)else p.text.copy(alpha=if(p.isLight).17f else .22f),RoundedCornerShape(12.dp))
+                            .semantics{contentDescription=spoken;selected=on}.clickable{onSelect(i)}.padding(horizontal=if(overview)10.dp else 18.dp,vertical=10.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
+                            LdText(label,13f,if(on)FontWeight.SemiBold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=if(overview)2 else 1,modifier=Modifier.testTag("recent_filter_label_$i"))
+                        }
 }
 
 /** Birthdays ka lazy loader: screen ke render ko gate nahi karta; IO pe load karke state me likhta hai.
