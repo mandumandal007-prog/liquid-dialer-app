@@ -10,6 +10,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.mandu.liquiddialer.data.*
 import com.mandu.liquiddialer.ui.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import org.junit.*
 import org.junit.Assert.*
 import org.junit.runner.RunWith
@@ -19,7 +21,7 @@ import org.robolectric.annotation.*
 @OptIn(ExperimentalTestApi::class)
 class IncomingProfilesUiTest {
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
- @get:Rule(order=0) val initial=object:org.junit.rules.ExternalResource(){override fun before(){org.robolectric.Shadows.shadowOf(ctx.packageManager).addActivityIfNotPresent(android.content.ComponentName(ctx,androidx.activity.ComponentActivity::class.java));runBlocking{ctx.ldStore.edit{it.clear();it[K.onboarded]=true;it[K.motion]=false;it[K.theme]="daylight";it[K.incomingStudio]=true}}}}
+ @get:Rule(order=0) val initial=object:org.junit.rules.ExternalResource(){override fun before(){org.robolectric.Shadows.shadowOf(ctx.packageManager).addActivityIfNotPresent(android.content.ComponentName(ctx,androidx.activity.ComponentActivity::class.java));runBlocking{ctx.ldStore.edit{it.clear();it[K.onboarded]=true;it[K.motion]=false;it[K.theme]="daylight";it[K.incomingStudio]=true};ctx.repo.flow.first{it.onboarded&&!it.motion&&it.incomingStudio}}}}
  private val dispatcher=kotlinx.coroutines.test.StandardTestDispatcher()
  @get:Rule(order=1) val rule=createAndroidComposeRule<androidx.activity.ComponentActivity>(effectContext=dispatcher)
  private fun settle(){org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();dispatcher.scheduler.runCurrent();rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(800);dispatcher.scheduler.runCurrent();rule.waitForIdle()}
@@ -35,7 +37,10 @@ class IncomingProfilesUiTest {
  private fun actions(c:IncomingCard.Config=IncomingCard.Config(enabled=true,swipe=false),video:Boolean=false){mount{Column(Modifier.fillMaxWidth().padding(16.dp)){IncomingCardActions(c,video,{cuts++},{answers++},{audio++},{messages++})}}}
  @Before fun ready(){await{!LdApp.settings.value.motion&&LdApp.settings.value.onboarded&&LdApp.settings.value.incomingStudio}}
  private fun page(){mount{IncomingStudioPage({})}}
- @After fun clean(){rule.runOnUiThread{hostView?.disposeComposition();(rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content)).removeAllViews()};dispatcher.scheduler.runCurrent();rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};runBlocking{ctx.ldStore.edit{it[K.incomingCard]="";it[K.fontScale]=1f}};org.robolectric.RuntimeEnvironment.setFontScale(1f)}
+ // Each Robolectric method creates a new Application. Stop the prior method's
+ // Default-dispatcher settings collector so it cannot overwrite the next
+ // Application's static settings snapshot after its persisted seed.
+ @After fun clean(){rule.runOnUiThread{hostView?.disposeComposition();(rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content)).removeAllViews()};dispatcher.scheduler.runCurrent();rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};runBlocking{ctx.ldStore.edit{it[K.incomingCard]="";it[K.fontScale]=1f}};org.robolectric.RuntimeEnvironment.setFontScale(1f);ctx.scope.cancel()}
  private fun rows()=IncomingProfiles.decode(LdApp.settings.value.incomingProfiles)
  private fun seedProfiles(c:IncomingCard.Config=IncomingCard.Config(style="pearl",swipe=false,swap=true,number=false,confirmCut=true)):String{val r=IncomingProfiles.capture(emptyList(),"Evening",c);runBlocking{ctx.ldStore.edit{it[K.incomingProfiles]=IncomingProfiles.encode(r)}};await{rows().size==1};return r[0].id}
  private fun dialog(tag:String){rule.onNodeWithTag(tag,true).performClick();settle()}
