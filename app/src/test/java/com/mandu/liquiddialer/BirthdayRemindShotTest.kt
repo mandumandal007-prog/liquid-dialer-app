@@ -8,6 +8,8 @@ import com.mandu.liquiddialer.data.BirthdayReminders
 import com.mandu.liquiddialer.data.K
 import com.mandu.liquiddialer.data.ldStore
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.cancel
+import org.junit.Assert.assertFalse
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertTrue
@@ -24,12 +26,27 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [34], qualifiers = "w360dp-h800dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class BirthdayRemindShotTest {
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+    private val ctx get() = ApplicationProvider.getApplicationContext<LdApp>()
+    // Seed before Activity launch, not after the first composition. In particular,
+    // an inherited ON value would make the tap legitimately switch this OFF.
+    @get:Rule(order = 0) val initial = object : org.junit.rules.ExternalResource() {
+        override fun before() = runBlocking {
+            ctx.ldStore.edit { p ->
+                p[K.onboarded] = true; p[K.profileName] = "Mandu"; p[K.theme] = "daylight"; p[K.dialerScale] = 1f
+                p[K.birthdayRemind] = false; p[K.motion] = false
+            }
+            ctx.repo.flow.first { it.onboarded && !it.birthdayRemind && !it.motion }
+            com.mandu.liquiddialer.telecom.CallManager.calls.value = emptyList()
+            com.mandu.liquiddialer.telecom.CallManager.bump()
+        }
+    }
+    @get:Rule(order = 1) val rule = createAndroidComposeRule<MainActivity>()
 
     @After fun tearDown() = runBlocking {
         val ctx = ApplicationProvider.getApplicationContext<LdApp>()
         ctx.ldStore.edit { it[K.birthdayRemind] = false }  // JVM-shared sandbox reset
         BirthdayReminders.cancel(ctx)
+        ctx.scope.cancel()
         Unit
     }
 
@@ -41,13 +58,7 @@ class BirthdayRemindShotTest {
 
     @Test
     fun birthdayRowVisibleAndToggles() {
-        runBlocking {
-            ApplicationProvider.getApplicationContext<LdApp>().ldStore.edit { p ->
-                p[K.onboarded] = true; p[K.profileName] = "Mandu"; p[K.theme] = "daylight"; p[K.dialerScale] = 1f
-            }
-            com.mandu.liquiddialer.telecom.CallManager.calls.value = emptyList()
-            com.mandu.liquiddialer.telecom.CallManager.bump()
-        }
+        rule.waitUntil(15000) { settle(100); LdApp.settings.value.onboarded && !LdApp.settings.value.birthdayRemind && !LdApp.settings.value.motion }
         // onboarding overlay race dismiss
         repeat(15) {
             if (rule.onAllNodesWithText("Baad me", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
@@ -74,12 +85,19 @@ class BirthdayRemindShotTest {
             rule.waitForIdle(); settle(300)
         }
         settle(600)
-        assert(shown) { "Birthday reminder row viewport me nahi aayi" }
+        assertTrue("Birthday reminder row viewport me nahi aayi", shown)
         saveShot(rule, "54-birthday-remind-off")
 
+        assertFalse("Seed must be OFF before the user tap", runBlocking { ctx.ldStore.data.first()[K.birthdayRemind] ?: false })
+        assertFalse("Rendered settings snapshot must also be OFF", LdApp.settings.value.birthdayRemind)
         // toggle ON -> persisted
         rule.onNode(hasText("Birthday reminder", substring = true), useUnmergedTree = true).performTouchInput { click(center) }
-        settle(1200)
+        // Advancing Compose time does not await the real DataStore dispatcher.
+        // Observe the result of the UI action, never write the desired value here.
+        rule.waitUntil(15000) {
+            settle(100)
+            runBlocking { ctx.ldStore.data.first()[K.birthdayRemind] ?: false } && LdApp.settings.value.birthdayRemind
+        }
         val on = runBlocking { ApplicationProvider.getApplicationContext<LdApp>().ldStore.data.first()[K.birthdayRemind] ?: false }
         assertTrue("tap par birthdayRemind ON persist hona chahiye", on)
         saveShot(rule, "54-birthday-remind-on")
