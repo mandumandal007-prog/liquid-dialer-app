@@ -83,6 +83,7 @@ object SettingsFinder{
   Entry("number-details-activity","Number details activity layout","Separate call type and wrapping date/time/duration lines","display","settings:display",aliases="number contact details history recent activity layout date duration"),
   Entry("number-details-glass","Number details glass layout","Compact identity header and separate glass action panel","display","settings:display",aliases="number contact details card video call layout style glass"),
   Entry("recents-split-meta","Recents split metadata layout","Separate call-type label and wrapping time/duration/SIM line","display","settings:display",aliases="home recent calls row metadata type label layout missed duration time"),
+  Entry("recents-action-labels","Recents labeled call actions","Visible Video and Call labels below the existing buttons","display","settings:display",aliases="home recent calls video call action label icons layout"),
   Entry("recents-overview","Recents overview layout","Glass panel, two-column filters and day separators","display","settings:display",aliases="home recent calls overview layout grid filter day headers"),
   Entry("display-12","Compact recents","Choti rows, ek screen pe zyada entries","display","settings:display","Compact recents"),
   Entry("display-13","Search bar neeche","Menu, search aur profile ki patti upar ki jagah neeche (bottom bar ke upar) aa jaati hai - ek haath se pahunch ke liye. Sirf Recents/Contacts screen; baaki layout wahi","display","settings:display","Search bar neeche"),
