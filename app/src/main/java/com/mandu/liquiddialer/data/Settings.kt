@@ -183,6 +183,7 @@ data class LdSettings(
     val showSimInRecents: Boolean = true,    // recents me SIM label
     val numberDetailsActivity: Boolean = false,
     val numberDetailsGlass: Boolean = false,
+    val recentsSplitMeta: Boolean = false,
     val recentsOverview: Boolean = false,
     val recentsCompact: Boolean = false,     // recents ki choti rows
     val searchBottom: Boolean = false,       // search/menu/profile bar neeche (angutha pahunch) - opt-in
@@ -387,6 +388,7 @@ object K {
     val showSimInRecents = booleanPreferencesKey("showSimInRecents")
     val numberDetailsActivity = booleanPreferencesKey("number_details_activity")
     val numberDetailsGlass = booleanPreferencesKey("number_details_glass")
+    val recentsSplitMeta = booleanPreferencesKey("recents_split_meta")
     val recentsOverview = booleanPreferencesKey("recents_overview")
     val recentsCompact = booleanPreferencesKey("recentsCompact")
     val rowSwipe = booleanPreferencesKey("rowSwipe")
@@ -587,6 +589,7 @@ fun Preferences.toSettings(): LdSettings {
         showSimInRecents = this[K.showSimInRecents] ?: true,
         numberDetailsActivity = this[K.numberDetailsActivity] ?: false,
         numberDetailsGlass = this[K.numberDetailsGlass] ?: false,
+        recentsSplitMeta = this[K.recentsSplitMeta] ?: false,
         recentsOverview = this[K.recentsOverview] ?: false,
         recentsCompact = this[K.recentsCompact] ?: false,
         rowSwipe = this[K.rowSwipe] ?: false,

@@ -740,7 +740,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         Column(Modifier.weight(1f)) {
                             // maxLines=2: lamba naam truncate na ho, doosri line pe wrap (bade font-scale pe bhi poora naam)
                             LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text, maxLines = 2)
-                            Row(Modifier.padding(top = if (s.recentsCompact) 1.dp else 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Column(Modifier.padding(top = if (s.recentsCompact) 1.dp else 2.dp), verticalArrangement = Arrangement.spacedBy(if(s.recentsSplitMeta)4.dp else 0.dp)) {
                                 // icon hata diya: text label ("Outgoing"/"Missed") already batata hai, aur
                                 // jagah bachti hai taaki time + duration bina truncate dikhe
                                 val timeTxt = if (s.exactTime) {
@@ -754,10 +754,15 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                                 // duration + SIM ab isi line me: card 3-line se 2-line, ek screen pe zyada calls
                                 val durTxt = if (s.recentsShowDuration && r.duration > 0 &&
                                     (r.type == CallLog.Calls.INCOMING_TYPE || r.type == CallLog.Calls.OUTGOING_TYPE)) fmtDur(r.duration).removePrefix("0") else null
-                                val meta = listOfNotNull(typeLabel(r.type), timeTxt, durTxt, simLabel).joinToString(" · ")
+                                if(s.recentsSplitMeta){
+                                    Box(Modifier.clip(RoundedCornerShape(7.dp)).background((if(missed)p.danger else p.accent).copy(alpha=if(p.isLight).09f else .14f)).padding(horizontal=6.dp,vertical=3.dp)){
+                                        LdText(typeLabel(r.type),if(s.recentsCompact)10.5f else 11f,FontWeight.SemiBold,if(missed)p.danger else p.accent,maxLines=3,modifier=Modifier.testTag("recent_split_type_${r.id}"))
+                                    }
+                                }
+                                val meta = (if(s.recentsSplitMeta)listOfNotNull(timeTxt,durTxt,simLabel)else listOfNotNull(typeLabel(r.type), timeTxt, durTxt, simLabel)).joinToString(" · ")
                                 // maxLines=2: bade font-scale/dual-SIM pe duration+SIM truncate hone ke bajay
                                 // doosri line pe wrap ho — info loss nahi, card tabhi 3-line jitna bada hota hai
-                                LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = 2)
+                                LdText(meta, if (s.recentsCompact) 10.5f else 11f, color = if (missed) p.danger else p.muted, maxLines = if(s.recentsSplitMeta)Int.MAX_VALUE else 2,modifier=Modifier.testTag(if(s.recentsSplitMeta)"recent_split_meta_${r.id}"else"recent_original_meta_${r.id}"))
                             }
                         }
                         VideoMini(44.dp, tint = rstyle.tint, subtle = true) { act.videoCall(r.number) }
