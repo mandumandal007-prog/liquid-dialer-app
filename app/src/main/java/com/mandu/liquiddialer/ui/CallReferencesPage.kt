@@ -3,6 +3,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -26,6 +29,7 @@ import java.util.UUID
   LdText("Customer/order reference, address ya office hours jaise ordinary facts. Number ke saath local cards; value kholne ya copy karne ke liye alag tap.",13f,color=p.muted,maxLines=7)
   SwitchRow("Show in call Notes","Default OFF. Entry hide karne se saved cards delete nahi hote.",s.callReferences,last=true){scope.launch{try{LdApp.instance.repo.set(K.callReferences,it)}catch(_:Exception){error="Setting save nahi hui"}}}
   Column(Modifier.testTag("reference_options_settings")){
+   SwitchRow("Sectioned reference card layout","Default OFF. Saved-position header, value panel and labeled actions. Glass stays; no saved data changes.",s.referenceSections,last=true,subMaxLines=6){scope.launch{try{LdApp.instance.repo.set(K.referenceSections,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Sort reference titles","Default OFF. Saved order, Title A-Z or Z-A view; saved cards unchanged.",s.referenceSort,last=true,subMaxLines=5){scope.launch{try{LdApp.instance.repo.set(K.referenceSort,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Fold card management layout","Default OFF. Edit and Delete open per card on demand. Reveal/Copy stay separate.",s.referenceManageFold,last=true,subMaxLines=5){scope.launch{try{LdApp.instance.repo.set(K.referenceManageFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   }
@@ -47,6 +51,7 @@ import java.util.UUID
  var order by remember(number){mutableStateOf(ReferenceCardView.Order.SAVED)};var management by remember(number){mutableStateOf(setOf<String>())}
  LaunchedEffect(settings.referenceSort){if(!settings.referenceSort)order=ReferenceCardView.Order.SAVED;revealed=emptySet();management=emptySet()}
  LaunchedEffect(settings.referenceManageFold){revealed=emptySet();management=emptySet()}
+ LaunchedEffect(settings.referenceSections){revealed=emptySet();management=emptySet()}
  fun reload(){runCatching{CallReferences.read(ctx,number)}.fold({snap=it;loadFailed=false;error=""},{snap=null;loadFailed=true;error="Saved cards load nahi hue. Data preserve hai; overwrite/delete nahi hoga."});revealed=emptySet();management=emptySet();editing=null;adding=false;removing=null;status=""}
  LaunchedEffect(number){reload()}
  val owner=LocalLifecycleOwner.current
@@ -78,8 +83,24 @@ import java.util.UUID
     val rows=ReferenceCardView.rows(snapshot.cards,query,if(settings.referenceSort)order else ReferenceCardView.Order.SAVED)
     if(rows.isEmpty())LdText(if(snapshot.cards.isEmpty())"Abhi is number ka card nahi."else"Is title ka card nahi mila.",13f,color=p.muted,maxLines=4,modifier=Modifier.testTag("ref_empty"))
     rows.forEach{c->GlassCard(Modifier.padding(top=12.dp).testTag("ref_card_${c.id}")){
-     LdText(c.title,17f,FontWeight.Bold,maxLines=Int.MAX_VALUE)
-     LdText(if(c.id in revealed)c.value else "Value hidden",15f,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("ref_value_${c.id}"))
+     if(settings.referenceSections){
+      Column(Modifier.fillMaxWidth().background(p.accent.copy(alpha=.09f),RoundedCornerShape(16.dp)).padding(12.dp).testTag("ref_section_header_${c.id}")){
+       LdText("Saved card ${snapshot.cards.indexOfFirst{it.id==c.id}+1} of ${snapshot.cards.size}",11.5f,FontWeight.Bold,color=p.accent,maxLines=4,modifier=Modifier.testTag("ref_section_position_${c.id}"))
+       Spacer(Modifier.height(6.dp))
+       LdText(c.title,19f,FontWeight.Bold,maxLines=Int.MAX_VALUE)
+      }
+      Spacer(Modifier.height(10.dp))
+      Column(Modifier.fillMaxWidth().border(1.dp,p.muted.copy(alpha=.25f),RoundedCornerShape(14.dp)).padding(12.dp).testTag("ref_section_value_${c.id}")){
+       LdText("REFERENCE VALUE",10.5f,FontWeight.Bold,color=p.muted,maxLines=3)
+       Spacer(Modifier.height(6.dp))
+       LdText(if(c.id in revealed)c.value else "Value hidden",15f,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("ref_value_${c.id}"))
+      }
+      Spacer(Modifier.height(12.dp))
+      LdText("CARD ACTIONS",10.5f,FontWeight.Bold,color=p.muted,maxLines=3,modifier=Modifier.testTag("ref_section_actions_${c.id}"))
+     }else{
+      LdText(c.title,17f,FontWeight.Bold,maxLines=Int.MAX_VALUE)
+      LdText(if(c.id in revealed)c.value else "Value hidden",15f,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("ref_value_${c.id}"))
+     }
      GhostButton(if(c.id in revealed)"Hide value"else"Reveal value",Modifier.testTag("ref_reveal_${c.id}")){revealed=if(c.id in revealed)revealed-c.id else revealed+c.id;status=""}
      if(c.id in revealed)GhostButton("Copy value",Modifier.testTag("ref_copy_${c.id}")){
       runCatching{val clip=ClipData.newPlainText("Reference value",c.value);clip.description.extras=android.os.PersistableBundle().apply{putBoolean("android.content.extra.IS_SENSITIVE",true)};(ctx.getSystemService(Context.CLIPBOARD_SERVICE)as ClipboardManager).setPrimaryClip(clip)}.fold({status="Value copied to system clipboard. Paste sirf jahan aap chaho."},{error="Copy nahi hua"})
