@@ -264,16 +264,20 @@ class ScreenshotVolumePageAndNumberMenuTest : ScreenshotFixture() {
         rule.waitUntil(15000){LdApp.settings.value.let{!it.motion&&!it.organizedSettings}}
         settle(2500)
         val act = rule.activity
-        act.state.showOnboarding = false
-        act.state.contacts = listOf(
-            Contact(11, "lk1", "Rahul Sharma", "", "+91 98765 43210", "MOBILE", true, null),
-        )
-        act.state.recents = listOf(
-            Recent(1, "+91 98765 43210", "Rahul Sharma", 1, System.currentTimeMillis() - 42 * 60_000, 245, null, null),
-        )
-        act.state.isDefault = true
-        org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<LdApp>()).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
+        org.robolectric.Shadows.shadowOf(app).grantPermissions(android.Manifest.permission.READ_CALL_LOG)
         settle()
+        rule.runOnUiThread {
+            act.state.showOnboarding = false
+            act.state.contacts = listOf(Contact(11,"lk1","Rahul Sharma","","+91 98765 43210","MOBILE",true,null))
+            act.state.recents = listOf(Recent(1,"+91 98765 43210","Rahul Sharma",1,System.currentTimeMillis()-42*60_000,245,null,null))
+            act.state.isDefault = true
+            androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
+        }
+        rule.waitUntil(15000){
+            effects.scheduler.runCurrent()
+            settle(400)
+            rule.onAllNodesWithTag("video_mini",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()
+        }
         // recents row: direct video button beside voice call button
         rule.onAllNodes(androidx.compose.ui.test.hasTestTag("video_mini"), useUnmergedTree = true).onFirst().assertExists()
         saveShot(rule, "02d-recents-row-video")
