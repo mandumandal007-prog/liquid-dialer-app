@@ -86,6 +86,15 @@ internal val ORGANIZED_TOOLS=listOf(
     SettingsTool("callpace","Call pace reminders","Opt-in countdown aur active-stretch reminder","live"),
     SettingsTool("ivrmenus","IVR menu helper","Saved menu choices, one digit per explicit tap","live"),
 )
+internal fun searchSettingsDestinations(query:String):List<SettingsDestination>{
+ val words=query.trim().lowercase(java.util.Locale.ROOT).split(Regex("\\s+")).filter{it.isNotEmpty()}
+ if(words.isEmpty())return ORGANIZED_DESTINATIONS
+ return ORGANIZED_DESTINATIONS.filter{d->
+  val c=ORGANIZED_CATEGORIES.first{it.id==d.category}
+  val text=(d.title+" "+d.detail+" "+c.title).lowercase(java.util.Locale.ROOT)
+  words.all{text.contains(it)}
+ }
+}
 private fun organizedIcon(id:String)=when(id){
  "look"->LdIcons.Palette;"phone","callcontrols","live"->LdIcons.Phone;"safety"->LdIcons.Block
  "alerts"->LdIcons.Volume;"tools","notes"->LdIcons.Checklist;"storage"->LdIcons.Record
@@ -101,6 +110,11 @@ internal fun OrganizedSettingsSwitch(){
 @Composable
 internal fun OrganizedSettingsHome(onBack:()->Unit,onOpen:(String)->Unit){
  val p=LocalLd.current
+ val s by LdApp.settings.collectAsState()
+ val scope=rememberCoroutineScope()
+ var query by remember{mutableStateOf("")}
+ val searching=s.settingsCategorySearch&&query.isNotBlank()
+ val results=remember(query){searchSettingsDestinations(query)}
  PageFrame("Settings",onBack){
   Column(Modifier.fillMaxWidth().glass(p,RoundedCornerShape(24.dp),0.dp).padding(16.dp).testTag("organized_settings_intro")){
    LdText("Settings by category",17f,FontWeight.Bold,maxLines=3)
@@ -109,11 +123,31 @@ internal fun OrganizedSettingsHome(onBack:()->Unit,onOpen:(String)->Unit){
   Spacer(Modifier.height(10.dp))
   GlassCard{SRow("Find a setting","Search all controls, including the original direct routes",LdIcons.Search,last=true){onOpen("settingsfinder")}}
   Spacer(Modifier.height(10.dp))
-  GlassCard{ORGANIZED_CATEGORIES.forEachIndexed{i,c->
+  if(s.settingsCategorySearch){
+   GlassCard{
+    LdText("Find a category page",16f,FontWeight.Bold,maxLines=3)
+    LdText("Search category pages here. For individual controls, use Find a setting above.",12f,color=p.muted,maxLines=5)
+    Spacer(Modifier.height(8.dp))
+    LdField(query,{query=it.take(100)},"Try keypad, volume or number details",modifier=Modifier.testTag("settings_category_query"))
+    if(searching){
+     LdText("Category pages: ${results.size}",12.5f,color=p.accent,modifier=Modifier.testTag("settings_category_count"))
+     GhostButton("Clear category search",Modifier.testTag("settings_category_clear")){query=""}
+    }
+   }
+   Spacer(Modifier.height(10.dp))
+  }
+  if(!searching){GlassCard{ORGANIZED_CATEGORIES.forEachIndexed{i,c->
    Box(Modifier.testTag("settings_category_"+c.id)){SRow(c.title,c.detail,organizedIcon(c.id),last=i==ORGANIZED_CATEGORIES.lastIndex,subMaxLines=4){onOpen("settingshub:"+c.id)}}
-  }}
+  }}}else{
+   if(results.isEmpty())GlassCard{LdText("No category page found",16f,FontWeight.Bold,maxLines=3);LdText("Try another word, clear this search, or use Find a setting for individual controls.",12.5f,color=p.muted,maxLines=5)}
+   results.groupBy{it.category}.forEach{(id,items)->
+    SecTitle(ORGANIZED_CATEGORIES.first{it.id==id}.title)
+    GlassCard{items.forEachIndexed{i,d->Box(Modifier.testTag("settings_category_result_"+d.id)){SRow(d.title,d.detail,organizedIcon(d.id),last=i==items.lastIndex,subMaxLines=5){onOpen(d.route)}}}}
+   }
+  }
   SecTitle("Layout choice")
   OrganizedSettingsSwitch()
+  GlassCard{Box(Modifier.testTag("settings_category_search_switch")){SwitchRow("Settings category-page search","Default OFF. Add search for category pages to this organized home. Individual controls stay in Find a setting.",s.settingsCategorySearch,last=true,subMaxLines=6){scope.launch{LdApp.instance.repo.set(K.settingsCategorySearch,it)}}}}
   GlassCard{SRow("Original category list","Open the classic list without changing this layout",LdIcons.Info,last=true){onOpen("settingshub:classic")}}
  }
 }
