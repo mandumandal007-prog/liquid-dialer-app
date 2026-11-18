@@ -159,14 +159,47 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
   };return
  }
  val c=ORGANIZED_CATEGORIES.firstOrNull{it.id==id}
+ val s by LdApp.settings.collectAsState()
+ val scope=rememberCoroutineScope()
+ var query by remember(id){mutableStateOf("")}
+ val searching=id=="tools"&&s.settingsToolSearch&&query.isNotBlank()
+ val results=remember(query){searchSettingsTools(query)}
  PageFrame(c?.title?:"Settings categories",onBack){
   LdText(c?.detail?:"Choose a category from Settings",13f,color=LocalLd.current.muted,maxLines=4,modifier=Modifier.padding(bottom=12.dp))
-  val items=ORGANIZED_DESTINATIONS.filter{it.category==id}
-  GlassCard{items.forEachIndexed{i,d->
-   Box(Modifier.testTag("settings_destination_"+d.id)){SRow(d.title,d.detail,organizedIcon(d.id),last=i==items.lastIndex,subMaxLines=5){onOpen(d.route)}}
-  }}
+  if(id=="tools"&&s.settingsToolSearch){
+   GlassCard{
+    LdText("Find a call tool",16f,FontWeight.Bold,maxLines=3)
+    LdText("Search the 37 tools in these sections. Opening a result does not start it.",12f,color=LocalLd.current.muted,maxLines=5)
+    Spacer(Modifier.height(8.dp))
+    LdField(query,{query=it.take(100)},"Try notes, IVR or calculator",modifier=Modifier.testTag("settings_tool_query"))
+    if(searching){LdText("Tools: ${results.size}",12.5f,color=LocalLd.current.accent,modifier=Modifier.testTag("settings_tool_count"));GhostButton("Clear tool search",Modifier.testTag("settings_tool_clear")){query=""}}
+   }
+   Spacer(Modifier.height(10.dp))
+  }
+  if(!searching){
+   val items=ORGANIZED_DESTINATIONS.filter{it.category==id}
+   GlassCard{items.forEachIndexed{i,d->
+    Box(Modifier.testTag("settings_destination_"+d.id)){SRow(d.title,d.detail,organizedIcon(d.id),last=i==items.lastIndex,subMaxLines=5){onOpen(d.route)}}
+   }}
+  }else{
+   if(results.isEmpty())GlassCard{LdText("No call tool found",16f,FontWeight.Bold,maxLines=3);LdText("Try another name or clear search to browse all sections. Individual Settings controls stay in Find a setting.",12.5f,color=LocalLd.current.muted,maxLines=6)}
+   results.groupBy{it.section}.forEach{(section,items)->
+    LdText(ORGANIZED_DESTINATIONS.first{it.route=="settingstools:$section"}.title,13f,FontWeight.Bold,color=LocalLd.current.muted,maxLines=4,modifier=Modifier.padding(start=6.dp,end=6.dp,top=22.dp,bottom=10.dp))
+    GlassCard{items.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_result_"+t.route)){SRow(t.title,t.detail,organizedIcon(section),last=i==items.lastIndex,subMaxLines=5){onOpen(t.route)}}}}
+   }
+  }
+  if(id=="tools"){
+   SecTitle("Search choice")
+   GlassCard{Box(Modifier.testTag("settings_tool_search_switch")){SwitchRow("Call tools search","Default OFF. Search tool names and descriptions in this category. OFF keeps the original section list.",s.settingsToolSearch,last=true,subMaxLines=6){scope.launch{LdApp.instance.repo.set(K.settingsToolSearch,it)}}}}
+  }
  }
 }
+internal fun searchSettingsTools(query:String):List<SettingsTool>{
+ val words=query.trim().lowercase(java.util.Locale.ROOT).split(Regex("\\s+")).filter{it.isNotEmpty()}
+ if(words.isEmpty())return ORGANIZED_TOOLS
+ return ORGANIZED_TOOLS.filter{t->val text=(t.title+" "+t.detail).lowercase(java.util.Locale.ROOT);words.all{text.contains(it)}}
+}
+
 @Composable
 internal fun OrganizedToolsPage(id:String,onBack:()->Unit,onOpen:(String)->Unit){
  val d=ORGANIZED_DESTINATIONS.firstOrNull{it.route=="settingstools:$id"}
