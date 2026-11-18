@@ -197,6 +197,8 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
    }
   }
   if(id=="tools"){
+   SecTitle("Tool list layout")
+   GlassCard{Box(Modifier.testTag("compact_settings_tools_switch")){SwitchRow("Compact call-tool rows","Default OFF. Hide descriptions only inside the three tool-section lists. Search results and each tool's own controls stay the same.",s.compactSettingsTools,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.compactSettingsTools,it)}}}}
    SecTitle("Search choice")
    GlassCard{Box(Modifier.testTag("settings_tool_search_switch")){SwitchRow("Call tools search","Default OFF. Search tool names and descriptions in this category. OFF keeps the original section list.",s.settingsToolSearch,last=true,subMaxLines=6){scope.launch{LdApp.instance.repo.set(K.settingsToolSearch,it)}}}}
   }
@@ -210,10 +212,13 @@ internal fun searchSettingsTools(query:String):List<SettingsTool>{
 
 @Composable
 internal fun OrganizedToolsPage(id:String,onBack:()->Unit,onOpen:(String)->Unit){
+ val s by LdApp.settings.collectAsState()
  val d=ORGANIZED_DESTINATIONS.firstOrNull{it.route=="settingstools:$id"}
  PageFrame(d?.title?:"Call tools",onBack){
   LdText("Open a tool to adjust its own controls. Nothing starts from this list.",13f,color=LocalLd.current.muted,maxLines=4,modifier=Modifier.padding(bottom=12.dp))
   val tools=ORGANIZED_TOOLS.filter{it.section==id}
-  GlassCard{tools.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_"+t.route)){SRow(t.title,t.detail,LdIcons.Edit,last=i==tools.lastIndex,subMaxLines=4){onOpen(t.route)}}}}
+  CompositionLocalProvider(LocalSettingsCategoryRows provides (s.compactSettingsTools||LocalSettingsCategoryRows.current)){
+  GlassCard{tools.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_"+t.route)){SRow(t.title,if(s.compactSettingsTools)null else t.detail,LdIcons.Edit,last=i==tools.lastIndex,subMaxLines=4){onOpen(t.route)}}}}
+  }
  }
 }
