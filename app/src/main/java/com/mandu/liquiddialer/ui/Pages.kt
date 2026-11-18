@@ -337,7 +337,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
     }
 
     CompositionLocalProvider(LocalSettingsTarget provides findTarget,LocalSettingsCategoryRows provides (group in listOf("look","recents","numbercard","navigation","keycontacts","callcontrols"))){
-    PageFrame(ORGANIZED_DESTINATIONS.firstOrNull{it.route=="settings:$group"}?.title ?: SETTINGS_GROUPS.firstOrNull { it.id==group }?.title ?: "Settings", onBack) {
+    PageFrame(SETTINGS_GROUPS.firstOrNull { it.id==group }?.title ?: ORGANIZED_DESTINATIONS.firstOrNull{it.route=="settings:$group"}?.title ?: "Settings", onBack) {
         if(group=="display"||group=="look") {
         // Profile and calling-card entry points stay under Display.
         Row(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(26.dp)).clickable { onOpen("profile") }.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
