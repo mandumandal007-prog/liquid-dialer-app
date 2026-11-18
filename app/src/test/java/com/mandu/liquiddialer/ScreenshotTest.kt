@@ -282,17 +282,38 @@ class ScreenshotVolumePageAndNumberMenuTest : ScreenshotFixture() {
         rule.onAllNodes(androidx.compose.ui.test.hasTestTag("video_mini"), useUnmergedTree = true).onFirst().assertExists()
         saveShot(rule, "02d-recents-row-video")
         // long-press recents row: number menu with direct Video call option
+        // Let the real long-press timer run, then await the menu rather than a fixed frame count.
+        rule.mainClock.autoAdvance = true
         rule.onNodeWithText("Rahul Sharma", useUnmergedTree = true).performTouchInput { longClick(center) }
+        rule.waitUntil(15000) {
+            effects.scheduler.runCurrent()
+            rule.mainClock.advanceTimeBy(400)
+            rule.waitForIdle()
+            rule.onAllNodesWithText("Video call", substring = true, useUnmergedTree = true).fetchSemanticsNodes().size == 1 &&
+                rule.onAllNodesWithText("Number copy karo", substring = true, useUnmergedTree = true).fetchSemanticsNodes().size == 1
+        }
         settle()
         saveShot(rule, "02c-number-menu-video")
         rule.onNodeWithText("Video call", substring = true, useUnmergedTree = true).assertExists()
-        rule.onNodeWithText("Number copy karo", substring = true, useUnmergedTree = true).performClick();
-        settle()
+        rule.mainClock.autoAdvance = true
+        rule.onNodeWithText("Number copy karo", substring = true, useUnmergedTree = true).performClick()
+        rule.waitUntil(15000) {
+            effects.scheduler.runCurrent(); rule.mainClock.advanceTimeBy(400); rule.waitForIdle()
+            rule.onAllNodesWithText("Video call", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isEmpty()
+        }
 
-        
         // Volume page (light, boost off)
-        rule.onNodeWithTag("drawer_open").performClick(); settle();
-        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick(); settle(1800)
+        rule.onNodeWithTag("drawer_open").performClick()
+        rule.waitUntil(15000) {
+            effects.scheduler.runCurrent(); rule.mainClock.advanceTimeBy(400); rule.waitForIdle()
+            rule.onAllNodesWithText("Settings", substring = false, useUnmergedTree = true).fetchSemanticsNodes().size == 1
+        }
+        rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick()
+        rule.waitUntil(15000) {
+            effects.scheduler.runCurrent(); rule.mainClock.advanceTimeBy(400); rule.waitForIdle()
+            rule.onAllNodesWithText("Volume", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        settle(1800)
         val volumeGroup=rule.onAllNodesWithText("Volume",useUnmergedTree=true).onLast()
         for(attempt in 0 until 30){
             val bounds=volumeGroup.fetchSemanticsNode().boundsInRoot
@@ -302,7 +323,12 @@ class ScreenshotVolumePageAndNumberMenuTest : ScreenshotFixture() {
             effects.scheduler.runCurrent()
             settle(400)
         }
+        rule.mainClock.autoAdvance = true
         volumeGroup.assertIsDisplayed().performClick()
+        rule.waitUntil(15000) {
+            effects.scheduler.runCurrent(); rule.mainClock.advanceTimeBy(400); rule.waitForIdle()
+            rule.onAllNodesWithText("Volume & boost", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
         settle(700)
         rule.onAllNodesWithTag("page_back",useUnmergedTree=true).onLast().assertIsDisplayed()
         rule.onNodeWithText("Volume & boost",useUnmergedTree=true).assertIsDisplayed()
@@ -328,6 +354,10 @@ class ScreenshotVolumePageAndNumberMenuTest : ScreenshotFixture() {
             }
             walk(rule.onRoot(useUnmergedTree = true).fetchSemanticsNode())
             error("Volume row not visible; on-screen texts=" + texts.take(50).joinToString(" || "))
+        }
+        rule.waitUntil(15000) {
+            effects.scheduler.runCurrent(); rule.mainClock.advanceTimeBy(400); rule.waitForIdle()
+            rule.onAllNodesWithText("Media volume boost", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
         }
         rule.onAllNodesWithText("Media volume boost", substring = true, useUnmergedTree = true).onFirst().assertExists()
         saveShot(rule, "06a-volume-page")
