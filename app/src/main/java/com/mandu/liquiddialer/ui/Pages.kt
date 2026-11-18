@@ -86,7 +86,7 @@ fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit
 @Composable fun SecTitle(t: String) = LdText(t.uppercase(), 12.5f, FontWeight.ExtraBold, LocalLd.current.muted, Modifier.padding(start = 6.dp, end = 6.dp, top = 22.dp, bottom = 10.dp), letter = 1.4f)
 
 val LocalSettingsTarget=staticCompositionLocalOf<String?>{null}
-private val LocalSettingsCategoryRows=staticCompositionLocalOf{false}
+internal val LocalSettingsCategoryRows=staticCompositionLocalOf{false}
 
 /** .srow inside a .card */
 @Composable
