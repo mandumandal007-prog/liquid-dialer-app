@@ -7,6 +7,7 @@ object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
   Entry("settings-category-counts","Settings category page counts","Destination-page counts on organized Settings categories, default OFF","display","settings",aliases="category size page counts badges organized layout"),
+  Entry("compact-settings-tools","Compact call-tool rows","Title-only choices within organized Settings tool sections, default OFF","display","settingshub:tools",aliases="compact tools rows descriptions dense organized layout"),
   Entry("compact-settings-categories","Compact Settings category rows","Title-only category choices in organized Settings, default OFF","display","settings",aliases="compact category rows descriptions dense organized layout"),
   Entry("settings-tool-search","Call tools search","Optional search for existing tools inside organized Call tools","calls","settingshub:tools",aliases="tool names notes calculators live search"),
   Entry("settings-category-search","Settings category-page search","Optional search within organized Settings home","display","settings",aliases="category pages destination search organized layout"),
