@@ -740,7 +740,12 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         Avatar(name, r.photo, size = if (s.recentsCompact) 34.dp else 38.dp, fontSize = if (s.recentsCompact) 12f else 13f, seed = name)
                         Column(Modifier.weight(1f)) {
                             // maxLines=2: lamba naam truncate na ho, doosri line pe wrap (bade font-scale pe bhi poora naam)
-                            LdText(name + if (count > 1) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text, maxLines = 2)
+                            LdText(name + if (count > 1&&!s.recentsCountBadge) " ($count)" else "", if (s.recentsCompact) 13.5f else 14.5f, FontWeight.SemiBold, if (missed) p.danger else p.text, maxLines = 2)
+                            if(s.recentsCountBadge&&count>1){
+                                Box(Modifier.padding(top=4.dp).clip(RoundedCornerShape(8.dp)).background(p.accent.copy(alpha=if(p.isLight).10f else .16f)).padding(horizontal=7.dp,vertical=3.dp)){
+                                    LdText("$count calls",if(s.recentsCompact)10.5f else 11f,FontWeight.SemiBold,color=p.accent,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("recent_count_badge_${r.id}"))
+                                }
+                            }
                             if(s.recentsContactNumber&&!r.name.isNullOrBlank()&&r.number.isNotBlank()){
                                 LdText(Repo.pretty(r.number),if(s.recentsCompact)10.5f else 11.5f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.padding(top=2.dp).testTag("recent_contact_number_${r.id}"))
                             }
