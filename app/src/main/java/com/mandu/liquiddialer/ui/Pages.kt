@@ -86,6 +86,7 @@ fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit
 @Composable fun SecTitle(t: String) = LdText(t.uppercase(), 12.5f, FontWeight.ExtraBold, LocalLd.current.muted, Modifier.padding(start = 6.dp, end = 6.dp, top = 22.dp, bottom = 10.dp), letter = 1.4f)
 
 val LocalSettingsTarget=staticCompositionLocalOf<String?>{null}
+private val LocalSettingsCategoryRows=staticCompositionLocalOf{false}
 
 /** .srow inside a .card */
 @Composable
@@ -103,7 +104,7 @@ fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Bo
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) Box(Modifier.size(38.dp).then(if(quietRows)Modifier.background(p.accent.copy(alpha=.09f),RoundedCornerShape(12.dp)) else Modifier.raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp))), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
             Column(Modifier.weight(1f)) {
-                LdText(title, 14f, FontWeight.SemiBold, maxLines = 2)
+                LdText(title, 14f, FontWeight.SemiBold, maxLines = if(LocalSettingsCategoryRows.current)4 else 2)
                 if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = subMaxLines, modifier = Modifier.padding(top = 3.dp))
             }
             if (trailing != null) trailing() else if (onClick != null) LdIcon(LdIcons.Chevron, 16.dp, p.muted.copy(alpha = .5f))
@@ -176,6 +177,8 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "settingsfinder" -> SettingsFinderPage(onBack,onOpen)
         page == "lookprofiles" -> LookProfilesPage(onBack)
         page == "featurecontrols" -> FeatureControlsPage(onBack,onOpen)
+        page.startsWith("settingshub:") -> OrganizedCategoryPage(page.substringAfter(":"),onBack,onOpen)
+        page.startsWith("settingstools:") -> OrganizedToolsPage(page.substringAfter(":"),onBack,onOpen)
         page == "settings" -> SettingsGroupsPage(onBack,onOpen)
         page.startsWith("settings:") -> SettingsPage(st, act, onBack, onOpen, page.removePrefix("settings:").substringBefore('?'),SettingsFinder.resolve(page)?.target)
         page == "appearancehub" -> AppearanceHubPage(onBack,onOpen)
@@ -245,7 +248,11 @@ internal fun settingsGroupIcon(id:String):ImageVector=when(id){
 
 @Composable
 private fun SettingsGroupsPage(onBack:()->Unit,onOpen:(String)->Unit) {
+    val organized by LdApp.settings.collectAsState()
+    if(organized.organizedSettings){OrganizedSettingsHome(onBack,onOpen);return}
     PageFrame("Settings",onBack) {
+        GlassCard { SwitchRow("Organized Settings layout","Default OFF. Clear categories and smaller control pages. OFF restores the original Settings list.",organized.organizedSettings,last=true,subMaxLines=5){save(K.organizedSettings,it)} }
+        Spacer(Modifier.height(10.dp))
         LdText("Group kholo, phir uski settings chuno",13f,color=LocalLd.current.muted,modifier=Modifier.padding(bottom=12.dp))
         GlassCard { SRow("Settings finder","Control ka naam likho aur matching row kholo",LdIcons.Search,last=true){onOpen("settingsfinder")} }
         Spacer(Modifier.height(10.dp))
@@ -329,9 +336,9 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             dismissButton = { TextButton(onClick = { SettingsBackup.pendingRestore.value = null }) { LdText("Cancel", 14f, color = LocalLd.current.muted) } })
     }
 
-    CompositionLocalProvider(LocalSettingsTarget provides findTarget){
-    PageFrame(SETTINGS_GROUPS.firstOrNull { it.id==group }?.title ?: "Settings", onBack) {
-        if(group=="display") {
+    CompositionLocalProvider(LocalSettingsTarget provides findTarget,LocalSettingsCategoryRows provides (group in listOf("look","recents","numbercard","navigation","keycontacts","callcontrols"))){
+    PageFrame(ORGANIZED_DESTINATIONS.firstOrNull{it.route=="settings:$group"}?.title ?: SETTINGS_GROUPS.firstOrNull { it.id==group }?.title ?: "Settings", onBack) {
+        if(group=="display"||group=="look") {
         // Profile and calling-card entry points stay under Display.
         Row(Modifier.fillMaxWidth().glass(p, RoundedCornerShape(26.dp)).clickable { onOpen("profile") }.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -345,10 +352,11 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SRow("Call & Recents style", "11 calling-card looks + 11 recents looks, live preview ke saath", LdIcons.Palette) { onOpen("stylestudio") }
             SRow("Clean UI aur call icons", "Clean glass, icon style aur rang", LdIcons.Edit) { onOpen("callicons") }
             SRow("Calling card layout", "Calling card, photo, background, buttons - sab customize karo", LdIcons.Dialpad) { onOpen("calllayout") }
-            SwitchRow("Swipe se tab badlo", "Recents aur Contacts ke beech ungli ghumao", s.tabSwipe) { save(K.tabSwipe, it) }
+            if(group=="display") SwitchRow("Swipe se tab badlo", "Recents aur Contacts ke beech ungli ghumao", s.tabSwipe) { save(K.tabSwipe, it) }
         }
 
         }
+        if(group=="navigation") { GlassCard { SwitchRow("Swipe se tab badlo","Recents aur Contacts ke beech ungli ghumao",s.tabSwipe,last=true){save(K.tabSwipe,it)} } }
         if(group=="default") {
         SecTitle("Default app")
         GlassCard {
@@ -380,17 +388,24 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         }
 
         }
-        if(group=="display") {
-        SecTitle("Display")
+        if(group in listOf("display","look","recents","numbercard","navigation","keycontacts")) {
+        SecTitle(if(group=="display")"Display" else "Controls")
         GlassCard {
+            if(group=="display"||group=="look"){
             SRow("Theme & appearance", "${paletteFor(s.theme, p.accent, true).name.let { if (s.theme == "auto") "Auto (system)" else it }} · blur ${s.blur}px", LdIcons.Palette) { onOpen("appearance") }
             SRow("App language", LANGS.firstOrNull { it.first == s.lang }?.second ?: "Hinglish", LdIcons.Message) { sheet = "lang" }
+            }
+            if(group=="display"||group=="recents"){
             SwitchRow("Favourites section", "Home pe favourite contacts dikhao/chhupao", s.showFavourites) { save(K.showFavourites, it) }
             SwitchRow("Din ke headers", "Recents me Aaj/Kal ke groups", s.groupByDay) { save(K.groupByDay, it) }
             SwitchRow("Call duration dikhao", "Recents me kitni der baat hui", s.recentsShowDuration) { save(K.recentsShowDuration, it) }
             SwitchRow("SIM label dikhao", "Multi-SIM pe recents me SIM 1/2", s.showSimInRecents) { save(K.showSimInRecents, it) }
+            }
+            if(group=="display"||group=="numbercard"){
             SwitchRow("Number details activity layout", "Default OFF. Separate call type and wrapping date/time/duration lines in Recent activity. History and delete action stay the same.", s.numberDetailsActivity, subMaxLines=6) { save(K.numberDetailsActivity, it) }
             SwitchRow("Number details glass layout", "Default OFF. Compact identity header, separate glass action panel and number card. Video call is available in both layouts.", s.numberDetailsGlass, subMaxLines=6) { save(K.numberDetailsGlass, it) }
+            }
+            if(group=="display"||group=="recents"){
             SwitchRow("Recents split metadata layout", "Default OFF. Call type gets its own label above time/duration/SIM. OFF keeps the original compact metadata line.", s.recentsSplitMeta, subMaxLines=6) { save(K.recentsSplitMeta, it) }
             SwitchRow("Recents grouped count badge", "Default OFF. Put an existing grouped call count in a separate pill, not after the name. Grouping stays the same. Single calls get no pill.", s.recentsCountBadge, subMaxLines=6) { save(K.recentsCountBadge, it) }
             SwitchRow("Recents stacked actions layout", "Default OFF. Give names and details more width, with the same Video and Call buttons in a separate row below. OFF keeps side-by-side actions.", s.recentsStackedActions, subMaxLines=6) { save(K.recentsStackedActions, it) }
@@ -398,18 +413,25 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Recents labeled call actions", "Default OFF. Show Video and Call labels below the existing buttons. Actions and selected number stay the same.", s.recentsActionLabels, subMaxLines=6) { save(K.recentsActionLabels, it) }
             SwitchRow("Recents overview layout", "Default OFF. Glass control panel, two-column call filters and day separators. Call actions stay the same.", s.recentsOverview, subMaxLines=6) { save(K.recentsOverview, it) }
             SwitchRow("Compact recents", "Choti rows, ek screen pe zyada entries", s.recentsCompact) { save(K.recentsCompact, it) }
+            }
+            if(group=="display"||group=="navigation"){
             SwitchRow("Search bar neeche", "Menu, search aur profile ki patti upar ki jagah neeche (bottom bar ke upar) aa jaati hai - ek haath se pahunch ke liye. Sirf Recents/Contacts screen; baaki layout wahi", s.searchBottom) { save(K.searchBottom, it) }
+            }
+            if(group=="display"||group=="recents"){
             SwitchRow("Row swipe actions", "Recents row ko dayein khinchne se Call, bayein khinchne se SMS (lamba khinchna padta hai). Call par 'Call se pehle poochho' setting lagu rehti hai", s.rowSwipe) { save(K.rowSwipe, it) }
             SwitchRow("Blocked calls chhupao", "Blocked number ki entries recents me na dikhein", s.recentsHideBlocked) { save(K.recentsHideBlocked, it) }
             LdText("Recents me kitni entries", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
             Segmented(listOf("100", "300", "500"), listOf(100, 300, 500).indexOf(s.recentLimit).coerceAtLeast(0)) { save(K.recentLimit, listOf(100, 300, 500)[it]) }
             SwitchRow("Exact time", "Recents me '2 min pehle' ki jagah exact samay", s.exactTime) { save(K.exactTime, it) }
+            }
+            if(group=="display"||group=="keycontacts"){
             SwitchRow("Keypad letters (ABC)", "Dial pad pe English akshar", s.keypadLetters) { save(K.keypadLetters, it) }
             SwitchRow("Keypad haptic", "Key dabane pe halki vibration", s.hapticKeys) { save(K.hapticKeys, it) }
             LdText("Contact sort", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 10.dp, bottom = 8.dp))
             Segmented(listOf("First name", "Last name"), if (s.sortByLast) 1 else 0) { save(K.sortByLast, it == 1); act.reload() }
             LdText("Naam ka format", 12.5f, FontWeight.SemiBold, p.muted, Modifier.padding(start = 8.dp, top = 12.dp, bottom = 8.dp))
             Segmented(listOf("First Last", "Last, First"), if (s.lastNameFirst) 1 else 0) { save(K.lastNameFirst, it == 1) }
+            }
         }
 
         }
@@ -451,6 +473,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
         GlassCard{SRow("Call reference cards","Per-number facts, explicit reveal and copy",LdIcons.Edit,last=true){onOpen("callreferences")}}
         GlassCard{SRow("Call pace reminders","Opt-in countdown aur active-stretch reminder",LdIcons.Clock,last=true){onOpen("callpace")}}
         GlassCard{SRow("IVR menu helper","Saved menu choices, one digit per explicit tap",LdIcons.Dialpad,last=true){onOpen("ivrmenus")}}
+        }
+        if(group=="calls"||group=="callcontrols") {
         SecTitle("Calls")
         GlassCard {
             val sims = st.sims
