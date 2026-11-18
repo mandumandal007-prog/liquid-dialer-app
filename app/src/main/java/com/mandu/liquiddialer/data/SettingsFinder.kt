@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("settings-category-search","Settings category-page search","Optional search within organized Settings home","display","settings",aliases="category pages destination search organized layout"),
   Entry("organized-settings","Organized Settings layout","Clear categories, smaller control pages and original routes preserved","display","settings",aliases="settings category categories organize clean layout home phone tools privacy sound files"),
   Entry("reference-view-fold","Fold reference view controls","Search and sort open on demand; visible filter/order summary","calls","callreferences",aliases="reference cards search sort fold controls layout compact"),
   Entry("reference-editor-sections","Sectioned reference editor layout","Separate title/value panels and unsaved-draft counts","calls","callreferences",aliases="reference cards edit draft title value count panels layout style"),
