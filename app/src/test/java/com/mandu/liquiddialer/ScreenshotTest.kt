@@ -26,7 +26,8 @@ import org.robolectric.annotation.GraphicsMode
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 abstract class ScreenshotFixture {
 
-    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = kotlinx.coroutines.test.StandardTestDispatcher())
+    protected val effects = kotlinx.coroutines.test.StandardTestDispatcher()
+    @get:Rule val rule = createAndroidComposeRule<MainActivity>(effectContext = effects)
 
     protected fun settle(ms: Long = 1200) {
         rule.mainClock.autoAdvance = false
@@ -258,6 +259,9 @@ class ScreenshotContactsScreenTest : ScreenshotFixture() {
 class ScreenshotVolumePageAndNumberMenuTest : ScreenshotFixture() {
     @Test
     fun volumePageAndNumberMenu() {
+        val app=ApplicationProvider.getApplicationContext<LdApp>()
+        runBlocking { app.ldStore.edit { it[K.motion]=false;it[K.organizedSettings]=false } }
+        rule.waitUntil(15000){LdApp.settings.value.let{!it.motion&&!it.organizedSettings}}
         settle(2500)
         val act = rule.activity
         act.state.showOnboarding = false
@@ -285,14 +289,19 @@ class ScreenshotVolumePageAndNumberMenuTest : ScreenshotFixture() {
         // Volume page (light, boost off)
         rule.onNodeWithTag("drawer_open").performClick(); settle();
         rule.onNodeWithText("Settings", substring = false, useUnmergedTree = true).performClick(); settle(1800)
-        var groupVisible=false
-        repeat(12){
-            val row=rule.onAllNodesWithText("Volume",useUnmergedTree=true).fetchSemanticsNodes().lastOrNull()
-            if(row!=null&&row.boundsInRoot.top>=110f&&row.boundsInRoot.bottom<=1500f)groupVisible=true
-            if(!groupVisible){rule.onAllNodes(hasScrollAction(),useUnmergedTree=true).onLast().performTouchInput{swipe(center,center.copy(y=center.y-180f),350)};settle(350)}
+        val volumeGroup=rule.onAllNodesWithText("Volume",useUnmergedTree=true).onLast()
+        for(attempt in 0 until 30){
+            val bounds=volumeGroup.fetchSemanticsNode().boundsInRoot
+            if(bounds.top>=150f&&bounds.bottom<=1400f&&bounds.height>0f)break
+            rule.onAllNodesWithTag("page_content_scroll",useUnmergedTree=true).onLast()
+                .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.ScrollBy){scroll->scroll(0f,200f)}
+            effects.scheduler.runCurrent()
+            settle(400)
         }
-        org.junit.Assert.assertTrue("Volume group visible",groupVisible)
-        rule.onAllNodesWithText("Volume",useUnmergedTree=true).onLast().performClick();settle(700);
+        volumeGroup.assertIsDisplayed().performClick()
+        settle(700)
+        rule.onAllNodesWithTag("page_back",useUnmergedTree=true).onLast().assertIsDisplayed()
+        rule.onNodeWithText("Volume & boost",useUnmergedTree=true).assertIsDisplayed()
         var volOpened = false;
         for(attempt in 0 until 15) {
             if (rule.onAllNodesWithText("Volume & boost", substring = true, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
