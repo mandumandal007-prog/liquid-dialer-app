@@ -187,7 +187,11 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
   if(!searching){
    val items=ORGANIZED_DESTINATIONS.filter{it.category==id}
    GlassCard{items.forEachIndexed{i,d->
-    Box(Modifier.testTag("settings_destination_"+d.id)){SRow(d.title,if(s.compactSettingsCategories&&!searching)null else d.detail,organizedIcon(d.id),last=i==items.lastIndex,subMaxLines=5){onOpen(d.route)}}
+    val toolCount=if(s.settingsToolCounts&&d.route.startsWith("settingstools:"))ORGANIZED_TOOLS.count{it.section==d.id}else null
+    val detail=if(toolCount!=null)"$toolCount tools"+(if(s.compactSettingsCategories)"" else "\n"+d.detail)else if(s.compactSettingsCategories)null else d.detail
+    CompositionLocalProvider(LocalSettingsCategoryRows provides (toolCount!=null||LocalSettingsCategoryRows.current)){
+    Box(Modifier.testTag("settings_destination_"+d.id)){SRow(d.title,detail,organizedIcon(d.id),last=i==items.lastIndex,subMaxLines=if(toolCount!=null)8 else 5){onOpen(d.route)}}
+    }
    }}
   }else{
    if(results.isEmpty())GlassCard{LdText("No call tool found",16f,FontWeight.Bold,maxLines=3);LdText("Try another name or clear search to browse all sections. Individual Settings controls stay in Find a setting.",12.5f,color=LocalLd.current.muted,maxLines=6)}
@@ -198,6 +202,7 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
   }
   if(id=="tools"){
    SecTitle("Tool list layout")
+   GlassCard{Box(Modifier.testTag("settings_tool_counts_switch")){SwitchRow("Call-tool section counts","Default OFF. Show the number of tool choices in each section, not enabled or running tools. Category page counts stay separate.",s.settingsToolCounts,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.settingsToolCounts,it)}}}}
    GlassCard{Box(Modifier.testTag("alphabetical_settings_tools_switch")){SwitchRow("Call tools A-Z order","Default OFF. Sort choices by title inside each of the three tool sections. OFF restores the original order. Search results stay unchanged.",s.alphabeticalSettingsTools,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.alphabeticalSettingsTools,it)}}}}
    GlassCard{Box(Modifier.testTag("compact_settings_tools_switch")){SwitchRow("Compact call-tool rows","Default OFF. Hide descriptions only inside the three tool-section lists. Search results and each tool's own controls stay the same.",s.compactSettingsTools,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.compactSettingsTools,it)}}}}
    SecTitle("Search choice")
