@@ -11,6 +11,8 @@ import com.mandu.liquiddialer.data.*
 import com.mandu.liquiddialer.ui.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import org.junit.*
 import org.junit.Assert.*
@@ -40,7 +42,7 @@ class IncomingProfilesUiTest {
  // Each Robolectric method creates a new Application. Stop the prior method's
  // Default-dispatcher settings collector so it cannot overwrite the next
  // Application's static settings snapshot after its persisted seed.
- @After fun clean(){rule.runOnUiThread{hostView?.disposeComposition();(rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content)).removeAllViews()};dispatcher.scheduler.runCurrent();rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};runBlocking{ctx.ldStore.edit{it[K.incomingCard]="";it[K.fontScale]=1f}};org.robolectric.RuntimeEnvironment.setFontScale(1f);ctx.scope.cancel()}
+ @After fun clean(){rule.runOnUiThread{hostView?.disposeComposition();(rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content)).removeAllViews()};dispatcher.scheduler.runCurrent();rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};runBlocking{ctx.ldStore.edit{it[K.incomingCard]="";it[K.fontScale]=1f}};org.robolectric.RuntimeEnvironment.setFontScale(1f);runBlocking{ctx.scope.coroutineContext[Job]!!.cancelAndJoin()}}
  private fun rows()=IncomingProfiles.decode(LdApp.settings.value.incomingProfiles)
  private fun seedProfiles(c:IncomingCard.Config=IncomingCard.Config(style="pearl",swipe=false,swap=true,number=false,confirmCut=true)):String{val r=IncomingProfiles.capture(emptyList(),"Evening",c);runBlocking{ctx.ldStore.edit{it[K.incomingProfiles]=IncomingProfiles.encode(r)}};await{rows().size==1};return r[0].id}
  private fun dialog(tag:String){rule.onNodeWithTag(tag,true).performClick();settle()}
