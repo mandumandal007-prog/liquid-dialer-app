@@ -137,7 +137,7 @@ internal fun OrganizedSettingsHome(onBack:()->Unit,onOpen:(String)->Unit){
    Spacer(Modifier.height(10.dp))
   }
   if(!searching){GlassCard{ORGANIZED_CATEGORIES.forEachIndexed{i,c->
-   Box(Modifier.testTag("settings_category_"+c.id)){SRow(c.title,c.detail,organizedIcon(c.id),last=i==ORGANIZED_CATEGORIES.lastIndex,subMaxLines=4){onOpen("settingshub:"+c.id)}}
+   Box(Modifier.testTag("settings_category_"+c.id)){SRow(c.title,if(s.compactSettingsCategories)null else c.detail,organizedIcon(c.id),last=i==ORGANIZED_CATEGORIES.lastIndex,subMaxLines=4){onOpen("settingshub:"+c.id)}}
   }}}else{
    if(results.isEmpty())GlassCard{LdText("No category page found",16f,FontWeight.Bold,maxLines=3);LdText("Try another word, clear this search, or use Find a setting for individual controls.",12.5f,color=p.muted,maxLines=5)}
    results.groupBy{it.category}.forEach{(id,items)->
@@ -147,6 +147,7 @@ internal fun OrganizedSettingsHome(onBack:()->Unit,onOpen:(String)->Unit){
   }
   SecTitle("Layout choice")
   OrganizedSettingsSwitch()
+  GlassCard{Box(Modifier.testTag("compact_settings_categories_switch")){SwitchRow("Compact Settings category rows","Default OFF. Show titles without descriptions for category choices. Search results and individual controls stay the same.",s.compactSettingsCategories,last=true,subMaxLines=6){scope.launch{LdApp.instance.repo.set(K.compactSettingsCategories,it)}}}}
   GlassCard{Box(Modifier.testTag("settings_category_search_switch")){SwitchRow("Settings category-page search","Default OFF. Add search for category pages to this organized home. Individual controls stay in Find a setting.",s.settingsCategorySearch,last=true,subMaxLines=6){scope.launch{LdApp.instance.repo.set(K.settingsCategorySearch,it)}}}}
   GlassCard{SRow("Original category list","Open the classic list without changing this layout",LdIcons.Info,last=true){onOpen("settingshub:classic")}}
  }
@@ -179,7 +180,7 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
   if(!searching){
    val items=ORGANIZED_DESTINATIONS.filter{it.category==id}
    GlassCard{items.forEachIndexed{i,d->
-    Box(Modifier.testTag("settings_destination_"+d.id)){SRow(d.title,d.detail,organizedIcon(d.id),last=i==items.lastIndex,subMaxLines=5){onOpen(d.route)}}
+    Box(Modifier.testTag("settings_destination_"+d.id)){SRow(d.title,if(s.compactSettingsCategories&&!searching)null else d.detail,organizedIcon(d.id),last=i==items.lastIndex,subMaxLines=5){onOpen(d.route)}}
    }}
   }else{
    if(results.isEmpty())GlassCard{LdText("No call tool found",16f,FontWeight.Bold,maxLines=3);LdText("Try another name or clear search to browse all sections. Individual Settings controls stay in Find a setting.",12.5f,color=LocalLd.current.muted,maxLines=6)}
