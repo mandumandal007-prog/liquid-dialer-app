@@ -20,6 +20,7 @@ class CsvCallImportUiTest {
  private val csv="Name,Phone,Area\n\"Office, A\",+44 2025550123,UK\nFamily,+1 2025550123,US\nCopy,0044 2025550123,UK\nBad,1.23E+10,India\nघर 👪,09876543210,India"
  private fun settle(){rule.mainClock.advanceTimeBy(800);rule.waitForIdle()}
  private fun reveal(tag:String):SemanticsNodeInteraction{
+  rule.waitUntil(15000){settle();rule.onAllNodesWithTag(tag,true).fetchSemanticsNodes().size==1}
   repeat(35){val n=rule.onNodeWithTag(tag,true);val r=n.getUnclippedBoundsInRoot();val sc=rule.onNodeWithTag("page_content_scroll",true);val v=sc.getUnclippedBoundsInRoot()
    if(r.bottom>r.top&&r.top>=v.top&&r.bottom<=v.bottom)return n
    sc.performTouchInput{if(r.top<v.top)swipeDown()else swipeUp()};settle()
@@ -30,7 +31,7 @@ class CsvCallImportUiTest {
  private fun show(text:String?=csv,theme:String="daylight",font:Float=1f,workspace:Boolean=false){
   rule.mainClock.autoAdvance=false;settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.confirmCall]=true}}
   rule.waitUntil(15000){LdApp.settings.value.let{it.theme==theme&&it.fontScale==font&&it.confirmCall}}
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{if(workspace)CallListsPage(rule.activity.state,rule.activity,{back=true})else CsvCallImportPage({back=true},{saved=it},text)}}};settle()
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{if(workspace)CallListsPage(rule.activity.state,rule.activity,{back=true})else CsvCallImportPage({back=true},{saved=it},text)}}};settle();rule.waitUntil(15000){settle();rule.onAllNodesWithTag("csv_pick",true).fetchSemanticsNodes().size==1||rule.onAllNodesWithTag("lists_csv",true).fetchSemanticsNodes().size==1}
  }
  private fun mapAndReview(){click("csv_column_phone");rule.onNodeWithTag("csv_phone_1").performClick();settle();click("csv_column_name");rule.onNodeWithTag("csv_name_0").performClick();settle();click("csv_review")}
  @Test fun mapReviewSubsetSaveAndPreserveExisting(){
