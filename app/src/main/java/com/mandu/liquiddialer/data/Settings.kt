@@ -187,6 +187,7 @@ data class LdSettings(
     val organizedSettings: Boolean = false,
     val settingsCategorySearch: Boolean = false,
     val settingsToolSearch: Boolean = false,
+    val compactSettingsCategories: Boolean = false,
     val recentsCountBadge: Boolean = false,
     val recentsStackedActions: Boolean = false,
     val recentsContactNumber: Boolean = false,
@@ -399,6 +400,7 @@ object K {
     val organizedSettings = booleanPreferencesKey("organized_settings")
     val settingsCategorySearch = booleanPreferencesKey("settings_category_search")
     val settingsToolSearch = booleanPreferencesKey("settings_tool_search")
+    val compactSettingsCategories = booleanPreferencesKey("compact_settings_categories")
     val recentsCountBadge = booleanPreferencesKey("recents_count_badge")
     val recentsStackedActions = booleanPreferencesKey("recents_stacked_actions")
     val recentsContactNumber = booleanPreferencesKey("recents_contact_number")
@@ -607,6 +609,7 @@ fun Preferences.toSettings(): LdSettings {
         organizedSettings = this[K.organizedSettings] ?: false,
         settingsCategorySearch = this[K.settingsCategorySearch] ?: false,
         settingsToolSearch = this[K.settingsToolSearch] ?: false,
+        compactSettingsCategories = this[K.compactSettingsCategories] ?: false,
         recentsCountBadge = this[K.recentsCountBadge] ?: false,
         recentsStackedActions = this[K.recentsStackedActions] ?: false,
         recentsContactNumber = this[K.recentsContactNumber] ?: false,
