@@ -1,6 +1,8 @@
 package com.mandu.liquiddialer.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -18,6 +20,7 @@ import kotlinx.coroutines.launch
  PageFrame("Call unit converter",onBack){
   LdText("Baat ke beech unit ka hisab.",23f,FontWeight.Bold,maxLines=4)
   SwitchRow("Show unit converter in call Notes","Default OFF. Offline typed values only; call audio nahi padhta.",s.callConverter,last=true){scope.launch{try{LdApp.instance.repo.set(K.callConverter,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
+  Box(Modifier.testTag("converter_large_result_switch")){SwitchRow("Larger conversion result","Default OFF. Larger text and spacing for the current result only: converted value, source and rounding note. Swipe the one-line number sideways; target unit stays below. Table/history keep their sizes. No new conversion or history entry.",s.converterLargeResult,last=true,subMaxLines=8){scope.launch{try{LdApp.instance.repo.set(K.converterLargeResult,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}}
   PrimaryButton("Open converter",modifier=Modifier.testTag("converter_settings_open")){open=true}
   LdText("Length, mass, volume, area aur temperature. Feet international definition ke hain, survey foot nahi. Cup/gallon, local bigha aur mass-to-volume conversion nahi; unke meanings alag ho sakte hain.",14f,color=p.muted,maxLines=9)
   LdText("Numbers manually bharo. Decimal arithmetic; result 18 decimal places tak half-up round. No pricing, sensor reading, payment, cloud, clipboard ya saved conversion file. Last 10 conversions sirf is open screen ki memory mein; Back/close/app restart par clear.",13f,color=p.muted,maxLines=12)
@@ -74,9 +77,15 @@ import kotlinx.coroutines.launch
   }
   if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=6,modifier=Modifier.testTag("converter_error"))
   result?.let{r->GlassCard(Modifier.fillMaxWidth().padding(vertical=8.dp).testTag("converter_result")){
-   LdText("${r.input} ${r.from.label}",14f,maxLines=Int.MAX_VALUE)
-   LdText("= ${r.value} ${r.to.label}",21f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("converter_value"))
-   LdText("Display: up to 18 decimals, half-up rounded. Measurement precision is yours to check.",12f,color=p.muted,maxLines=5)
+   LdText("${r.input} ${r.from.label}",if(settings.converterLargeResult)16f else 14f,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("converter_result_source"))
+   if(settings.converterLargeResult)Spacer(Modifier.height(8.dp))
+   if(settings.converterLargeResult){
+    Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).testTag("converter_value_scroll")){LdText("= ${r.value}",27f,FontWeight.Bold,maxLines=1,modifier=Modifier.testTag("converter_value"))}
+    LdText(r.to.label,16f,FontWeight.SemiBold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("converter_result_unit"))
+    LdText("Swipe number sideways if needed",12f,color=p.muted,maxLines=4)
+   }else LdText("= ${r.value} ${r.to.label}",21f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("converter_value"))
+   if(settings.converterLargeResult)Spacer(Modifier.height(8.dp))
+   LdText("Display: up to 18 decimals, half-up rounded. Measurement precision is yours to check.",if(settings.converterLargeResult)14f else 12f,color=p.muted,maxLines=if(settings.converterLargeResult)Int.MAX_VALUE else 5,modifier=Modifier.testTag("converter_result_rounding"))
   }}
   GhostButton("Clear input & result",Modifier.testTag("converter_clear")){focus.clearFocus();input="";changed()}
   LdText("Session history: ${rows.size} / 10",14f,FontWeight.Bold,modifier=Modifier.testTag("converter_history_count"))

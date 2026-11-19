@@ -39,6 +39,7 @@ object SettingsFinder{
   Entry("tally-fold","Fold counter actions layout","Keep label quantity and plus/minus visible; edit/remove on demand","calls","calltally",aliases="tally compact fold counter actions layout style edit remove"),
   Entry("desk-shelf","Quick-tool shelf","Session-only pins for up to four enabled tools","calls","deskfinder",aliases="desk finder pin favorite quick shelf shortcuts"),
   Entry("desk-finder-compact","Compact finder rows","Wrapped open title and optional tool details","calls","deskfinder",aliases="desk finder compact layout style short rows details"),
+  Entry("converter-large-result","Larger conversion result","Larger current result with a one-line swipeable number and separate target unit, default OFF; history/table unchanged","calls","callconverter",aliases="unit converter larger output result text size readable accessibility"),
   Entry("converter-recall","Reuse conversion inputs","Confirm restoring original input and units from session history","calls","converterhistory",aliases="converter history recall reuse original input units restore"),
   Entry("converter-history-fold","Fold conversion history layout","Session count visible, history rows open on demand","calls","converterhistory",aliases="converter history folded panel compact layout style expand collapse"),
   Entry("converter-table","Converter all-units table","One manual value in every supported same-category unit","calls","converteroptions",aliases="converter comparison all units table measurement mass length area volume temperature"),
