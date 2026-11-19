@@ -1,5 +1,4 @@
 package com.mandu.liquiddialer
-import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -32,7 +31,7 @@ class CallChecklistUiTest {
  private fun show(theme:String="daylight",font:Float=1f,notes:Boolean=false,details:Boolean=false){
   rule.mainClock.autoAdvance=false;settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font}}
   await{LdApp.settings.value.let{it.theme==theme&&it.fontScale==font}}
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{
    var page by remember{mutableStateOf(!details)}
    if(details&&!page)PageFrame("Number details",{}){NumberSheet(number,null,rule.activity.state,rule.activity,{},{},{},onChecklist={page=true})}
    else if(notes)Sheet({}){NotesSheet(number,"Office",{})}
@@ -53,7 +52,7 @@ class CallChecklistUiTest {
  @Test fun longUnicodeNightTopicsWrapAndPersistAfterReopen(){
   CallChecklist.add(ctx,number,"घर और दुकान का सामान: "+"Discuss order, delivery, payment and next visit. ".repeat(3));val item=CallChecklist.add(ctx,number,"Confirm correct customer number before sharing anything").last()
   show("midnight",1.3f);click("checklist_tick_${item.id}");await{CallChecklist.read(ctx,number).last().done};reveal("checklist_progress").assertTextEquals("1 / 2 discussed");saveShot(rule,"CHECK378-night-large")
-  rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallChecklistPage(number,{})}}};settle();await{rule.onAllNodesWithTag("checklist_progress",true).fetchSemanticsNodes().isNotEmpty()};reveal("checklist_progress").assertTextEquals("1 / 2 discussed")
+  rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallChecklistPage(number,{})}}};settle();await{rule.onAllNodesWithTag("checklist_progress",true).fetchSemanticsNodes().isNotEmpty()};reveal("checklist_progress").assertTextEquals("1 / 2 discussed")
  }
  @Test fun callNotesEntryKeepsNoteDraftAndExactNumber(){
   CallChecklist.add(ctx,number,"Ask preferred delivery time");show(notes=true)
@@ -72,7 +71,7 @@ class CallChecklistUiTest {
   val item=CallChecklist.add(ctx,number,"Confirm delivery address").single()
   show();manager.calls.value=listOf(call);manager.bump()
   try{
-   rule.runOnUiThread{rule.activity.setContent{LdThemeHost{CallScreen({},{},{},{})}}};settle()
+   rule.runOnUiThread{rule.activity.mountTestPage{LdThemeHost{CallScreen({},{},{},{})}}};settle()
    rule.onNodeWithTag("end_call",true).assertIsDisplayed();saveShot(rule,"CHECK378-active-before")
    val label=rule.onNodeWithText("Notes",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
    val controls=rule.onAllNodes(hasClickAction(),true);val nodes=controls.fetchSemanticsNodes()
