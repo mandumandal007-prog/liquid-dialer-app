@@ -22,8 +22,8 @@ class HomePolishUiTest {
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private fun settle(){rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(1400);rule.waitForIdle()}
  private fun setup(theme:String="daylight",font:Float=1f,bottom:Boolean=false,contacts:Boolean=false,style:String="glass"){
-  settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.theme]=theme;it[K.fontScale]=font;it[K.lang]="english";it[K.searchBottom]=bottom;it[K.showFavourites]=false;it[K.showTodayStats]=false;it[K.groupByDay]=true;it[K.recentsStyle]=style}}
-  rule.waitUntil(15000){LdApp.settings.value.let{it.theme==theme&&it.fontScale==font&&it.searchBottom==bottom&&it.lang=="english"}};settle()
+  settle();runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.recentsSingleRow]=false;it[K.theme]=theme;it[K.fontScale]=font;it[K.lang]="english";it[K.searchBottom]=bottom;it[K.showFavourites]=false;it[K.showTodayStats]=false;it[K.groupByDay]=true;it[K.recentsStyle]=style}}
+  rule.waitUntil(15000){LdApp.settings.value.let{!it.recentsSingleRow&&it.theme==theme&&it.fontScale==font&&it.searchBottom==bottom&&it.lang=="english"}};settle()
   Shadows.shadowOf(ctx).grantPermissions(Manifest.permission.READ_CALL_LOG,Manifest.permission.READ_CONTACTS)
   rule.runOnUiThread{val st=rule.activity.state;st.showOnboarding=false;st.isDefault=true;st.tab=if(contacts)"contacts"else"recents"
    st.contacts=(1..20).map{Contact(it.toLong(),"lk$it",if(it==2)"बहुत लंबा दुकान का नाम · Supplier Delivery Office" else "Person ${it.toString().padStart(2,'0')}","","+44 202555${it.toString().padStart(4,'0')}","MOBILE",false,null)}
