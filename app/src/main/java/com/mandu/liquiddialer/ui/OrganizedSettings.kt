@@ -11,6 +11,8 @@ import androidx.compose.ui.unit.dp
 import com.mandu.liquiddialer.LdApp
 import com.mandu.liquiddialer.data.K
 import kotlinx.coroutines.launch
+import androidx.datastore.preferences.core.edit
+import com.mandu.liquiddialer.data.ldStore
 
 internal data class SettingsDestination(val id:String,val title:String,val detail:String,val route:String,val category:String)
 internal val ORGANIZED_DESTINATIONS=listOf(
@@ -159,6 +161,19 @@ internal fun OrganizedSettingsHome(onBack:()->Unit,onOpen:(String)->Unit){
   GlassCard{SRow("Original category list","Open the classic list without changing this layout",LdIcons.Info,last=true){onOpen("settingshub:classic")}}
  }
 }
+internal fun recentSettingsTool(route:String):SettingsTool?=ORGANIZED_TOOLS.firstOrNull{it.route==route}
+@Composable
+private fun settingsToolOpener(onOpen:(String)->Unit):(String)->Unit{
+ val s by LdApp.settings.collectAsState()
+ val scope=rememberCoroutineScope()
+ return {route->
+  if(s.recentSettingsTool&&recentSettingsTool(route)!=null)scope.launch{
+   LdApp.instance.ldStore.edit{prefs->if(prefs[K.recentSettingsTool]==true)prefs[K.lastSettingsTool]=route}
+   onOpen(route)
+  }else onOpen(route)
+ }
+}
+
 @Composable
 internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Unit){
  if(id=="classic"){
@@ -172,8 +187,20 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
  var query by remember(id){mutableStateOf("")}
  val searching=id=="tools"&&s.settingsToolSearch&&query.isNotBlank()
  val results=remember(query){searchSettingsTools(query)}
+ val openTool=settingsToolOpener(onOpen)
  PageFrame(c?.title?:"Settings categories",onBack){
   LdText(c?.detail?:"Choose a category from Settings",13f,color=LocalLd.current.muted,maxLines=4,modifier=Modifier.padding(bottom=12.dp))
+  if(id=="tools"&&s.recentSettingsTool){
+   GlassCard{
+    LdText("Recent tool controls",16f,FontWeight.Bold,maxLines=3)
+    val last=recentSettingsTool(s.lastSettingsTool)
+    if(last!=null){
+     CompositionLocalProvider(LocalSettingsCategoryRows provides true){Box(Modifier.testTag("recent_settings_tool_open")){SRow(last.title,"Return to controls only. Nothing starts automatically.",organizedIcon(last.section),last=true,subMaxLines=5){openTool(last.route)}}}
+    }else LdText("Open a tool from these sections or their search results to keep a return shortcut here. No phone number or tool content is saved.",12.5f,color=LocalLd.current.muted,maxLines=7,modifier=Modifier.testTag("recent_settings_tool_empty"))
+    if(s.lastSettingsTool.isNotEmpty())GhostButton("Clear recent shortcut",Modifier.testTag("recent_settings_tool_clear")){scope.launch{LdApp.instance.repo.set(K.lastSettingsTool,"")}}
+   }
+   Spacer(Modifier.height(10.dp))
+  }
   if(id=="tools"&&s.settingsToolSearch){
    GlassCard{
     LdText("Find a call tool",16f,FontWeight.Bold,maxLines=3)
@@ -197,10 +224,12 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
    if(results.isEmpty())GlassCard{LdText("No call tool found",16f,FontWeight.Bold,maxLines=3);LdText("Try another name or clear search to browse all sections. Individual Settings controls stay in Find a setting.",12.5f,color=LocalLd.current.muted,maxLines=6)}
    results.groupBy{it.section}.forEach{(section,items)->
     LdText(ORGANIZED_DESTINATIONS.first{it.route=="settingstools:$section"}.title,13f,FontWeight.Bold,color=LocalLd.current.muted,maxLines=4,modifier=Modifier.padding(start=6.dp,end=6.dp,top=22.dp,bottom=10.dp))
-    GlassCard{items.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_result_"+t.route)){SRow(t.title,t.detail,organizedIcon(section),last=i==items.lastIndex,subMaxLines=5){onOpen(t.route)}}}}
+    GlassCard{items.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_result_"+t.route)){SRow(t.title,t.detail,organizedIcon(section),last=i==items.lastIndex,subMaxLines=5){openTool(t.route)}}}}
    }
   }
   if(id=="tools"){
+   SecTitle("Return shortcut")
+   GlassCard{Box(Modifier.testTag("recent_settings_tool_switch")){SwitchRow("Recent call-tool shortcut","Default OFF. While ON, remember the last tool controls opened from these lists or search. OFF hides the shortcut and stops recording. Clear removes it; no number or tool content is stored.",s.recentSettingsTool,last=true,subMaxLines=9){scope.launch{LdApp.instance.repo.set(K.recentSettingsTool,it)}}}}
    SecTitle("Tool list layout")
    GlassCard{Box(Modifier.testTag("settings_tool_counts_switch")){SwitchRow("Call-tool section counts","Default OFF. Show the number of tool choices in each section, not enabled or running tools. Category page counts stay separate.",s.settingsToolCounts,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.settingsToolCounts,it)}}}}
    GlassCard{Box(Modifier.testTag("alphabetical_settings_tools_switch")){SwitchRow("Call tools A-Z order","Default OFF. Sort choices by title inside each of the three tool sections. OFF restores the original order. Search results stay unchanged.",s.alphabeticalSettingsTools,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.alphabeticalSettingsTools,it)}}}}
@@ -227,6 +256,7 @@ internal fun settingsSectionTools(id:String,alphabetical:Boolean,query:String=""
 internal fun OrganizedToolsPage(id:String,onBack:()->Unit,onOpen:(String)->Unit){
  val s by LdApp.settings.collectAsState()
  var query by remember(id,s.settingsSectionSearch){mutableStateOf("")}
+ val openTool=settingsToolOpener(onOpen)
  val d=ORGANIZED_DESTINATIONS.firstOrNull{it.route=="settingstools:$id"}
  PageFrame(d?.title?:"Call tools",onBack){
   LdText("Open a tool to adjust its own controls. Nothing starts from this list.",13f,color=LocalLd.current.muted,maxLines=4,modifier=Modifier.padding(bottom=12.dp))
@@ -247,7 +277,7 @@ internal fun OrganizedToolsPage(id:String,onBack:()->Unit,onOpen:(String)->Unit)
   }
   if(s.alphabeticalSettingsTools)LdText("A-Z order",12f,FontWeight.SemiBold,color=LocalLd.current.accent,maxLines=2,modifier=Modifier.testTag("settings_tools_az_label").padding(bottom=8.dp))
   CompositionLocalProvider(LocalSettingsCategoryRows provides (s.compactSettingsTools||LocalSettingsCategoryRows.current)){
-  if(tools.isNotEmpty())GlassCard{tools.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_"+t.route)){SRow(t.title,if(s.compactSettingsTools)null else t.detail,LdIcons.Edit,last=i==tools.lastIndex,subMaxLines=4){onOpen(t.route)}}}}
+  if(tools.isNotEmpty())GlassCard{tools.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_"+t.route)){SRow(t.title,if(s.compactSettingsTools)null else t.detail,LdIcons.Edit,last=i==tools.lastIndex,subMaxLines=4){openTool(t.route)}}}}
   }
  }
 }
