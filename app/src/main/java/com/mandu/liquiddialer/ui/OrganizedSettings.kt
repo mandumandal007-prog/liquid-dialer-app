@@ -206,6 +206,7 @@ internal fun OrganizedCategoryPage(id:String,onBack:()->Unit,onOpen:(String)->Un
    GlassCard{Box(Modifier.testTag("alphabetical_settings_tools_switch")){SwitchRow("Call tools A-Z order","Default OFF. Sort choices by title inside each of the three tool sections. OFF restores the original order. Search results stay unchanged.",s.alphabeticalSettingsTools,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.alphabeticalSettingsTools,it)}}}}
    GlassCard{Box(Modifier.testTag("compact_settings_tools_switch")){SwitchRow("Compact call-tool rows","Default OFF. Hide descriptions only inside the three tool-section lists. Search results and each tool's own controls stay the same.",s.compactSettingsTools,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.compactSettingsTools,it)}}}}
    SecTitle("Search choice")
+   GlassCard{Box(Modifier.testTag("settings_section_search_switch")){SwitchRow("Search inside call-tool sections","Default OFF. Add a name and description filter inside each tool section. The search stays within that section; tool controls do not change.",s.settingsSectionSearch,last=true,subMaxLines=7){scope.launch{LdApp.instance.repo.set(K.settingsSectionSearch,it)}}}}
    GlassCard{Box(Modifier.testTag("settings_tool_search_switch")){SwitchRow("Call tools search","Default OFF. Search tool names and descriptions in this category. OFF keeps the original section list.",s.settingsToolSearch,last=true,subMaxLines=6){scope.launch{LdApp.instance.repo.set(K.settingsToolSearch,it)}}}}
   }
  }
@@ -216,21 +217,37 @@ internal fun searchSettingsTools(query:String):List<SettingsTool>{
  return ORGANIZED_TOOLS.filter{t->val text=(t.title+" "+t.detail).lowercase(java.util.Locale.ROOT);words.all{text.contains(it)}}
 }
 
-internal fun settingsSectionTools(id:String,alphabetical:Boolean):List<SettingsTool>{
- val tools=ORGANIZED_TOOLS.filter{it.section==id}
+internal fun settingsSectionTools(id:String,alphabetical:Boolean,query:String=""):List<SettingsTool>{
+ val words=query.trim().lowercase(java.util.Locale.ROOT).split(Regex("\\s+")).filter{it.isNotEmpty()}
+ val tools=ORGANIZED_TOOLS.filter{t->t.section==id&&words.all{word->(t.title+" "+t.detail).lowercase(java.util.Locale.ROOT).contains(word)}}
  return if(alphabetical)tools.sortedBy{it.title.lowercase(java.util.Locale.ROOT)}else tools
 }
 
 @Composable
 internal fun OrganizedToolsPage(id:String,onBack:()->Unit,onOpen:(String)->Unit){
  val s by LdApp.settings.collectAsState()
+ var query by remember(id,s.settingsSectionSearch){mutableStateOf("")}
  val d=ORGANIZED_DESTINATIONS.firstOrNull{it.route=="settingstools:$id"}
  PageFrame(d?.title?:"Call tools",onBack){
   LdText("Open a tool to adjust its own controls. Nothing starts from this list.",13f,color=LocalLd.current.muted,maxLines=4,modifier=Modifier.padding(bottom=12.dp))
-  val tools=remember(id,s.alphabeticalSettingsTools){settingsSectionTools(id,s.alphabeticalSettingsTools)}
+  val tools=remember(id,s.alphabeticalSettingsTools,query,s.settingsSectionSearch){settingsSectionTools(id,s.alphabeticalSettingsTools,if(s.settingsSectionSearch)query else "")}
+  if(s.settingsSectionSearch){
+   GlassCard{
+    LdText("Find in this section",16f,FontWeight.Bold,maxLines=3)
+    LdText("Search tool names and descriptions here. Opening a tool does not start it.",12f,color=LocalLd.current.muted,maxLines=5)
+    Spacer(Modifier.height(8.dp))
+    LdField(query,{query=it.take(100)},"Tool name or description",modifier=Modifier.testTag("settings_section_query"))
+    if(query.isNotBlank()){
+     LdText("Tools: ${tools.size}",12.5f,color=LocalLd.current.accent,modifier=Modifier.testTag("settings_section_count"))
+     GhostButton("Clear section search",Modifier.testTag("settings_section_clear")){query=""}
+    }
+   }
+   Spacer(Modifier.height(10.dp))
+   if(tools.isEmpty())GlassCard{LdText("No tool found in this section",16f,FontWeight.Bold,maxLines=4);LdText("Try another word or clear this search to see all tools in this section.",12.5f,color=LocalLd.current.muted,maxLines=6)}
+  }
   if(s.alphabeticalSettingsTools)LdText("A-Z order",12f,FontWeight.SemiBold,color=LocalLd.current.accent,maxLines=2,modifier=Modifier.testTag("settings_tools_az_label").padding(bottom=8.dp))
   CompositionLocalProvider(LocalSettingsCategoryRows provides (s.compactSettingsTools||LocalSettingsCategoryRows.current)){
-  GlassCard{tools.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_"+t.route)){SRow(t.title,if(s.compactSettingsTools)null else t.detail,LdIcons.Edit,last=i==tools.lastIndex,subMaxLines=4){onOpen(t.route)}}}}
+  if(tools.isNotEmpty())GlassCard{tools.forEachIndexed{i,t->Box(Modifier.testTag("settings_tool_"+t.route)){SRow(t.title,if(s.compactSettingsTools)null else t.detail,LdIcons.Edit,last=i==tools.lastIndex,subMaxLines=4){onOpen(t.route)}}}}
   }
  }
 }
