@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
    SwitchRow("Fold date history layout","Default OFF. Count and Clear visible, results open on demand.",s.datesHistoryFold,last=true){scope.launch{try{LdApp.instance.repo.set(K.datesHistoryFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   }
   Box(Modifier.testTag("dates_paired_switch")){SwitchRow("Paired date-mode buttons","Default OFF. Show the first two mode buttons side by side and Mon-Fri below. Layout only; switching this option keeps current fields, result and history.",s.datesPaired,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.datesPaired,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}}
+  Box(Modifier.testTag("dates_large_result_switch")){SwitchRow("Larger date result","Default OFF. Enlarge the current result and its detail only. Full text wraps; history keeps its original size. No new calculation or history entry.",s.datesLargeResult,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.datesLargeResult,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}}
   LdText("Reuse inputs previews the original mode and relevant fields. Confirm replaces current form and clears result. No calculation or new history until you tap Calculate. Result text is never used as input. Cancel keeps current form. Reuse OFF dismisses confirmation. Fold history keeps count/Clear visible; OFF restores original expanded results. Layout changes fold entries without clearing form/result/history. Last10 entries only in this open calculator. Back/close/restart clears them. No calendar, reminder, clipboard, file, call or message action.",13f,color=p.muted,maxLines=22)
   PrimaryButton("Open date calculator",modifier=Modifier.testTag("dates_settings_open")){open=true}
   LdText("Add/subtract calendar days, signed days between dates, Monday-Friday date count. YYYY-MM-DD, years1900-2199. Start/end inclusion is stated with each result. Mon-Fri does NOT exclude holidays and is NOT a business-day/deadline guarantee.",14f,color=p.muted,maxLines=12)
@@ -72,7 +73,7 @@ import kotlinx.coroutines.launch
   }
   if(error.isNotEmpty())LdText(error,13f,color=p.danger,maxLines=6,modifier=Modifier.testTag("dates_error"))
   result?.let{r->GlassCard(Modifier.fillMaxWidth().padding(vertical=8.dp).testTag("dates_result")){
-   LdText(r.title,22f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("dates_value"));LdText(r.detail,14f,color=p.muted,maxLines=Int.MAX_VALUE)
+   LdText(r.title,if(s.datesLargeResult)28f else 22f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("dates_value"));if(s.datesLargeResult)Spacer(Modifier.height(8.dp));LdText(r.detail,if(s.datesLargeResult)16f else 14f,color=p.muted,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("dates_result_detail"))
   }}
   GhostButton("Clear inputs & result",Modifier.testTag("dates_clear")){focus.clearFocus();first="";last="";days="7";changed()}
   LdText("Session history: ${rows.size} /10",14f,FontWeight.Bold,modifier=Modifier.testTag("dates_history_count"))
