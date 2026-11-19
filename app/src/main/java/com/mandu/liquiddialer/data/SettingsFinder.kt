@@ -31,6 +31,7 @@ object SettingsFinder{
   Entry("dates-history-fold","Fold date history layout","Count and Clear visible; entries open on demand","calls","calldates",aliases="date calculator history fold compact layout style expand collapse"),
   Entry("tally-sort","Sort session counter view","Stable name or quantity ordering, without editing the board","calls","calltally",aliases="tally sort order high low alphabetical counter view"),
   Entry("tally-paired","Paired tally view controls","Two-column filter and sort choices with full labels","calls","calltally",aliases="tally paired compact view controls layout style columns"),
+  Entry("tally-shown-sum","Shown-counter raw sum","View-only sum of currently shown session counters; requires Find session counters, default OFF","calls","calltally",aliases="tally shown sum subtotal filtered visible quantity"),
   Entry("tally-find","Find session counters","Name search and zero/nonzero view without changing quantities","calls","calltally",aliases="tally search find filter counters zero nonzero names"),
   Entry("tally-fold","Fold counter actions layout","Keep label quantity and plus/minus visible; edit/remove on demand","calls","calltally",aliases="tally compact fold counter actions layout style edit remove"),
   Entry("desk-shelf","Quick-tool shelf","Session-only pins for up to four enabled tools","calls","deskfinder",aliases="desk finder pin favorite quick shelf shortcuts"),
