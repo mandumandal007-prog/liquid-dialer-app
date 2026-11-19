@@ -124,6 +124,7 @@ data class LdSettings(
     val tallySort: Boolean = false,
     val tallyPaired: Boolean = false,
     val tallyFind: Boolean = false,
+    val tallyShownSum: Boolean = false,
     val tallyFold: Boolean = false,
     val callTally: Boolean = false,
     val tallyTemplates: Boolean = false,
@@ -351,6 +352,7 @@ object K {
     val tallySort = booleanPreferencesKey("tally_sort")
     val tallyPaired = booleanPreferencesKey("tally_paired")
     val tallyFind = booleanPreferencesKey("tally_find")
+    val tallyShownSum = booleanPreferencesKey("tally_shown_sum")
     val tallyFold = booleanPreferencesKey("tally_fold")
     val callTally = booleanPreferencesKey("call_tally")
     val tallyTemplates = booleanPreferencesKey("tally_templates")
@@ -568,6 +570,7 @@ fun Preferences.toSettings(): LdSettings {
         tallySort = this[K.tallySort] ?: false,
         tallyPaired = this[K.tallyPaired] ?: false,
         tallyFind = this[K.tallyFind] ?: false,
+        tallyShownSum = this[K.tallyShownSum] ?: false,
         tallyFold = this[K.tallyFold] ?: false,
         callTally = this[K.callTally] ?: false,
         tallyTemplates = this[K.tallyTemplates] ?: false,
