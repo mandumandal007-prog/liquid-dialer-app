@@ -35,6 +35,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-8.9-dependencies-v1-
 
+      # Robolectric runtime SDK artifacts live outside the Gradle dependency cache.
+      - name: Restore Robolectric runtime dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric/android-all-instrumented
+          key: ${{ runner.os }}-robolectric-runtime-v1-${{ hashFiles('app/build.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-robolectric-runtime-v1-
+
       - name: Android SDK (preinstalled on runner)
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
@@ -61,7 +70,7 @@ jobs:
 
       - name: Run complete assigned test partition
         timeout-minutes: 55
-        run: ./gradlew testDebugUnitTest --no-daemon -I .github/scripts/partition-tests.gradle -PtestPartition=${{ matrix.partition }}
+        run: ./gradlew testDebugUnitTest --no-daemon -I .github/scripts/robolectric-runtime.gradle -I .github/scripts/partition-tests.gradle -PtestPartition=${{ matrix.partition }}
 
       - name: Upload partition evidence
         if: always()
