@@ -148,7 +148,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                     else Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 12.dp)).testTag("top_bar")
                         .liquid(RoundedCornerShape(24.dp), 8.dp).padding(4.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Box(Modifier.size(48.dp).semantics { contentDescription = "Menu" }.testTag("drawer_open").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
+                    Box(Modifier.size(48.dp).then(if(s.roundedHomeButtons)Modifier.buttonGlass(p,CircleShape,p.accent)else Modifier).semantics { contentDescription = "Menu" }.testTag("drawer_open").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { drawer = true }, contentAlignment = Alignment.Center) { LdIcon(LdIcons.Menu, 22.dp) }
                     Row(Modifier.weight(1f).height(48.dp).padding(start = 2.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LdIcon(LdIcons.Search, 20.dp, p.muted)
@@ -157,7 +157,7 @@ fun MainScreen(st: AppState, act: MainActivity) {
                             BasicTextField(query, { query = it }, Modifier.fillMaxWidth().semantics { contentDescription = trNow("Search contacts or numbers") }, singleLine = true,
                                 textStyle = TextStyle(color = p.text, fontSize = 14.sp), cursorBrush = SolidColor(p.accent))
                         }
-                        if(FeatureControls.enabled(s,"searchvoice")) Box(Modifier.size(44.dp).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
+                        if(FeatureControls.enabled(s,"searchvoice")) Box(Modifier.size(44.dp).then(if(s.roundedHomeButtons)Modifier.buttonGlass(p,CircleShape)else Modifier).semantics { contentDescription = trNow("Naam ya number bolein") }.testTag("search_mic").clickable(interactionSource=remember{MutableInteractionSource()},indication=null) { searchVoice.trigger() }, contentAlignment = Alignment.Center) {
                             LdIcon(LdIcons.Mic, 22.dp, if (searchVoice.ui.listening) p.accent else p.muted)
                         }
                         if (query.isNotEmpty()) Box(Modifier.size(44.dp).clip(CircleShape).semantics { contentDescription = "Clear search" }.testTag("search_clear").clickable { query = "" },
@@ -811,11 +811,13 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
 @Composable
 private fun RecentFilterChip(i:Int,label:String,filter:Int,chipModifier:Modifier=Modifier,overview:Boolean=false,onSelect:(Int)->Unit){
     val p=LocalLd.current
+    val s by LdApp.settings.collectAsState()
                         val on=filter==i
                         val spoken=T(label)
-                        Box(chipModifier.heightIn(min=if(overview)48.dp else 44.dp).clip(RoundedCornerShape(12.dp))
+                        val surface=if(s.roundedHomeButtons)Modifier.buttonGlass(p,CircleShape,if(on)p.accent else Color.Transparent)else Modifier.clip(RoundedCornerShape(12.dp))
                             .background(if(on)p.accent.copy(alpha=if(p.isLight).12f else .19f)else Color.Transparent)
                             .border(1.dp,if(on)p.accent.copy(alpha=.28f)else p.text.copy(alpha=if(p.isLight).17f else .22f),RoundedCornerShape(12.dp))
+                        Box(chipModifier.heightIn(min=if(overview)48.dp else 44.dp).then(surface)
                             .semantics{contentDescription=spoken;selected=on}.clickable{onSelect(i)}.padding(horizontal=if(overview)10.dp else 18.dp,vertical=10.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
                             LdText(label,13f,if(on)FontWeight.SemiBold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=if(overview)2 else 1,modifier=Modifier.testTag("recent_filter_label_$i"))
                         }
