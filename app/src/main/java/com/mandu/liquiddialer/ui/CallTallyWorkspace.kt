@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
   SwitchRow("Find session counters","Default OFF. Temporary name search and All / Nonzero / Zero view.",s.tallyFind,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyFind,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   SwitchRow("Fold counter actions layout","Default OFF. Edit/Remove behind Actions; quantity and +/- stay visible.",s.tallyFold,last=true){scope.launch{try{LdApp.instance.repo.set(K.tallyFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   }
+  Box(Modifier.testTag("tally_shown_sum_switch")){SwitchRow("Shown-counter raw sum","Default OFF. With Find session counters ON, show the raw sum of only visible rows. Compare the same units only. No board, Undo or saved data changes.",s.tallyShownSum,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.tallyShownSum,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}}
   LdText("Finder searches only current counter labels, not saved boards, templates, notes or calls. Query/filter change visibility only. Board raw sum and full count stay unchanged; shown count is separate. Hidden rows remain in Zero all, Undo/Redo, batch, transfer and saved-board/template actions. Clear view shows all again. Finder OFF resets query/filter. Fold layout OFF restores original Edit/Remove buttons; layout changes fold actions without changing board or typed edit. Back/close resets this temporary view.",13f,color=p.muted,maxLines=22)
   PrimaryButton("Open quantity tally",modifier=Modifier.testTag("tally_settings_open")){open=true}
   LdText("Up to 12 named whole-number counters. Add, subtract, set a quantity, rename and remove. Choose a shared step from 1 to 1000000. Each count stays between 0 and 1000000000. Total is only meaningful when all counters use the same unit.",14f,color=p.muted,maxLines=12)
@@ -97,6 +98,12 @@ import kotlinx.coroutines.launch
    Spacer(Modifier.height(8.dp))
    GhostButton("Show all counters",Modifier.testTag("tally_find_clear")){focus.clearFocus();query="";filter="All"}
    LdText("${visible.size} shown / ${rows.size} counters · $filter",13f,FontWeight.Bold,maxLines=4,modifier=Modifier.testTag("tally_find_count"))
+   if(settings.tallyShownSum)GlassCard(Modifier.fillMaxWidth().padding(vertical=8.dp).testTag("tally_shown_sum_panel")){
+    LdText("Shown-counter raw sum",15f,FontWeight.Bold,maxLines=4)
+    LdText(CallTally.total(visible).toString(),26f,FontWeight.Bold,maxLines=Int.MAX_VALUE,modifier=Modifier.testTag("tally_shown_sum"))
+    LdText("Only ${visible.size} shown of ${rows.size} counters. Whole-board raw sum: ${CallTally.total(rows)}.",12.5f,color=p.muted,maxLines=7,modifier=Modifier.testTag("tally_shown_sum_scope"))
+    LdText("Same units only. Mixed units make this sum meaningless. View only, not stock, an order or a payment.",12f,color=p.muted,maxLines=8)
+   }
    LdText("View only. Raw sum, Zero all, Undo/Redo and library/batch/transfer actions use the WHOLE board, including hidden counters.",12f,color=p.muted,maxLines=8)
    if(visible.isEmpty()&&rows.isNotEmpty())LdText("No matching counter. Clear view to show all; quantities are unchanged.",13f,color=p.muted,maxLines=6,modifier=Modifier.testTag("tally_find_empty"))
   }
