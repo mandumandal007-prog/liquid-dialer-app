@@ -31,7 +31,7 @@ class RecentsLayoutTest {
     @get:Rule(order=0) val initial=object:org.junit.rules.TestWatcher(){override fun starting(d:org.junit.runner.Description){
         fixtureLarge=d.methodName.contains("night",ignoreCase=true)||d.methodName=="contactsTypographyAndAddAction"
         fixtureTheme=if(fixtureLarge)"midnight"else"daylight"
-        runBlocking {ctx.ldStore.edit {p->p[K.onboarded]=true;p[K.theme]=fixtureTheme;p[K.fontScale]=if(fixtureLarge)1.3f else 1f;p[K.motion]=false;p[K.showFavourites]=false;p[K.showTodayStats]=true;p[K.groupByDay]=true}}
+        runBlocking {ctx.ldStore.edit {p->p[K.onboarded]=true;p[K.recentsSingleRow]=false;p[K.theme]=fixtureTheme;p[K.fontScale]=if(fixtureLarge)1.3f else 1f;p[K.motion]=false;p[K.showFavourites]=false;p[K.showTodayStats]=true;p[K.groupByDay]=true}}
     }}
     @get:Rule(order=1) val rule = createAndroidComposeRule<MainActivity>()
     private val ctx get() = ApplicationProvider.getApplicationContext<LdApp>()
@@ -45,7 +45,7 @@ class RecentsLayoutTest {
     private fun ready(theme:String, large:Boolean) {
         settle()
         assertEquals(fixtureTheme,theme);assertEquals(fixtureLarge,large)
-        await {LdApp.settings.value.let{it.theme==theme&&it.fontScale==(if(large)1.3f else 1f)&&!it.motion}}
+        await {LdApp.settings.value.let{!it.recentsSingleRow&&it.theme==theme&&it.fontScale==(if(large)1.3f else 1f)&&!it.motion}}
         Shadows.shadowOf(ctx).grantPermissions(Manifest.permission.READ_CALL_LOG)
         rule.runOnUiThread {
             rule.activity.state.showOnboarding=false
