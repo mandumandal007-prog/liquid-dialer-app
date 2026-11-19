@@ -8,6 +8,7 @@ object SettingsFinder{
  val all=listOf(
   Entry("settings-category-counts","Settings category page counts","Destination-page counts on organized Settings categories, default OFF","display","settings",aliases="category size page counts badges organized layout"),
   Entry("rounded-home-buttons","Rounded buttons","Round glass menu and mic buttons, pill-shaped call filters; bar size and position stay the same","display","settings:recents",aliases="rounded buttons pill round glass menu mic search recent filters"),
+  Entry("settings-section-search","Search inside call-tool sections","Search names and descriptions within the current organized Settings tool section, default OFF","display","settingshub:tools",aliases="section search filter notes live calculators find tools"),
   Entry("settings-tool-counts","Call-tool section counts","Number of available choices in each organized Settings tool section, default OFF","display","settingshub:tools",aliases="count tools section choices total size"),
   Entry("alphabetical-settings-tools","Call tools A-Z order","Alphabetical choices within each organized Settings tool section, default OFF","display","settingshub:tools",aliases="alphabetical sort tools a-z order section list"),
   Entry("compact-settings-tools","Compact call-tool rows","Title-only choices within organized Settings tool sections, default OFF","display","settingshub:tools",aliases="compact tools rows descriptions dense organized layout"),
