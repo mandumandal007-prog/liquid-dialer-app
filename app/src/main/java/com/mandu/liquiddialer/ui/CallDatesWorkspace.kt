@@ -1,6 +1,9 @@
 package com.mandu.liquiddialer.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -20,6 +23,7 @@ import kotlinx.coroutines.launch
    SwitchRow("Reuse date inputs","Default OFF. Confirm restoring original mode, dates and signed days from session history.",s.datesRecall,last=true,subMaxLines=5){scope.launch{try{LdApp.instance.repo.set(K.datesRecall,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
    SwitchRow("Fold date history layout","Default OFF. Count and Clear visible, results open on demand.",s.datesHistoryFold,last=true){scope.launch{try{LdApp.instance.repo.set(K.datesHistoryFold,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   }
+  Box(Modifier.testTag("dates_paired_switch")){SwitchRow("Paired date-mode buttons","Default OFF. Show the first two mode buttons side by side and Mon-Fri below. Layout only; switching this option keeps current fields, result and history.",s.datesPaired,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.datesPaired,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}}
   LdText("Reuse inputs previews the original mode and relevant fields. Confirm replaces current form and clears result. No calculation or new history until you tap Calculate. Result text is never used as input. Cancel keeps current form. Reuse OFF dismisses confirmation. Fold history keeps count/Clear visible; OFF restores original expanded results. Layout changes fold entries without clearing form/result/history. Last10 entries only in this open calculator. Back/close/restart clears them. No calendar, reminder, clipboard, file, call or message action.",13f,color=p.muted,maxLines=22)
   PrimaryButton("Open date calculator",modifier=Modifier.testTag("dates_settings_open")){open=true}
   LdText("Add/subtract calendar days, signed days between dates, Monday-Friday date count. YYYY-MM-DD, years1900-2199. Start/end inclusion is stated with each result. Mon-Fri does NOT exclude holidays and is NOT a business-day/deadline guarantee.",14f,color=p.muted,maxLines=12)
@@ -44,7 +48,13 @@ import kotlinx.coroutines.launch
   if(s.weekdayShift)GhostButton("Selected-weekday shift",Modifier.testTag("dates_weekday_open")){weekdayOpen=true}
   LdText("Civil date arithmetic · offline",16f,FontWeight.Bold,maxLines=3)
   LdText("Manually enter YYYY-MM-DD. No automatic today. Dates1900-2199, calendar days not elapsed hours.",12f,color=p.muted,maxLines=5)
-  Column(verticalArrangement=Arrangement.spacedBy(5.dp)){CallDates.Mode.entries.forEach{m->GhostButton((if(mode==m)"✓ "else"")+m.label,Modifier.fillMaxWidth().testTag("dates_mode_${m.name.lowercase()}")){focus.clearFocus();mode=m;changed()}}}
+  val selectMode:(CallDates.Mode)->Unit={m->focus.clearFocus();mode=m;changed()}
+  if(!s.datesPaired)Column(Modifier.testTag("dates_modes_original"),verticalArrangement=Arrangement.spacedBy(5.dp)){CallDates.Mode.entries.forEach{m->GhostButton((if(mode==m)"✓ "else"")+m.label,Modifier.fillMaxWidth().testTag("dates_mode_${m.name.lowercase()}")){selectMode(m)}}}
+  else Column(Modifier.testTag("dates_modes_paired"),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   CallDates.Mode.entries.chunked(2).forEach{pair->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    pair.forEach{m->Box(Modifier.weight(1f).buttonGlass(p,RoundedCornerShape(16.dp)).testTag("dates_mode_${m.name.lowercase()}").clickable{selectMode(m)}.padding(horizontal=8.dp,vertical=13.dp),contentAlignment=Alignment.Center){LdText((if(mode==m)"✓ "else"")+m.label,14f,FontWeight.SemiBold,p.accent,maxLines=Int.MAX_VALUE)}}
+   }}
+  }
   if(restored)LdText("Original date inputs restored. Check fields and rules, then tap Calculate. No new result yet.",13f,color=p.accent,maxLines=7,modifier=Modifier.testTag("dates_restored"))
   LdText(if(mode==CallDates.Mode.SHIFT)"Start date (day 0)"else"Start date",13f,FontWeight.Bold)
   LdField(first,{first=it.take(10);changed()},"YYYY-MM-DD",modifier=Modifier.testTag("dates_first"))
