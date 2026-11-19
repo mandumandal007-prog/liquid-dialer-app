@@ -86,6 +86,7 @@ data class LdSettings(
     val callPaceMinutes: Int = 5,
     val callPaceRepeat: Boolean = false,
     val converterRecall: Boolean = false,
+    val converterLargeResult: Boolean = false,
     val converterHistoryFold: Boolean = false,
     val converterTable: Boolean = false,
     val converterFold: Boolean = false,
@@ -317,6 +318,7 @@ object K {
     val callPaceMinutes = intPreferencesKey("call_pace_minutes")
     val callPaceRepeat = booleanPreferencesKey("call_pace_repeat")
     val converterRecall = booleanPreferencesKey("converter_recall")
+    val converterLargeResult = booleanPreferencesKey("converter_large_result")
     val converterHistoryFold = booleanPreferencesKey("converter_history_fold")
     val converterTable = booleanPreferencesKey("converter_table")
     val converterFold = booleanPreferencesKey("converter_fold")
@@ -538,6 +540,7 @@ fun Preferences.toSettings(): LdSettings {
         callPaceMinutes = (this[K.callPaceMinutes] ?: 5).takeIf{it in listOf(1,3,5,10,15)} ?: 5,
         callPaceRepeat = this[K.callPaceRepeat] ?: false,
         converterRecall = this[K.converterRecall] ?: false,
+        converterLargeResult = this[K.converterLargeResult] ?: false,
         converterHistoryFold = this[K.converterHistoryFold] ?: false,
         converterTable = this[K.converterTable] ?: false,
         converterFold = this[K.converterFold] ?: false,
