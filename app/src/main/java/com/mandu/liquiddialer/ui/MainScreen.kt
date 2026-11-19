@@ -20,6 +20,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -661,7 +666,18 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
                         if(FeatureControls.enabled(s,"recentsclear")) HomeHeaderTool(LdIcons.Trash,"Clear call history","recent_clear",p.muted,onClear)
                     }
                 }
-                if(s.recentsOverview){
+                if(s.recentsSingleRow){
+                    BoxWithConstraints(Modifier.fillMaxWidth()){
+                        val minimum=(maxWidth-12.dp)/4
+                        val filterScroll=remember{object:NestedScrollConnection{
+                            override fun onPostScroll(consumed:Offset,available:Offset,source:NestedScrollSource)=Offset(available.x,0f)
+                            override suspend fun onPostFling(consumed:Velocity,available:Velocity)=Velocity(available.x,0f)
+                        }}
+                        Row(Modifier.fillMaxWidth().testTag("recent_filter_single_row").nestedScroll(filterScroll).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+                            chipLabels.forEachIndexed{i,label->RecentFilterChip(i,label,filter,Modifier.widthIn(min=minimum).width(IntrinsicSize.Max),overview=s.recentsOverview,singleRow=true){filter=it}}
+                        }
+                    }
+                }else if(s.recentsOverview){
                     Column(Modifier.fillMaxWidth().testTag("recent_filter_grid"),verticalArrangement=Arrangement.spacedBy(8.dp)){
                         chipLabels.chunked(2).forEachIndexed{row,pair->
                             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
@@ -809,7 +825,7 @@ private fun RecentsScreen(st: AppState, act: MainActivity, query: String, topPad
 }
 
 @Composable
-private fun RecentFilterChip(i:Int,label:String,filter:Int,chipModifier:Modifier=Modifier,overview:Boolean=false,onSelect:(Int)->Unit){
+private fun RecentFilterChip(i:Int,label:String,filter:Int,chipModifier:Modifier=Modifier,overview:Boolean=false,singleRow:Boolean=false,onSelect:(Int)->Unit){
     val p=LocalLd.current
     val s by LdApp.settings.collectAsState()
                         val on=filter==i
@@ -818,8 +834,8 @@ private fun RecentFilterChip(i:Int,label:String,filter:Int,chipModifier:Modifier
                             .background(if(on)p.accent.copy(alpha=if(p.isLight).12f else .19f)else Color.Transparent)
                             .border(1.dp,if(on)p.accent.copy(alpha=.28f)else p.text.copy(alpha=if(p.isLight).17f else .22f),RoundedCornerShape(12.dp))
                         Box(chipModifier.heightIn(min=if(overview)48.dp else 44.dp).then(surface)
-                            .semantics{contentDescription=spoken;selected=on}.clickable{onSelect(i)}.padding(horizontal=if(overview)10.dp else 18.dp,vertical=10.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
-                            LdText(label,13f,if(on)FontWeight.SemiBold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=if(overview)2 else 1,modifier=Modifier.testTag("recent_filter_label_$i"))
+                            .semantics{contentDescription=spoken;selected=on}.clickable{onSelect(i)}.padding(horizontal=if(singleRow)4.dp else if(overview)10.dp else 18.dp,vertical=10.dp).testTag("recent_filter_$i"),contentAlignment=Alignment.Center){
+                            LdText(label,13f,if(on)FontWeight.SemiBold else FontWeight.Medium,if(on)p.text else p.muted,maxLines=if(singleRow)1 else if(overview)2 else 1,textAlign=if(singleRow)TextAlign.Center else null,modifier=(if(singleRow)Modifier.fillMaxWidth()else Modifier).testTag("recent_filter_label_$i"))
                         }
 }
 

@@ -412,7 +412,8 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Recents contact number line", "Default OFF. Show a wrapping phone number below saved contact names. Unnamed and private rows do not get a duplicate line.", s.recentsContactNumber, subMaxLines=6) { save(K.recentsContactNumber, it) }
             SwitchRow("Recents labeled call actions", "Default OFF. Show Video and Call labels below the existing buttons. Actions and selected number stay the same.", s.recentsActionLabels, subMaxLines=6) { save(K.recentsActionLabels, it) }
             Box(Modifier.testTag("rounded_home_buttons_switch")){SwitchRow("Rounded buttons", "Default OFF. Round glass menu and mic buttons, pill-shaped call filters. Search bar size, position and Recents layout stay the same.", s.roundedHomeButtons, subMaxLines=7) { save(K.roundedHomeButtons, it) }}
-            SwitchRow("Recents overview layout", "Default OFF. Glass control panel, two-column call filters and day separators. Call actions stay the same.", s.recentsOverview, subMaxLines=6) { save(K.recentsOverview, it) }
+            Box(Modifier.testTag("recents_single_row_switch")){SwitchRow("One-row call filters", "Default ON. Sab, Missed, Outgoing and Incoming in one button row. At large text size, swipe sideways for full labels. OFF restores the previous filter layout. Rounded buttons stay independent.", s.recentsSingleRow, subMaxLines=8) { save(K.recentsSingleRow, it) }}
+            SwitchRow("Recents overview layout", "Default OFF. Glass control panel and day separators. One-row call filters controls the filter layout; OFF there restores two columns. Call actions stay the same.", s.recentsOverview, subMaxLines=6) { save(K.recentsOverview, it) }
             SwitchRow("Compact recents", "Choti rows, ek screen pe zyada entries", s.recentsCompact) { save(K.recentsCompact, it) }
             }
             if(group=="display"||group=="navigation"){

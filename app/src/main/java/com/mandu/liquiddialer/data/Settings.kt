@@ -202,6 +202,7 @@ data class LdSettings(
     val recentsContactNumber: Boolean = false,
     val recentsActionLabels: Boolean = false,
     val recentsOverview: Boolean = false,
+    val recentsSingleRow: Boolean = true,
     val roundedHomeButtons: Boolean = false,
     val recentsCompact: Boolean = false,     // recents ki choti rows
     val searchBottom: Boolean = false,       // search/menu/profile bar neeche (angutha pahunch) - opt-in
@@ -426,6 +427,7 @@ object K {
     val recentsActionLabels = booleanPreferencesKey("recents_action_labels")
     val roundedHomeButtons = booleanPreferencesKey("rounded_home_buttons")
     val recentsOverview = booleanPreferencesKey("recents_overview")
+    val recentsSingleRow = booleanPreferencesKey("recents_single_row")
     val recentsCompact = booleanPreferencesKey("recentsCompact")
     val rowSwipe = booleanPreferencesKey("rowSwipe")
     val searchBottom = booleanPreferencesKey("searchBottom")
@@ -644,6 +646,7 @@ fun Preferences.toSettings(): LdSettings {
         recentsContactNumber = this[K.recentsContactNumber] ?: false,
         recentsActionLabels = this[K.recentsActionLabels] ?: false,
         recentsOverview = this[K.recentsOverview] ?: false,
+        recentsSingleRow = this[K.recentsSingleRow] ?: true,
         roundedHomeButtons = this[K.roundedHomeButtons] ?: false,
         recentsCompact = this[K.recentsCompact] ?: false,
         rowSwipe = this[K.rowSwipe] ?: false,

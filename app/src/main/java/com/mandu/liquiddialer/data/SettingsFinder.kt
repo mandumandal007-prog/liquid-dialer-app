@@ -7,6 +7,7 @@ object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
   Entry("settings-category-counts","Settings category page counts","Destination-page counts on organized Settings categories, default OFF","display","settings",aliases="category size page counts badges organized layout"),
+  Entry("recents-single-row","One-row call filters","Default ON. Four call filters in one row with full labels; swipe at large text size; OFF restores previous layout","display","settings:recents",aliases="recent calls single row one line Sab Missed Outgoing Incoming filters"),
   Entry("rounded-home-buttons","Rounded buttons","Round glass menu and mic buttons, pill-shaped call filters; bar size and position stay the same","display","settings:recents",aliases="rounded buttons pill round glass menu mic search recent filters"),
   Entry("recent-settings-tool","Recent call-tool shortcut","Return to the last tool controls opened from organized Call tools while this option is ON, default OFF","display","settingshub:tools",aliases="last recent tool return shortcut clear"),
   Entry("settings-section-search","Search inside call-tool sections","Search names and descriptions within the current organized Settings tool section, default OFF","display","settingshub:tools",aliases="section search filter notes live calculators find tools"),
@@ -100,7 +101,7 @@ object SettingsFinder{
   Entry("recents-stacked-actions","Recents stacked actions layout","Full-width identity with call buttons in a separate lower row","display","settings:display",aliases="home recent calls large text narrow phone video call action row layout"),
   Entry("recents-contact-number","Recents contact number line","Show a separate phone number under saved contact names","display","settings:display",aliases="home recent calls saved contact phone number subtitle same name layout"),
   Entry("recents-action-labels","Recents labeled call actions","Visible Video and Call labels below the existing buttons","display","settings:display",aliases="home recent calls video call action label icons layout"),
-  Entry("recents-overview","Recents overview layout","Glass panel, two-column filters and day separators","display","settings:display",aliases="home recent calls overview layout grid filter day headers"),
+  Entry("recents-overview","Recents overview layout","Glass panel and day separators; filter layout has its own One-row call filters switch","display","settings:display",aliases="home recent calls overview layout grid filter day headers"),
   Entry("display-12","Compact recents","Choti rows, ek screen pe zyada entries","display","settings:display","Compact recents"),
   Entry("display-13","Search bar neeche","Menu, search aur profile ki patti upar ki jagah neeche (bottom bar ke upar) aa jaati hai - ek haath se pahunch ke liye. Sirf Recents/Contacts screen; baaki layout wahi","display","settings:display","Search bar neeche"),
   Entry("display-14","Row swipe actions","Recents row ko dayein khinchne se Call, bayein khinchne se SMS (lamba khinchna padta hai). Call par 'Call se pehle poochho' setting lagu rehti hai","display","settings:display","Row swipe actions"),

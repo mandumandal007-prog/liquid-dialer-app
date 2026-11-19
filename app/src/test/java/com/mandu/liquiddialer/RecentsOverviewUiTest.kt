@@ -20,7 +20,7 @@ import org.robolectric.annotation.*
 @OptIn(ExperimentalTestApi::class)
 abstract class RecentsOverviewFixture {
  protected val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
- @get:Rule(order=0)val initial=object:org.junit.rules.ExternalResource(){override fun before(){runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.recentsOverview]=false;it[K.motion]=false;it[K.theme]="daylight";it[K.fontScale]=1f};ctx.repo.flow.first{it.onboarded&&!it.recentsOverview&&!it.motion&&it.theme=="daylight"&&it.fontScale==1f}}}}
+ @get:Rule(order=0)val initial=object:org.junit.rules.ExternalResource(){override fun before(){runBlocking{ctx.ldStore.edit{it[K.onboarded]=true;it[K.recentsOverview]=false;it[K.recentsSingleRow]=false;it[K.motion]=false;it[K.theme]="daylight";it[K.fontScale]=1f};ctx.repo.flow.first{it.onboarded&&!it.recentsOverview&&!it.recentsSingleRow&&!it.motion&&it.theme=="daylight"&&it.fontScale==1f}}}}
  @get:Rule(order=1)val rule=createAndroidComposeRule<MainActivity>()
  protected lateinit var state:AppState
  private var host:ComposeView?=null

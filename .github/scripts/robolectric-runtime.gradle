@@ -1,0 +1,7 @@
+// Official Maven Central endpoint for Robolectric runtime artifacts.
+// Keep ordinary checksum validation and all test/partition settings unchanged.
+allprojects {
+ tasks.withType(Test).configureEach {
+  systemProperty "robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2"
+ }
+}
