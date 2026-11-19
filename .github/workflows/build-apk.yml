@@ -26,6 +26,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Cache downloaded dependency artifacts/metadata only, never compiled outputs or tests.
+      - name: Restore Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-gradle-8.9-dependencies-v1-${{ hashFiles('settings.gradle.kts', 'build.gradle.kts', 'app/build.gradle.kts', 'gradle.properties', 'gradle/libs.versions.toml', 'gradle/verification-metadata.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-8.9-dependencies-v1-
+
       - name: Android SDK (preinstalled on runner)
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
@@ -87,6 +96,15 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+
+      # Cache downloaded dependency artifacts/metadata only, never compiled outputs or tests.
+      - name: Restore Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-gradle-8.9-dependencies-v1-${{ hashFiles('settings.gradle.kts', 'build.gradle.kts', 'app/build.gradle.kts', 'gradle.properties', 'gradle/libs.versions.toml', 'gradle/verification-metadata.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-8.9-dependencies-v1-
 
       - name: Android SDK (preinstalled on runner)
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
