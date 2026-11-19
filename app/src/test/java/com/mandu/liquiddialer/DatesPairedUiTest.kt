@@ -1,0 +1,30 @@
+package com.mandu.liquiddialer
+import androidx.compose.ui.test.*
+import com.mandu.liquiddialer.data.*
+import com.mandu.liquiddialer.ui.*
+import kotlinx.coroutines.runBlocking
+import org.junit.*
+import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.*
+abstract class DatesPairedFixture:DatesRecallFixture(){
+ @Before fun resetPaired(){paired(false)}
+ protected fun paired(on:Boolean=true){runBlocking{ctx.repo.set(K.datesPaired,on)};await{LdApp.settings.value.datesPaired==on}}
+ @After fun cleanPaired(){paired(false)}
+ protected fun sameRow(){val a=rule.onNodeWithTag("dates_mode_shift",true).getUnclippedBoundsInRoot();val b=rule.onNodeWithTag("dates_mode_gap",true).getUnclippedBoundsInRoot();assertEquals(a.top.value,b.top.value,1f);assertTrue(a.right<=b.left);val c=rule.onNodeWithTag("dates_mode_weekdays",true).getUnclippedBoundsInRoot();assertTrue(c.top>=a.bottom);assertTrue(c.right-c.left>a.right-a.left)}
+}
+@RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
+class DatesPairedUiTest:DatesPairedFixture(){
+ @Test fun defaultOffOriginalThreeRows(){assertFalse(LdSettings().datesPaired);dates();rule.onNodeWithTag("dates_modes_original",true).assertExists();rule.onNodeWithTag("dates_modes_paired",true).assertDoesNotExist();val a=rule.onNodeWithTag("dates_mode_shift",true).getUnclippedBoundsInRoot();val b=rule.onNodeWithTag("dates_mode_gap",true).getUnclippedBoundsInRoot();assertTrue(a.bottom<=b.top)}
+ @Test fun pairedModesHaveSameCalculationAndRules(){dates();paired();await{rule.onAllNodesWithTag("dates_modes_paired",true).fetchSemanticsNodes().size==1};sameRow();calc();val expected=CallDates.shift("2026-11-16","7");rule.onNodeWithTag("dates_value",true).assertTextEquals(expected.title);hit("dates_mode_gap");input("dates_last","2026-11-15");hit("dates_calculate");rule.onNodeWithTag("dates_value",true).assertTextEquals("-1 calendar days");hit("dates_mode_weekdays");input("dates_last","2026-11-23");hit("dates_calculate");rule.onNodeWithTag("dates_value",true).assertTextEquals("5 Monday-Friday dates");rule.onNodeWithTag("dates_rules",true).assertTextContains("Holidays NOT excluded",substring=true);rule.onNodeWithTag("dates_history_count",true).assertTextEquals("Session history: 3 /10")}
+ @Test fun offOnKeepTypedFieldsResultAndHistory(){sample();paired();await{rule.onAllNodesWithTag("dates_modes_paired",true).fetchSemanticsNodes().size==1};field("dates_first").assertTextEquals("2026-12-01");rule.onNodeWithTag("dates_value",true).assertTextEquals(CallDates.shift("2026-12-01","7").title);paired(false);await{rule.onAllNodesWithTag("dates_modes_original",true).fetchSemanticsNodes().size==1};field("dates_first").assertTextEquals("2026-12-01");rule.onNodeWithTag("dates_history_count",true).assertTextEquals("Session history: 2 /10");input("dates_days","-9");paired();await{rule.onAllNodesWithTag("dates_modes_paired",true).fetchSemanticsNodes().size==1};field("dates_days").assertTextEquals("-9");rule.onNodeWithTag("dates_result",true).assertDoesNotExist();hit("dates_calculate");rule.onNodeWithTag("dates_value",true).assertTextEquals(CallDates.shift("2026-12-01","-9").title)}
+ @Test fun recallConfirmationSurvivesLayoutSwitch(){sample();paired();reuse(1);paired(false);rule.onNodeWithTag("dates_recall_confirm",true).assertExists();click("dates_recall_confirm");field("dates_first").assertTextEquals("2026-11-16");rule.onNodeWithTag("dates_restored",true).assertExists();paired();await{rule.onAllNodesWithTag("dates_modes_paired",true).fetchSemanticsNodes().size==1};rule.onNodeWithTag("dates_restored",true).assertExists();rule.onNodeWithTag("dates_result",true).assertDoesNotExist();rule.onNodeWithTag("dates_history_count",true).assertTextEquals("Session history: 2 /10")}
+ @Test fun invalidInputAndClearStayExplicit(){dates();paired();input("dates_first","2026-02-30");hit("dates_calculate");rule.onNodeWithTag("dates_error",true).assertExists();paired(false);await{rule.onAllNodesWithTag("dates_modes_original",true).fetchSemanticsNodes().size==1};rule.onNodeWithTag("dates_error",true).assertExists();rule.onNodeWithTag("dates_history_count",true).assertTextEquals("Session history: 0 /10");hit("dates_clear");field("dates_first").assertTextEquals("");field("dates_days").assertTextEquals("7");assertNull(org.robolectric.Shadows.shadowOf(rule.activity).nextStartedActivity)}
+ @Test fun settingsOnlyOnePreferenceFinderAndPixels(){seed();mount{CallDatesPage{}};val before=LdApp.settings.value;hit("dates_paired_switch");await{LdApp.settings.value.datesPaired};assertEquals(before.copy(datesPaired=true),LdApp.settings.value);hit("dates_paired_switch");await{!LdApp.settings.value.datesPaired};assertEquals(before,LdApp.settings.value);assertTrue(SettingsFinder.search("Paired date-mode buttons").any{it.id=="dates-paired"&&it.route=="calldates"});move("dates_paired_switch");saveShot(rule,"PAIR518-settings-off")}
+ @Test fun dayOnAndOffPixels(){dates();paired();move("dates_modes_paired");sameRow();saveShot(rule,"PAIR518-day");paired(false);await{rule.onAllNodesWithTag("dates_modes_original",true).fetchSemanticsNodes().size==1};move("dates_modes_original");saveShot(rule,"PAIR518-off")}
+}
+@RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w320dp-h640dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
+class DatesPairedNightUiTest:DatesPairedFixture(){
+ @Test fun nightLargeLiveModesAndEndCall(){show(night=true);choices();paired();runBlocking{ctx.repo.set(K.callDates,true)};await{LdApp.settings.value.callDates};open();hit("call_dates_open");move("dates_modes_paired");sameRow();saveShot(rule,"PAIR518-night");hit("dates_mode_weekdays");input("dates_first","2026-11-16");input("dates_last","2026-11-23");hit("dates_calculate");move("dates_result");saveShot(rule,"PAIR518-night-result");rule.onNodeWithTag("dates_value",true).assertTextEquals("5 Monday-Friday dates");rule.onNodeWithTag("end_call",true).assertIsDisplayed();assertTrue(Repo.notesFor(ctx,"+919876543210").isEmpty())}
+}
