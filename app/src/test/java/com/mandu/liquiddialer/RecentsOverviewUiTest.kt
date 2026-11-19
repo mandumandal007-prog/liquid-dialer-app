@@ -27,7 +27,7 @@ abstract class RecentsOverviewFixture {
  protected fun settle(){rule.mainClock.autoAdvance=false;rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(400);rule.waitForIdle()}
  protected fun await(f:()->Boolean){rule.waitUntil(15000){settle();f()}}
  protected fun option(on:Boolean){runBlocking{ctx.repo.set(K.recentsOverview,on)};await{LdApp.settings.value.recentsOverview==on&&rule.onAllNodesWithTag("recent_filter_grid",true).fetchSemanticsNodes().isNotEmpty()==on}}
- protected fun mount(settings:Boolean=false){rule.runOnUiThread{host?.disposeComposition();host=ComposeView(rule.activity).also{it.setContent{LdThemeHost{if(settings)Page("settings:display",state,rule.activity,{},{},null,"",{})else MainScreen(state,rule.activity)}};rule.activity.setContentView(it)}};settle()}
+ protected fun mount(settings:Boolean=false){rule.runOnUiThread{val activity=rule.activity;host?.disposeComposition();host=ComposeView(activity).also{it.setContent{LdThemeHost{if(settings)Page("settings:display",state,activity,{},{},null,"",{})else MainScreen(state,activity)}};activity.setContentView(it)}};settle()}
  protected fun start(on:Boolean=true,night:Boolean=false){
   settle();Shadows.shadowOf(ctx).grantPermissions(Manifest.permission.READ_CALL_LOG)
   runBlocking{ctx.ldStore.edit{it[K.recentsOverview]=on;it[K.theme]=if(night)"midnight"else"daylight";it[K.fontScale]=if(night)1.4f else 1f;it[K.showFavourites]=false;it[K.showTodayStats]=false;it[K.groupByDay]=true;it[K.recentsCompact]=false;it[K.recentsHideBlocked]=false;it[K.hiddenFeatures]=emptySet();it[K.searchBottom]=false;it[K.lang]="hi-en";it[K.recentsStyle]="glass"}}
