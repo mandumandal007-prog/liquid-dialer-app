@@ -1,0 +1,156 @@
+name: One-release recovery 531
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: one-release-recovery-531
+  cancel-in-progress: false
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: 46350034127ae1a95ab243dd1c0b9d6fbb6acd77
+      VERSION_CODE: '531'
+    steps:
+      - name: Checkout recovery policy
+        uses: actions/checkout@v4
+        with:
+          path: policy
+          persist-credentials: false
+      - name: Enforce one dispatch and unused version
+        env:
+          THIS_RUN: ${{ github.run_id }}
+          THIS_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request,urllib.error
+          base='https://api.github.com/repos/mandumandal007-prog/liquid-dialer-app'
+          def get(path):
+              q=urllib.request.Request(base+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              return json.load(urllib.request.urlopen(q,timeout=60))
+          assert os.environ['THIS_ATTEMPT']=='1','No second attempt allowed'
+          runs=get('/actions/workflows/recovery-531.yml/runs?per_page=100')
+          assert runs['total_count']==1 and str(runs['workflow_runs'][0]['id'])==os.environ['THIS_RUN'],'One dispatch only'
+          for path in ['/releases/tags/v1.0.531','/git/ref/tags/v1.0.531']:
+              try:get(path)
+              except urllib.error.HTTPError as e:assert e.code==404
+              else:raise SystemExit('Version 531 already exists')
+          print('One dispatch, first attempt, unused release/tag 531')
+          PY
+      - name: Checkout frozen application and tests
+        uses: actions/checkout@v4
+        with:
+          ref: 46350034127ae1a95ab243dd1c0b9d6fbb6acd77
+          path: source
+          persist-credentials: false
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Restore Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-gradle-8.9-dependencies-v1-${{ hashFiles('source/settings.gradle.kts', 'source/build.gradle.kts', 'source/app/build.gradle.kts', 'source/gradle.properties', 'source/gradle/libs.versions.toml', 'source/gradle/verification-metadata.xml') }}
+          restore-keys: ${{ runner.os }}-gradle-8.9-dependencies-v1-
+      - name: Restore Robolectric runtime dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric/android-all-instrumented
+          key: ${{ runner.os }}-robolectric-runtime-v1-${{ hashFiles('source/app/build.gradle.kts') }}
+          restore-keys: ${{ runner.os }}-robolectric-runtime-v1-
+      - name: Fetch verified Gradle distribution
+        run: |
+          archive="$RUNNER_TEMP/gradle-8.9-bin.zip"
+          curl --fail --location --retry 2 --retry-delay 3 --retry-all-errors --connect-timeout 20 --max-time 180 https://downloads.gradle.org/distributions/gradle-8.9-bin.zip --output "$archive"
+          echo "d725d707bfabd4dfdc958c624003b3c80accc03f7037b5122c4b1d0ef15cecab  $archive" | sha256sum --check --strict
+          unzip -q "$archive" -d "$RUNNER_TEMP/gradle"
+          echo "$RUNNER_TEMP/gradle/gradle-8.9/bin" >> "$GITHUB_PATH"
+      - name: Compile frozen source and full test manifest
+        working-directory: source
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          gradle compileDebugUnitTestKotlin --no-daemon
+      - name: Audit original full run without replacing its failure
+        working-directory: source
+        run: |
+          python3 ../policy/.github/scripts/recovery-531.py full
+          git -C ../policy rev-parse HEAD > recovery-evidence/policy-sha.txt
+      - name: One isolated five-test class confirmation, no retries
+        working-directory: source
+        run: |
+          set -o pipefail
+          gradle testDebugUnitTest --no-daemon -I .github/scripts/robolectric-runtime.gradle --tests com.mandu.liquiddialer.CallReferencesPrivacyUiTest | tee isolated.log
+          python3 ../policy/.github/scripts/recovery-531.py isolated
+      - name: Require original signing key
+        working-directory: source
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > app/release.keystore
+      - name: Build frozen release APK
+        working-directory: source
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: liquiddialer
+        run: gradle assembleRelease --no-daemon --stacktrace
+      - name: Verify actual APK identity, signature and hash
+        working-directory: source
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/liquid-dialer.apk
+          bt=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          "$bt/aapt" dump badging dist/liquid-dialer.apk > recovery-evidence/apk-badging.txt
+          "$bt/apksigner" verify --verbose --print-certs dist/liquid-dialer.apk > recovery-evidence/apk-signature.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,re,json
+          p=Path('dist/liquid-dialer.apk');b=Path('recovery-evidence/apk-badging.txt').read_text();s=Path('recovery-evidence/apk-signature.txt').read_text()
+          assert re.search(r"package: name='com.mandu.liquiddialer' versionCode='531' versionName='1.0.531'",b),'Wrong APK identity'
+          assert 'Signer #1 certificate SHA-256 digest: 5e7505a7562c57ae244e5c1e3821a2e017854180dc8c892cfb96916922b7069c' in s,'Wrong signing certificate'
+          assert 'Verified using v2 scheme (APK Signature Scheme v2): true' in s,'Missing v2 signature'
+          audit={'source_sha':'46350034127ae1a95ab243dd1c0b9d6fbb6acd77','version_code':531,'version_name':'1.0.531','package':'com.mandu.liquiddialer','bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'original_full_run':44762529869,'original_full_run_passed':False,'original_tests':3143,'original_passed':3142,'isolated_class_passed':5,'exception':'one-release explicit recovery approval'}
+          Path('recovery-evidence/apk-audit.json').write_text(json.dumps(audit,indent=2));print(json.dumps(audit,indent=2))
+          PY
+          rm app/release.keystore
+      - name: Upload recovery audit including original failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovery-531-evidence
+          path: |
+            source/recovery-evidence/
+            source/isolated.log
+            source/app/build/test-results/testDebugUnitTest/*.xml
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload audited APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquid-dialer-531-audited
+          path: source/dist/liquid-dialer.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish explicitly qualified release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.531
+          target_commitish: 46350034127ae1a95ab243dd1c0b9d6fbb6acd77
+          name: Liquid Dialer v1.0.531
+          body: |
+            Full conversion unit buttons option, off by default in Settings.
+
+            Explicit one-release recovery gate: the original full run 44762529869 covered all 3143 tests with 3142 passes and one failing test outside the changed converter/HomePolish surfaces. The entire unmodified five-test CallReferencesPrivacyUiTest class then passed once separately on the identical frozen application/test commit. The original full run is still failed, not represented as all green. Not all intermittent test-setup causes are proven.
+
+            Source: 46350034127ae1a95ab243dd1c0b9d6fbb6acd77. Actual APK package/version/signing certificate/SHA256 were verified; audit is attached. Normal strict full-suite acceptance remains unchanged for later releases. Install over the existing app, do not uninstall.
+          files: |
+            source/dist/liquid-dialer.apk
+            source/recovery-evidence/apk-audit.json
+          fail_on_unmatched_files: true
+          make_latest: true
