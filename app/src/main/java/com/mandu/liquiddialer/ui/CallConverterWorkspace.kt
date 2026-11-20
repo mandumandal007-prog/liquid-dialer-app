@@ -1,6 +1,7 @@
 package com.mandu.liquiddialer.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.*
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
   LdText("Baat ke beech unit ka hisab.",23f,FontWeight.Bold,maxLines=4)
   SwitchRow("Show unit converter in call Notes","Default OFF. Offline typed values only; call audio nahi padhta.",s.callConverter,last=true){scope.launch{try{LdApp.instance.repo.set(K.callConverter,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}
   Box(Modifier.testTag("converter_large_result_switch")){SwitchRow("Larger conversion result","Default OFF. Larger text and spacing for the current result only: converted value, source and rounding note. Swipe the one-line number sideways; target unit stays below. Table/history keep their sizes. No new conversion or history entry.",s.converterLargeResult,last=true,subMaxLines=8){scope.launch{try{LdApp.instance.repo.set(K.converterLargeResult,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}}
+  Box(Modifier.testTag("converter_full_units_switch")){SwitchRow("Full conversion unit buttons","Default OFF. Wrap full unit names and symbols in From/To choices. OFF keeps symbol-only buttons. Selection and calculations stay the same.",s.converterFullUnits,last=true,subMaxLines=7){scope.launch{try{LdApp.instance.repo.set(K.converterFullUnits,it);error=""}catch(_:Exception){error="Setting save nahi hui"}}}}
   PrimaryButton("Open converter",modifier=Modifier.testTag("converter_settings_open")){open=true}
   LdText("Length, mass, volume, area aur temperature. Feet international definition ke hain, survey foot nahi. Cup/gallon, local bigha aur mass-to-volume conversion nahi; unke meanings alag ho sakte hain.",14f,color=p.muted,maxLines=9)
   LdText("Numbers manually bharo. Decimal arithmetic; result 18 decimal places tak half-up round. No pricing, sensor reading, payment, cloud, clipboard ya saved conversion file. Last 10 conversions sirf is open screen ki memory mein; Back/close/app restart par clear.",13f,color=p.muted,maxLines=12)
@@ -50,10 +52,10 @@ import kotlinx.coroutines.launch
   LdField(input,{input=it;changed()},"Value (dot decimal)",modifier=Modifier.testTag("converter_input"))
   LdText("From: ${CallConverter.unit(from).label}",14f,FontWeight.Bold,maxLines=3,modifier=Modifier.testTag("converter_from_label"))
   if(settings.converterFold)GhostButton(if(fromOpen)"Hide From units"else"Choose From unit",Modifier.testTag("converter_from_toggle")){fromOpen=!fromOpen}
-  if(!settings.converterFold||fromOpen)CallConverter.of(kind).chunked(2).forEach{group->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){group.forEach{u->GhostButton((if(from==u.id)"✓ "else"")+u.label.substringAfter("(").substringBefore(")"),Modifier.weight(1f).semantics{contentDescription=u.label}.testTag("converter_from_${u.id}")){focus.clearFocus();from=u.id;changed()}}}}
+  if(!settings.converterFold||fromOpen)CallConverter.of(kind).chunked(2).forEach{group->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){group.forEach{u->ConverterUnitButton((if(from==u.id)"✓ "else"")+(if(settings.converterFullUnits)u.label else u.label.substringAfter("(").substringBefore(")")),settings.converterFullUnits,Modifier.weight(1f).semantics{contentDescription=u.label}.testTag("converter_from_${u.id}")){focus.clearFocus();from=u.id;changed()}}}}
   LdText("To: ${CallConverter.unit(to).label}",14f,FontWeight.Bold,maxLines=3,modifier=Modifier.testTag("converter_to_label"))
   if(settings.converterFold)GhostButton(if(toOpen)"Hide To units"else"Choose To unit",Modifier.testTag("converter_to_toggle")){toOpen=!toOpen}
-  if(!settings.converterFold||toOpen)CallConverter.of(kind).chunked(2).forEach{group->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){group.forEach{u->GhostButton((if(to==u.id)"✓ "else"")+u.label.substringAfter("(").substringBefore(")"),Modifier.weight(1f).semantics{contentDescription=u.label}.testTag("converter_to_${u.id}")){focus.clearFocus();to=u.id;changed()}}}}
+  if(!settings.converterFold||toOpen)CallConverter.of(kind).chunked(2).forEach{group->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){group.forEach{u->ConverterUnitButton((if(to==u.id)"✓ "else"")+(if(settings.converterFullUnits)u.label else u.label.substringAfter("(").substringBefore(")")),settings.converterFullUnits,Modifier.weight(1f).semantics{contentDescription=u.label}.testTag("converter_to_${u.id}")){focus.clearFocus();to=u.id;changed()}}}}
   PrimaryButton("Swap units",modifier=Modifier.testTag("converter_swap")){focus.clearFocus();val old=from;from=to;to=old;changed()}
   LdText("Swap keeps your typed number. It swaps units only, not the value/result.",12f,color=p.muted,maxLines=4)
   PrimaryButton("Convert",enabled=input.isNotEmpty(),modifier=Modifier.testTag("converter_convert")){
@@ -106,4 +108,10 @@ import kotlinx.coroutines.launch
   GhostButton("Keep current input",Modifier.testTag("converter_recall_cancel")){recall=null}
  }}}
  if(inSheet)Column{SheetTitle("Unit converter");PrimaryButton("Notes par wapas",modifier=Modifier.testTag("converter_back")){onBack()};content()}else PageFrame("Unit converter",onBack,content=content)
+}
+
+@Composable private fun ConverterUnitButton(text:String,full:Boolean,modifier:Modifier,onClick:()->Unit){
+ if(!full){GhostButton(text,modifier,onClick=onClick);return}
+ val p=LocalLd.current
+ androidx.compose.foundation.layout.Box(modifier.buttonGlass(p,androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).then(Modifier.clickable(onClick=onClick)).padding(horizontal=10.dp,vertical=13.dp),contentAlignment=androidx.compose.ui.Alignment.Center){LdText(text,14f,FontWeight.SemiBold,p.accent,maxLines=Int.MAX_VALUE)}
 }
