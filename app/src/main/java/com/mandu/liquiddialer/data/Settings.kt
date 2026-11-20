@@ -196,6 +196,7 @@ data class LdSettings(
     val compactSettingsTools: Boolean = false,
     val alphabeticalSettingsTools: Boolean = false,
     val settingsToolCounts: Boolean = false,
+    val finderGroupCounts: Boolean = false,
     val settingsSectionSearch: Boolean = false,
     val recentSettingsTool: Boolean = false,
     val lastSettingsTool: String = "",
@@ -421,6 +422,7 @@ object K {
     val recentSettingsTool = booleanPreferencesKey("recent_settings_tool")
     val lastSettingsTool = stringPreferencesKey("last_settings_tool")
     val settingsToolCounts = booleanPreferencesKey("settings_tool_counts")
+    val finderGroupCounts = booleanPreferencesKey("finder_group_counts")
     val alphabeticalSettingsTools = booleanPreferencesKey("alphabetical_settings_tools")
     val compactSettingsTools = booleanPreferencesKey("compact_settings_tools")
     val settingsCategoryCounts = booleanPreferencesKey("settings_category_counts")
@@ -644,6 +646,7 @@ fun Preferences.toSettings(): LdSettings {
         compactSettingsTools = this[K.compactSettingsTools] ?: false,
         alphabeticalSettingsTools = this[K.alphabeticalSettingsTools] ?: false,
         settingsToolCounts = this[K.settingsToolCounts] ?: false,
+        finderGroupCounts = this[K.finderGroupCounts] ?: false,
         settingsSectionSearch = this[K.settingsSectionSearch] ?: false,
         recentSettingsTool = this[K.recentSettingsTool] ?: false,
         lastSettingsTool = this[K.lastSettingsTool] ?: "",
