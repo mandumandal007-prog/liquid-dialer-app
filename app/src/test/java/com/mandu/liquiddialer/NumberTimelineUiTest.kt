@@ -25,6 +25,13 @@ import org.robolectric.shadows.ShadowContentResolver
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class NumberTimelineUiTest {
  @get:Rule val rule=createAndroidComposeRule<MainActivity>()
+ @get:Rule val diagnosticName=org.junit.rules.TestName()
+ @get:Rule val diagnosticOrder=object:org.junit.rules.TestWatcher(){
+  override fun starting(d:org.junit.runner.Description){println("DIAG529 START ${d.className}.${d.methodName} nanos=${System.nanoTime()}")}
+  override fun finished(d:org.junit.runner.Description){println("DIAG529 FINISH ${d.className}.${d.methodName} nanos=${System.nanoTime()}")}
+ }
+ @Volatile private var diagnosticQueries=0
+ @Volatile private var diagnosticQueryPhase="not-started"
  private val ctx get()=ApplicationProvider.getApplicationContext<LdApp>()
  private val number="+44 2025550123"
  private var data:List<Recent> = emptyList();private var fail=false;private var writes=0;private var generation=0
@@ -41,13 +48,14 @@ class NumberTimelineUiTest {
   ShadowContentResolver.registerProviderInternal(CallLog.AUTHORITY,object:ContentProvider(){
    override fun onCreate()=true
    override fun query(u:Uri,p:Array<out String>?,s:String?,a:Array<out String>?,o:String?):Cursor?{
-    if(fail)throw SecurityException("Denied")
+    diagnosticQueries++;diagnosticQueryPhase="entered"
+    if(fail){diagnosticQueryPhase="denied";throw SecurityException("Denied")}
     var rows=data.sortedWith(compareByDescending<Recent>{it.date}.thenByDescending{it.id})
     if(a!=null&&s?.contains("date>=?")==true){val start=a[0].toLong();val end=a[1].toLong();rows=rows.filter{it.date>=start&&it.date<end};var index=2
      if(s.contains("type=?")){val type=a[index++].toInt();rows=rows.filter{it.type==type}}
      if(s.contains("_id<?")){val date=a[index].toLong();val id=a[index+2].toLong();rows=rows.filter{it.date<date||it.date==date&&it.id<id}}
     }
-    return MatrixCursor(p).apply{rows.take(u.getQueryParameter("limit")?.toInt()?:2000).forEach{r->addRow(p!!.map{col->when(col){"_id"->r.id;"number"->r.number;"name"->r.name;"type"->r.type;"date"->r.date;"duration"->r.duration;"subscription_id"->r.accountId;"photo_uri"->r.photo;"presentation"->1;else->null}}.toTypedArray())}}
+    return MatrixCursor(p).apply{rows.take(u.getQueryParameter("limit")?.toInt()?:2000).forEach{r->addRow(p!!.map{col->when(col){"_id"->r.id;"number"->r.number;"name"->r.name;"type"->r.type;"date"->r.date;"duration"->r.duration;"subscription_id"->r.accountId;"photo_uri"->r.photo;"presentation"->1;else->null}}.toTypedArray())}}.also{diagnosticQueryPhase="returned-cursor"}
    }
    override fun insert(u:Uri,v:ContentValues?):Uri?{writes++;error("No writes")}
    override fun delete(u:Uri,s:String?,a:Array<out String>?):Int{writes++;error("No deletes")}
@@ -60,7 +68,13 @@ class NumberTimelineUiTest {
   val g=++generation;rule.runOnUiThread{rule.activity.mountTestPage{key(g){LdThemeHost{var page by remember{mutableStateOf(!details)}
    if(details&&!page)PageFrame("Number details",{}){NumberSheet(number,null,rule.activity.state,rule.activity,{},{},{},onTimeline={page=true})}
    else if(notes)Sheet({}){NotesSheet(number,"Office",{})}else NumberTimelinePage(number,{})
-  }}}};settle();if(!notes&&!details)await{exists("timeline_count")||exists("timeline_error")||exists("timeline_permission")}
+  }}}};settle();if(!notes&&!details)try{await{exists("timeline_count")||exists("timeline_error")||exists("timeline_permission")}}catch(f:Throwable){
+   println("DIAG529 readiness failure test=${diagnosticName.methodName} nanos=${System.nanoTime()} generation=$generation requestedTheme=$theme requestedFont=$font queries=$diagnosticQueries queryPhase=$diagnosticQueryPhase fail=$fail rows=${data.size} writes=$writes actualTheme=${LdApp.settings.value.theme} actualFont=${LdApp.settings.value.fontScale} converterFullUnits=${LdApp.settings.value.converterFullUnits}")
+   runCatching{rule.runOnUiThread{val a=rule.activity;val v=a.window.decorView;println("DIAG529 activity lifecycle=${a.lifecycle.currentState} finishing=${a.isFinishing} destroyed=${a.isDestroyed} decorAttached=${v.isAttachedToWindow} windowFocus=${v.hasWindowFocus()} shown=${v.isShown}")}}.onFailure{println("DIAG529 lifecycle capture failed: $it")}
+   runCatching{println(rule.onRoot(true).printToString())}.onFailure{println("DIAG529 semantics capture failed: $it")}
+   runCatching{saveShot(rule,"DIAG529-timeline-readiness-failure")}.onFailure{println("DIAG529 pixel capture failed: $it")}
+   throw f
+  }
  }
  @Test fun detailsEntryShowsExactHistoryAndLoadedSummaryNoWrites(){
   show(details=true);click("details_timeline");await{exists("timeline_count")};reveal("timeline_count").assertTextEquals("2 matching calls · 3 phone-log rows checked");reveal("timeline_duration").assertTextEquals("Loaded connected talk: 01:05");rule.onNodeWithTag("timeline_row_1",true).assertDoesNotExist();reveal("timeline_row_3");saveShot(rule,"TIME380-day");assertEquals(0,writes);assertNull(rule.activity.state.confirmNumber)
