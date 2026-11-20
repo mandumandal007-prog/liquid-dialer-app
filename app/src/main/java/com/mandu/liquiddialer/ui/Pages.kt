@@ -86,6 +86,7 @@ fun PageFrame(title: String, onBack: () -> Unit, footer: (@Composable () -> Unit
 @Composable fun SecTitle(t: String) = LdText(t.uppercase(), 12.5f, FontWeight.ExtraBold, LocalLd.current.muted, Modifier.padding(start = 6.dp, end = 6.dp, top = 22.dp, bottom = 10.dp), letter = 1.4f)
 
 val LocalSettingsTarget=staticCompositionLocalOf<String?>{null}
+internal val LocalFullFinderRows=staticCompositionLocalOf{false}
 internal val LocalSettingsCategoryRows=staticCompositionLocalOf{false}
 
 /** .srow inside a .card */
@@ -104,8 +105,8 @@ fun SRow(title: String, sub: String? = null, icon: ImageVector? = null, last: Bo
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (icon != null) Box(Modifier.size(38.dp).then(if(quietRows)Modifier.background(p.accent.copy(alpha=.09f),RoundedCornerShape(12.dp)) else Modifier.raisedGlass(p, RoundedCornerShape(12.dp), 6.dp).premiumRing(p, RoundedCornerShape(12.dp))), contentAlignment = Alignment.Center) { LdIcon(icon, 19.dp, p.accent) }
             Column(Modifier.weight(1f)) {
-                LdText(title, 14f, FontWeight.SemiBold, maxLines = if(LocalSettingsCategoryRows.current)4 else 2)
-                if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = subMaxLines, modifier = Modifier.padding(top = 3.dp))
+                LdText(title, 14f, FontWeight.SemiBold, maxLines = if(LocalFullFinderRows.current)Int.MAX_VALUE else if(LocalSettingsCategoryRows.current)4 else 2)
+                if (sub != null) LdText(sub, 11.5f, color = p.muted, maxLines = if(LocalFullFinderRows.current)Int.MAX_VALUE else subMaxLines, modifier = Modifier.padding(top = 3.dp))
             }
             if (trailing != null) trailing() else if (onClick != null) LdIcon(LdIcons.Chevron, 16.dp, p.muted.copy(alpha = .5f))
         }
