@@ -70,7 +70,26 @@ jobs:
 
       - name: Run complete assigned test partition
         timeout-minutes: 55
-        run: ./gradlew testDebugUnitTest --no-daemon -I .github/scripts/robolectric-runtime.gradle -I .github/scripts/partition-tests.gradle -PtestPartition=${{ matrix.partition }}
+        run: |
+          # Read-only 30-second samples; do not change Gradle/JVM flags or idle policies.
+          mkdir -p app/build/test-partition
+          (
+            while true; do
+              date -u +%FT%TZ
+              cat /proc/loadavg /proc/pressure/cpu /proc/pressure/memory || true
+              head -n 1 /proc/stat || true
+              free -m || true
+              ps -C java -o pid,pcpu,pmem,rss,etime,args || true
+              for pid in $(pgrep -x java || true); do
+                grep -E 'VmRSS|VmSwap|Threads' /proc/$pid/status || true
+                "$JAVA_HOME/bin/jstat" -gcutil "$pid" || true
+              done
+              sleep 30
+            done
+          ) > app/build/test-partition/runner-metrics.log 2>&1 &
+          metrics_pid=$!
+          trap 'status=$?; pkill -P "$metrics_pid" 2>>app/build/test-partition/runner-metrics.log || true; kill "$metrics_pid" 2>>app/build/test-partition/runner-metrics.log || true; wait "$metrics_pid" || true; exit "$status"' EXIT
+          ./gradlew testDebugUnitTest --no-daemon -I .github/scripts/robolectric-runtime.gradle -I .github/scripts/partition-tests.gradle -PtestPartition=${{ matrix.partition }}
 
       - name: Upload partition evidence
         if: always()

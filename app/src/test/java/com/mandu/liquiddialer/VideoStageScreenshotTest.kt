@@ -138,7 +138,11 @@ class VideoStageScreenshotTest {
         settle(2500)
         videoCall()
         settle(2500)
-        rule.onNodeWithTag("video_display", useUnmergedTree = true).assertExists()
+        println("DIAG528 video nanos=${System.nanoTime()} calls=${CallManager.calls.value.map{it.state to it.details?.videoState}} converterFullUnits=${LdApp.settings.value.converterFullUnits}")
+        try { rule.onNodeWithTag("video_display", useUnmergedTree = true).assertExists() } catch(f:Throwable) {
+            println("DIAG528 video failure nanos=${System.nanoTime()}")
+            runCatching { println(rule.onRoot(true).printToString());saveShot(rule,"DIAG528-video-failure") }.onFailure { println("DIAG528 capture failed: $it") };throw f
+        }
         rule.onNodeWithTag("video_preview", useUnmergedTree = true).assertExists()
         // overlay: naam + controls dono video ke upar dikhte hain
         rule.onNodeWithText("Rahul Sharma", substring = true, useUnmergedTree = true).assertExists()
