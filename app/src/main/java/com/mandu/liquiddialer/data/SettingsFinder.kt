@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("recording-fold-actions","Compact Recording file actions","Keep playback visible and reveal file management actions on demand, default OFF","recording","settings:recording","Compact Recording file actions",aliases="audio recording compact fold actions rename copy share delete"),
   Entry("finder-group-filter","Finder group filter","Narrow indexed results to one Settings group, default OFF","display","settingsfinder",aliases="finder category filter group search calls display privacy"),
   Entry("finder-full-labels","Full finder result labels","Wrap complete indexed result titles and descriptions, default OFF","display","settingsfinder",aliases="finder full label description wrap readable text"),
   Entry("finder-group-counts","Finder group match counts","Current-search match count under each Settings finder group heading, default OFF","display","settingsfinder",aliases="finder search category group matching result count layout"),

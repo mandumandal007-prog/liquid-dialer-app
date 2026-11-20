@@ -594,6 +594,7 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
             SwitchRow("Auto record calls", "Har call apne aap record (Android 10+ pe sirf aapki awaaz, speaker pe dono)", s.autoRecord) {
                 save(K.autoRecord, it); if (it && !act.has(android.Manifest.permission.RECORD_AUDIO)) act.askPermission(android.Manifest.permission.RECORD_AUDIO)
             }
+            Box(Modifier.testTag("recording_fold_actions_switch")){SwitchRow("Compact Recording file actions","Default OFF. Keep playback visible; reveal rename, save-copy, share and delete with File actions on each recording.",s.recordingFoldActions,subMaxLines=6){v->save(K.recordingFoldActions,v)}}
             SRow("Recordings", "Suno, share ya delete karo", LdIcons.Record) { onOpen("recordings") }
             SRow("Storage", "Android/data/${ctx.packageName}/files/Music/LiquidDialer", LdIcons.Info, last = true)
         }
