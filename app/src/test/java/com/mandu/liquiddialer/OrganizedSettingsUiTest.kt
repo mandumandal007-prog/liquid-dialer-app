@@ -31,7 +31,7 @@ abstract class OrganizedSettingsFixture{
  protected fun tapTag(tag:String){rule.mainClock.autoAdvance=true;rule.onNodeWithTag(tag,true).performScrollTo().performClick();settle()}
  protected fun text(t:String)=rule.onNodeWithText(t,true)
  protected fun shot(name:String){settle();rule.mainClock.advanceTimeBy(1500);rule.waitForIdle();saveShot(rule,name)}
- @After fun cleanup(){rule.runOnUiThread{host?.disposeComposition();rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content).removeAllViews()};ctx.scope.cancel()}
+ @After fun cleanup(){rule.runOnUiThread{rule.activity.findViewById<android.view.ViewGroup>(android.R.id.content).removeAllViews();host?.disposeComposition()};ctx.scope.cancel()}
 }
 @RunWith(RobolectricTestRunner::class) @Config(sdk=[34],qualifiers="w360dp-h800dp-xhdpi") @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class OrganizedSettingsCatalogUiTest:OrganizedSettingsFixture(){
