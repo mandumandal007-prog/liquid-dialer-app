@@ -295,7 +295,11 @@ class FlowTest {
         ctx.ldStore.edit { it[K.dialerScale] = 1.3f }
         load()
         rule.onNodeWithTag("dialer_fab").performClick(); settle(2500)
-        "9876".forEach { tapKey(it.toString()) }; settle(1500)
+        println("DIAG528 flow nanos=${System.nanoTime()} tab=${rule.activity.state.tab} dial=${rule.activity.state.dial} converterFullUnits=${LdApp.settings.value.converterFullUnits}")
+        try { "9876".forEach { tapKey(it.toString()) }; settle(1500) } catch(f:Throwable) {
+            println("DIAG528 flow failure nanos=${System.nanoTime()}")
+            runCatching { println(rule.onRoot(true).printToString());saveShot(rule,"DIAG528-flow-failure") }.onFailure { println("DIAG528 capture failed: $it") };throw f
+        }
         saveShot(rule, "12-dialer-maxscale")
         val d = rule.activity.resources.displayMetrics.density
         val suggest = rule.onNodeWithTag("dial_suggest", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
