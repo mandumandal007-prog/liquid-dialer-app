@@ -21,7 +21,16 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class HomePolishTest {
-    @get:Rule val rule=createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
+    @get:Rule(order=1) val rule=createAndroidComposeRule<MainActivity>(effectContext=kotlinx.coroutines.test.StandardTestDispatcher())
+    // Deliver pending snapshot notifications before Compose's pre-start idle check.
+    @get:Rule(order=0) val snapshotStartup=org.junit.rules.TestRule { base, _ ->
+        object : org.junit.runners.model.Statement() {
+            override fun evaluate() {
+                androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
+                base.evaluate()
+            }
+        }
+    }
     private val app get()=ApplicationProvider.getApplicationContext<LdApp>()
     private fun settle(){rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(1200);rule.waitForIdle()}
     private fun seed(theme:String,font:Float,bottom:Boolean=false) {
