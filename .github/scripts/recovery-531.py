@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One-release recovery audit. Original full-run failures remain failures."""
-import hashlib, importlib.util, json, os, re, subprocess, sys, urllib.request, zipfile
+import hashlib, importlib.util, json, os, re, subprocess, sys, urllib.request, urllib.error, urllib.parse, zipfile
 from pathlib import Path
 import xml.etree.ElementTree as ET
 SHA='46350034127ae1a95ab243dd1c0b9d6fbb6acd77'
@@ -13,9 +13,21 @@ ARTIFACTS=[(14646189421,'0d18f9429f5717714f770e2e4fd9ff2618f3a8a12e639141f12c460
 JOBS=[136378500671,136378500838,136378500459]
 METHODS={'corruptPreservedAndNoAdd','dayHiddenAndRevealedPixels','deletionRequiresConfirmation','settingsEntryAndCallToggleGate','staleDraftCannotOverwriteNewerCard'}
 OUT=Path('recovery-evidence');OUT.mkdir(exist_ok=True)
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+ def redirect_request(self,req,fp,code,msg,headers,newurl):return None
+def download_redirect(req):
+ try:return urllib.request.build_opener(NoRedirect).open(req,timeout=90).read()
+ except urllib.error.HTTPError as e:
+  if e.code not in (301,302,303,307,308):raise
+  target=urllib.parse.urljoin(req.full_url,e.headers['Location'])
+  u=urllib.parse.urlsplit(target)
+  if u.scheme!='https' or not u.hostname:raise ValueError('Invalid download redirect')
+  # The signed storage URL authenticates itself. Never forward the API token.
+  clean=urllib.request.Request(target,headers={'Accept':'application/octet-stream'})
+  return urllib.request.urlopen(clean,timeout=90).read()
 def api(path):
- req=urllib.request.Request('https://api.github.com/repos/'+REPO+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'})
- return urllib.request.urlopen(req,timeout=90).read()
+ req=urllib.request.Request('https://api.github.com/repos/'+REPO+path,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Cache-Control':'no-cache'})
+ return download_redirect(req)
 def require(ok,msg):
  if not ok:raise SystemExit(msg)
 def events(text):
