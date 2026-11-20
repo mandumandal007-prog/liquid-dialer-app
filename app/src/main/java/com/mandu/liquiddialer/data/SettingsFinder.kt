@@ -6,6 +6,7 @@ import java.util.Locale
 object SettingsFinder{
  data class Entry(val id:String,val title:String,val detail:String,val group:String,val route:String,val target:String="",val aliases:String="")
  val all=listOf(
+  Entry("finder-full-labels","Full finder result labels","Wrap complete indexed result titles and descriptions, default OFF","display","settingsfinder",aliases="finder full label description wrap readable text"),
   Entry("finder-group-counts","Finder group match counts","Current-search match count under each Settings finder group heading, default OFF","display","settingsfinder",aliases="finder search category group matching result count layout"),
   Entry("settings-category-counts","Settings category page counts","Destination-page counts on organized Settings categories, default OFF","display","settings",aliases="category size page counts badges organized layout"),
   Entry("recents-single-row","One-row call filters","Default ON. Four call filters in one row with full labels; swipe at large text size; OFF restores previous layout","display","settings:recents",aliases="recent calls single row one line Sab Missed Outgoing Incoming filters"),
