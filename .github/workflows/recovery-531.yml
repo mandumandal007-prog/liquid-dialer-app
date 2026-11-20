@@ -34,12 +34,17 @@ jobs:
               return json.load(urllib.request.urlopen(q,timeout=60))
           assert os.environ['THIS_ATTEMPT']=='1','No second attempt allowed'
           runs=get('/actions/workflows/recovery-531.yml/runs?per_page=100')
-          assert runs['total_count']==1 and str(runs['workflow_runs'][0]['id'])==os.environ['THIS_RUN'],'One dispatch only'
+          assert runs['total_count']==2 and str(runs['workflow_runs'][0]['id'])==os.environ['THIS_RUN'],'Only the approved transport replacement dispatch allowed'
+          assert {r['id'] for r in runs['workflow_runs']}=={44773774590,int(os.environ['THIS_RUN'])},'Unexpected prior dispatch'
+          prior=get('/actions/runs/44773774590/jobs')['jobs']
+          assert len(prior)==1 and prior[0]['conclusion']=='failure','Unexpected prior recovery state'
+          states={s['name']:s['conclusion'] for s in prior[0]['steps']}
+          assert states['Audit original full run without replacing its failure']=='failure' and states['One isolated five-test class confirmation, no retries']=='skipped' and states['Build frozen release APK']=='skipped','Prior dispatch reached testing/building'
           for path in ['/releases/tags/v1.0.531','/git/ref/tags/v1.0.531']:
               try:get(path)
               except urllib.error.HTTPError as e:assert e.code==404
               else:raise SystemExit('Version 531 already exists')
-          print('One dispatch, first attempt, unused release/tag 531')
+          print('One transport replacement dispatch, no prior class confirmation, unused release/tag 531')
           PY
       - name: Checkout frozen application and tests
         uses: actions/checkout@v4
