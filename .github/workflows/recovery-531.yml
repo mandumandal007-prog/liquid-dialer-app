@@ -34,17 +34,13 @@ jobs:
               return json.load(urllib.request.urlopen(q,timeout=60))
           assert os.environ['THIS_ATTEMPT']=='1','No second attempt allowed'
           runs=get('/actions/workflows/recovery-531.yml/runs?per_page=100')
-          assert runs['total_count']==2 and str(runs['workflow_runs'][0]['id'])==os.environ['THIS_RUN'],'Only the approved transport replacement dispatch allowed'
-          assert {r['id'] for r in runs['workflow_runs']}=={44773774590,int(os.environ['THIS_RUN'])},'Unexpected prior dispatch'
-          prior=get('/actions/runs/44773774590/jobs')['jobs']
-          assert len(prior)==1 and prior[0]['conclusion']=='failure','Unexpected prior recovery state'
-          states={s['name']:s['conclusion'] for s in prior[0]['steps']}
-          assert states['Audit original full run without replacing its failure']=='failure' and states['One isolated five-test class confirmation, no retries']=='skipped' and states['Build frozen release APK']=='skipped','Prior dispatch reached testing/building'
+          assert runs['total_count']==3 and str(runs['workflow_runs'][0]['id'])==os.environ['THIS_RUN'],'Only approved build-only dispatch allowed'
+          assert {r['id'] for r in runs['workflow_runs']}=={44773774590,44776413534,int(os.environ['THIS_RUN'])},'Unexpected prior dispatch'
           for path in ['/releases/tags/v1.0.531','/git/ref/tags/v1.0.531']:
               try:get(path)
               except urllib.error.HTTPError as e:assert e.code==404
               else:raise SystemExit('Version 531 already exists')
-          print('One transport replacement dispatch, no prior class confirmation, unused release/tag 531')
+          print('One approved build-only dispatch, reuse pinned confirmation, unused release/tag 531')
           PY
       - name: Checkout frozen application and tests
         uses: actions/checkout@v4
@@ -86,12 +82,9 @@ jobs:
         run: |
           python3 ../policy/.github/scripts/recovery-531.py full
           git -C ../policy rev-parse HEAD > recovery-evidence/policy-sha.txt
-      - name: One isolated five-test class confirmation, no retries
+      - name: Verify pinned prior class confirmation, no test execution
         working-directory: source
-        run: |
-          set -o pipefail
-          gradle testDebugUnitTest --no-daemon -I .github/scripts/robolectric-runtime.gradle --tests com.mandu.liquiddialer.CallReferencesPrivacyUiTest | tee isolated.log
-          python3 ../policy/.github/scripts/recovery-531.py isolated
+        run: python3 ../policy/.github/scripts/recovery-531.py confirmed
       - name: Require original signing key
         working-directory: source
         env:
@@ -118,9 +111,10 @@ jobs:
           import hashlib,re,json
           p=Path('dist/liquid-dialer.apk');b=Path('recovery-evidence/apk-badging.txt').read_text();s=Path('recovery-evidence/apk-signature.txt').read_text()
           assert re.search(r"package: name='com.mandu.liquiddialer' versionCode='531' versionName='1.0.531'",b),'Wrong APK identity'
-          assert 'Signer #1 certificate SHA-256 digest: 5e7505a7562c57ae244e5c1e3821a2e017854180dc8c892cfb96916922b7069c' in s,'Wrong signing certificate'
+          certs=re.findall(r'^(?:Signer #1|V2 Signer):? certificate SHA-256 digest: ([0-9a-f]{64})$',s,re.M)
+          assert certs==['5e7505a7562c57ae244e5c1e3821a2e017854180dc8c892cfb96916922b7069c'] and 'Number of signers: 1' in s,'Wrong signing certificate'
           assert 'Verified using v2 scheme (APK Signature Scheme v2): true' in s,'Missing v2 signature'
-          audit={'source_sha':'46350034127ae1a95ab243dd1c0b9d6fbb6acd77','version_code':531,'version_name':'1.0.531','package':'com.mandu.liquiddialer','bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'original_full_run':44762529869,'original_full_run_passed':False,'original_tests':3143,'original_passed':3142,'isolated_class_passed':5,'exception':'one-release explicit recovery approval'}
+          audit={'source_sha':'46350034127ae1a95ab243dd1c0b9d6fbb6acd77','version_code':531,'version_name':'1.0.531','package':'com.mandu.liquiddialer','bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'confirmation_run':44776413534,'confirmation_artifact_sha256':'b99fe0eadd34aa67e26f7676f2e029adc1b32b6c6f132a23da7598bd3a1002ec','build_is_separate_from_confirmation':True,'original_full_run':44762529869,'original_full_run_passed':False,'original_tests':3143,'original_passed':3142,'isolated_class_passed':5,'exception':'one-release explicit recovery approval'}
           Path('recovery-evidence/apk-audit.json').write_text(json.dumps(audit,indent=2));print(json.dumps(audit,indent=2))
           PY
           rm app/release.keystore
@@ -151,7 +145,7 @@ jobs:
           body: |
             Full conversion unit buttons option, off by default in Settings.
 
-            Explicit one-release recovery gate: the original full run 44762529869 covered all 3143 tests with 3142 passes and one failing test outside the changed converter/HomePolish surfaces. The entire unmodified five-test CallReferencesPrivacyUiTest class then passed once separately on the identical frozen application/test commit. The original full run is still failed, not represented as all green. Not all intermittent test-setup causes are proven.
+            Explicit one-release recovery gate: the original full run 44762529869 covered all 3143 tests with 3142 passes and one failing test outside the changed converter/HomePolish surfaces. The entire unmodified five-test CallReferencesPrivacyUiTest class then passed once separately on the identical frozen application/test commit. The APK build was a separate job after that confirmation, reusing its pinned evidence without rerunning tests. The original full run is still failed, not represented as all green. Not all intermittent test-setup causes are proven.
 
             Source: 46350034127ae1a95ab243dd1c0b9d6fbb6acd77. Actual APK package/version/signing certificate/SHA256 were verified; audit is attached. Normal strict full-suite acceptance remains unchanged for later releases. Install over the existing app, do not uninstall.
           files: |
