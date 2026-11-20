@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.mandu.liquiddialer.data.RecordingLibrary as Library
 import com.mandu.liquiddialer.telecom.CallManager
+import com.mandu.liquiddialer.LdApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -36,8 +37,11 @@ import java.util.*
     var player by remember {mutableStateOf<MediaPlayer?>(null)};var selected by remember {mutableStateOf<Library.Item?>(null)}
     var playing by remember {mutableStateOf(false)};var preparing by remember {mutableStateOf(false)}
     val active by CallManager.recording.collectAsState()
+    val settings by LdApp.settings.collectAsState()
+    var expandedActions by remember {mutableStateOf<Library.Item?>(null)}
+    LaunchedEffect(settings.recordingFoldActions,query,page,items){expandedActions=null}
     fun stop(){player?.release();player=null;selected=null;playing=false;preparing=false}
-    fun refresh(){if(busy)return;busy=true;error="";scope.launch {
+    fun refresh(){if(busy)return;expandedActions=null;busy=true;error="";scope.launch {
         try{items=withContext(Dispatchers.IO){Library.list(ctx)};loaded=true;page=0}
         catch(_:Exception){error="Recordings folder khul nahi raha. Dobara load karo."}
         finally{busy=false}
@@ -109,6 +113,8 @@ import java.util.*
                     }catch(_:Exception){error="Audio play nahi hua. Dobara load karo.";stop()}}
                 }
                 if(chosen)PrimaryButton("Suno band karo",modifier=Modifier.testTag("recording_stop")){stop()}
+                if(settings.recordingFoldActions)GhostButton(if(expandedActions==item)"Hide file actions"else"File actions",Modifier.testTag("recording_actions_${item.fileName}")){expandedActions=if(expandedActions==item)null else item}
+                if(!settings.recordingFoldActions||expandedActions==item){
                 PrimaryButton("Naam badlo",enabled=!busy && !inUse,modifier=Modifier.testTag("recording_rename_${item.fileName}")){rename=item;title=item.fileName.substringBeforeLast('.')}
                 PrimaryButton("Copy file save karo",enabled=!busy && !inUse,modifier=Modifier.testTag("recording_export_${item.fileName}")){
                     stop();export=item.fileName;exportBytes=item.bytes;exportTime=item.modified;saveCopy.launch(item.fileName)
@@ -119,6 +125,7 @@ import java.util.*
                     }catch(_:Exception){error="Share options nahi khule. Koi audio nahi bheja gaya."}
                 }
                 PrimaryButton("Recording delete karo",danger=true,enabled=!busy && !inUse,modifier=Modifier.testTag("recording_delete_${item.fileName}")){deleting=item}
+                }
             }
         }
         if(busy)LdText("Kaam ho raha hai...",12f,color=p.muted)
