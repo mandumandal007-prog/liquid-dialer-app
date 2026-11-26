@@ -88,10 +88,15 @@ class PrivateContactsTest {
         prep("daylight", true)
         showSheet()
         rule.onAllNodesWithTag("sheet_make_private", useUnmergedTree = true).assertCountEquals(1)
+        rule.onNodeWithText("Make private", substring = true, useUnmergedTree = true).assertExists()
         saveShot(rule, "PRIVATE540-sheet-before-tap")
         rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle(400)
         assertTrue(PrivateNumbers.isPrivate(ctx, a))
-        saveShot(rule, "PRIVATE540-sheet-after-tap")
+        // The real sheet closes after the tap. Re-open it fresh: the action now offers to undo.
+        showSheet()
+        rule.onNodeWithText("Private se hatao", substring = true, useUnmergedTree = true).assertExists()
+        rule.onAllNodesWithText("Make private", substring = true, useUnmergedTree = true).assertCountEquals(0)
+        saveShot(rule, "PRIVATE540-sheet-reopened-after-private")
         rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle(400)
         assertFalse(PrivateNumbers.isPrivate(ctx, a))
     }
