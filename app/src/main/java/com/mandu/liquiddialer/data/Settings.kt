@@ -200,6 +200,8 @@ data class LdSettings(
     val finderGroupCounts: Boolean = false,
     val finderFullLabels: Boolean = false,
     val finderGroupFilter: Boolean = false,
+    val finderPins: Boolean = false,
+    val finderPinned: Set<String> = emptySet(),
     val recordingFoldActions: Boolean = false,
     val settingsSectionSearch: Boolean = false,
     val recentSettingsTool: Boolean = false,
@@ -430,6 +432,8 @@ object K {
     val finderGroupCounts = booleanPreferencesKey("finder_group_counts")
     val finderFullLabels = booleanPreferencesKey("finder_full_labels")
     val finderGroupFilter = booleanPreferencesKey("finder_group_filter")
+    val finderPins = booleanPreferencesKey("finder_pins")
+    val finderPinned = stringSetPreferencesKey("finderPinned")
     val recordingFoldActions = booleanPreferencesKey("recording_fold_actions")
     val alphabeticalSettingsTools = booleanPreferencesKey("alphabetical_settings_tools")
     val compactSettingsTools = booleanPreferencesKey("compact_settings_tools")
@@ -658,6 +662,8 @@ fun Preferences.toSettings(): LdSettings {
         finderGroupCounts = this[K.finderGroupCounts] ?: false,
         finderFullLabels = this[K.finderFullLabels] ?: false,
         finderGroupFilter = this[K.finderGroupFilter] ?: false,
+        finderPins = this[K.finderPins] ?: false,
+        finderPinned = SettingsFinder.cleanPins(this[K.finderPinned] ?: emptySet()),
         recordingFoldActions = this[K.recordingFoldActions] ?: false,
         settingsSectionSearch = this[K.settingsSectionSearch] ?: false,
         recentSettingsTool = this[K.recentSettingsTool] ?: false,

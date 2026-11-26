@@ -10,6 +10,7 @@ object SettingsFinder{
   Entry("finder-group-filter","Finder group filter","Narrow indexed results to one Settings group, default OFF","display","settingsfinder",aliases="finder category filter group search calls display privacy"),
   Entry("finder-full-labels","Full finder result labels","Wrap complete indexed result titles and descriptions, default OFF","display","settingsfinder",aliases="finder full label description wrap readable text"),
   Entry("finder-group-counts","Finder group match counts","Current-search match count under each Settings finder group heading, default OFF","display","settingsfinder",aliases="finder search category group matching result count layout"),
+  Entry("finder-pins","Pinned Settings shortcuts","Pin up to 8 controls at the top of this finder, default OFF","display","settingsfinder",aliases="finder pin pinned shortcut favorite quick control top"),
   Entry("settings-category-counts","Settings category page counts","Destination-page counts on organized Settings categories, default OFF","display","settings",aliases="category size page counts badges organized layout"),
   Entry("recents-single-row","One-row call filters","Default ON. Four call filters in one row with full labels; swipe at large text size; OFF restores previous layout","display","settings:recents",aliases="recent calls single row one line Sab Missed Outgoing Incoming filters"),
   Entry("rounded-home-buttons","Rounded buttons","Round glass menu and mic buttons, pill-shaped call filters; bar size and position stay the same","display","settings:recents",aliases="rounded buttons pill round glass menu mic search recent filters"),
@@ -192,6 +193,10 @@ object SettingsFinder{
  private fun words(q:String)=q.lowercase(Locale.ROOT).trim().split(Regex("[^\\p{L}\\p{N}+#]+" )).filter{it.isNotEmpty()}.take(12)
  fun search(query:String):List<Entry>{val terms=words(query.take(160));if(terms.isEmpty())return all;return all.mapNotNull<Entry,Pair<Entry,Int>>{e->val title=e.title.lowercase(Locale.ROOT);val text=(e.title+" "+e.detail+" "+e.group+" "+e.aliases).lowercase(Locale.ROOT);if(terms.all{text.contains(it)})e to terms.map{if(title.startsWith(it))5 else if(title.contains(it))3 else 1}.sum()else null}.sortedByDescending{it.second}.map{it.first}}
  fun searchGroup(query:String,group:String)=search(query).filter{group.isEmpty()||it.group==group}
+ const val MAX_PINS=8
+ fun cleanPins(p:Set<String>)=p.filter{id->all.any{it.id==id}}.toSet()
+ fun togglePin(p:Set<String>,id:String):Set<String>{require(all.any{it.id==id}){"unknown"};return if(id in p)p-id else{require(p.size<MAX_PINS){"full"};p+id}}
+ fun pinnedEntries(p:Set<String>)=all.filter{it.id in p}
  fun route(e:Entry)=if(e.target.isEmpty())e.route else e.route+"?find="+URLEncoder.encode(e.id,"UTF-8")
  fun resolve(route:String):Entry?{val id=runCatching{URLDecoder.decode(route.substringAfter("?find=",""),"UTF-8")}.getOrNull()?:return null;return all.firstOrNull{it.id==id&&it.route==route.substringBefore('?')&&it.target.isNotEmpty()}}
 }
