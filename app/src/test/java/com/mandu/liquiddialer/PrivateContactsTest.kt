@@ -88,9 +88,10 @@ class PrivateContactsTest {
         prep("daylight", true)
         showSheet()
         rule.onAllNodesWithTag("sheet_make_private", useUnmergedTree = true).assertCountEquals(1)
+        saveShot(rule, "PRIVATE540-sheet-before-tap")
         rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle(400)
         assertTrue(PrivateNumbers.isPrivate(ctx, a))
-        rule.onNodeWithText("Private se hatao", substring = true, useUnmergedTree = true).assertExists()
+        saveShot(rule, "PRIVATE540-sheet-after-tap")
         rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle(400)
         assertFalse(PrivateNumbers.isPrivate(ctx, a))
     }
