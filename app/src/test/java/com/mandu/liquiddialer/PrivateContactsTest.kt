@@ -1,6 +1,11 @@
 package com.mandu.liquiddialer
 
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.datastore.preferences.core.edit
@@ -73,7 +78,7 @@ class PrivateContactsTest {
     }
 
     private fun showSheet() {
-        rule.runOnUiThread { rule.activity.setContent { LdThemeHost { NumberSheet(a, null, rule.activity.state, rule.activity, {}, {}, {}) } } }
+        rule.runOnUiThread { rule.activity.setContent { LdThemeHost { Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) { NumberSheet(a, null, rule.activity.state, rule.activity, {}, {}, {}) } } } }
         settle()
     }
 
@@ -89,6 +94,7 @@ class PrivateContactsTest {
         showSheet()
         rule.onAllNodesWithTag("sheet_make_private", useUnmergedTree = true).assertCountEquals(1)
         rule.onNodeWithText("Make private", substring = true, useUnmergedTree = true).assertExists()
+        rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performScrollTo(); settle(2500)
         saveShot(rule, "PRIVATE540-sheet-before-tap")
         rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle(400)
         assertTrue(PrivateNumbers.isPrivate(ctx, a))
@@ -96,6 +102,7 @@ class PrivateContactsTest {
         showSheet()
         rule.onNodeWithText("Private se hatao", substring = true, useUnmergedTree = true).assertExists()
         rule.onAllNodesWithText("Make private", substring = true, useUnmergedTree = true).assertCountEquals(0)
+        rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performScrollTo(); settle(2500)
         saveShot(rule, "PRIVATE540-sheet-reopened-after-private")
         rule.onNodeWithTag("sheet_make_private", useUnmergedTree = true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick); settle(400)
         assertFalse(PrivateNumbers.isPrivate(ctx, a))
