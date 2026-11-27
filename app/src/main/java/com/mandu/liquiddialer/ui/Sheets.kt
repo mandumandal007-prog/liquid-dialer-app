@@ -196,6 +196,7 @@ private fun NumberSheetContent(number: String, contact: Contact?, st: AppState, 
         }
     }
     if (number.isNotBlank()) {
+        PrivateNumberAction(number, act, onClose)
         SheetRow(LdIcons.Check, "Number copy karo") {
             ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("number", number))
             Toast.makeText(ctx, trNow("Copy ho gaya"), Toast.LENGTH_SHORT).show()

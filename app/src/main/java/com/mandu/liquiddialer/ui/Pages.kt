@@ -212,6 +212,7 @@ fun Page(page: String, st: AppState, act: MainActivity, onBack: () -> Unit, onOp
         page == "blocked" -> BlockedPage(st, act, onBack)
         page == "blockhistory" -> BlockHistoryPage(onBack)
         page == "neverblock" -> NeverBlockPage(onBack)
+        page == "privatenumbers" -> PrivateNumbersPage(act,onBack)
         page == "series" -> SeriesPage(onBack)
         page == "speeddial" -> SpeedDialPage(st, onBack)
         page == "radio" -> RadioInfoPage(onBack)
@@ -368,6 +369,9 @@ private fun SettingsPage(st: AppState, act: MainActivity, onBack: () -> Unit, on
 
         }
         if(group=="privacy") {
+        SecTitle("Private contacts")
+        GlassCard { SRow("Private contacts", if (s.privateContacts) "ON: ${com.mandu.liquiddialer.data.PrivateNumbers.list(ctx).size} numbers app me hide" else "OFF. Sirf is app ki lists me hide, system Contacts me nahi", LdIcons.EyeOff, last = true) { onOpen("privatenumbers") } }
+        Spacer(Modifier.height(12.dp))
         SecTitle("Privacy & lock")
         GlassCard {
             // Device ka EXISTING credential (fingerprint ya PIN/pattern/password); koi app PIN nahi.

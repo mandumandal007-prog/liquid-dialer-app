@@ -29,7 +29,7 @@ class IncomingProfilesUiTest {
  private fun settle(){org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle();dispatcher.scheduler.runCurrent();rule.runOnUiThread{androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()};rule.mainClock.autoAdvance=false;rule.mainClock.advanceTimeBy(800);dispatcher.scheduler.runCurrent();rule.waitForIdle()}
  private var hostView:androidx.compose.ui.platform.ComposeView?=null
  private fun mount(content:@Composable ()->Unit){await{!LdApp.settings.value.motion&&LdApp.settings.value.onboarded};rule.runOnUiThread{val host=androidx.compose.ui.platform.ComposeView(rule.activity);hostView=host;host.setContent{LdThemeHost{content()}};rule.activity.setContentView(host)};settle()}
- private fun await(f:()->Boolean){rule.waitUntil(15000){settle();f()}}
+ private fun await(f:()->Boolean){rule.waitUntil(15000){settle();Thread.sleep(25);f()}}
  private fun config()=IncomingCard.decode(LdApp.settings.value.incomingCard)
  private fun scroll(tag:String){rule.mainClock.autoAdvance=true;repeat(7){val n=rule.onNodeWithTag(tag,true).fetchSemanticsNode();val root=rule.onRoot().fetchSemanticsNode();val delta=n.positionInRoot.y+n.size.height/2f-root.size.height/2f
  if(n.positionInRoot.y>=75&&n.positionInRoot.y+n.size.height<root.size.height-20){rule.mainClock.autoAdvance=false;settle();return}
@@ -37,7 +37,7 @@ class IncomingProfilesUiTest {
  private fun click(tag:String){scroll(tag);rule.onNodeWithTag(tag,true).performClick();settle()}
  private var cuts=0;private var answers=0;private var audio=0;private var messages=0
  private fun actions(c:IncomingCard.Config=IncomingCard.Config(enabled=true,swipe=false),video:Boolean=false){mount{Column(Modifier.fillMaxWidth().padding(16.dp)){IncomingCardActions(c,video,{cuts++},{answers++},{audio++},{messages++})}}}
- @Before fun ready(){await{!LdApp.settings.value.motion&&LdApp.settings.value.onboarded&&LdApp.settings.value.incomingStudio}}
+ @Before fun ready(){runBlocking{ctx.repo.flow.first{!it.motion&&it.onboarded&&it.incomingStudio}}}
  private fun page(){mount{IncomingStudioPage({})}}
  // Each Robolectric method creates a new Application. Stop the prior method's
  // Default-dispatcher settings collector so it cannot overwrite the next

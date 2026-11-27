@@ -84,7 +84,7 @@ object Repo {
                 }
             }
         } catch (e: Exception) { }
-        return out.values.toList()
+        return PrivateNumbers.hideContacts(PrivateNumbers.hidden(ctx), out.values.toList())
     }
 
     /** Ek contact ke saare numbers + super-primary flags (widget canonical resolution ke liye). */
@@ -362,7 +362,7 @@ object Repo {
             }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e }
         catch (e: Exception) { if (strict) throw e }
-        return out
+        return PrivateNumbers.hideRecents(PrivateNumbers.hidden(ctx), out)
     }
 
     fun historyFor(ctx: Context, number: String): List<Recent> = recents(ctx, 2000).filter { key(it.number) == key(number) && key(number).isNotEmpty() }.take(50)
